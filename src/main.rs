@@ -125,47 +125,45 @@ impl Epoch {
 
 fn main() {
 //    let epoch = Epoch::new(String::from("http:localhost:3013"));
-//    println!("Top: {:?}", epoch.top());
-    let key_pair = KeyPair::read_from_files(&String::from("test/keys/testkey.pub"),
-                                            &String::from("test/keys/testkey"),
-                                            &String::from(""));
-    let msg = b"this is a test thing";
-    let mut bytes = key_pair.sign(msg).unwrap();
-    println!("Sig: {:?}", KeyPair::bytes_to_hex(bytes));
-    match key_pair.verify(&bytes, msg) {
-        Ok(foo) => println!("Verification succeeded"),
-        Err(foo) => println!("Verification failed"),
-    }
-    
-    let new_key_pair = KeyPair::generate().unwrap();
-    println!("New key pair: {:?}, {:?}", new_key_pair.get_public_key_readable(),
-             new_key_pair.get_private_key_readable());
-    let msg  =b"this is a test thing";
-    bytes = new_key_pair.sign(msg).unwrap();
-    println!("Signature: {:?}", KeyPair::bytes_to_hex(bytes));
-    match new_key_pair.verify(&bytes, msg) {
-        Ok(foo) => println!("Verification succeeded"),
-        Err(foo) => println!("Verification failed"),
-    }
-    
-    let bytes2 = new_key_pair.sign(msg).unwrap();
-    println!("Signature: {:?}", KeyPair::bytes_to_hex(bytes2));
-    match key_pair.verify(&bytes2, msg) {
-        Ok(foo) => println!("Verification succeeded"),
-        Err(foo) => println!("Verification failed"),
-    }
-    
-    let pub_key_bytes = KeyPair::public_key_bytes_from_readable(new_key_pair.get_public_key_readable());
-    new_key_pair.write_to_files(&String::from("test/keys/new.pub"), &String::from("test/keys/new")).unwrap();
+    //    println!("Top: {:?}", epoch.top());
 
-    let loaded_key_pair = KeyPair::read_from_files(&String::from("test/keys/new.pub"),
-                                                   &String::from("test/keys/new"),
-                                                   &String::from(""));
-    match(loaded_key_pair.verify(&bytes, msg)) {
-        Ok(foo) => println!("Verification succeeded"),
-        Err(foo) => println!("Verification failed"),
+}
+
+#[cfg(test)]
+mod tests {
+    use transaction::KeyPair;
+    #[test]
+    fn test_read_sign_verify() {
+        let key_pair = KeyPair::read_from_files(&String::from("test/keys/testkey.pub"),
+                                                &String::from("test/keys/testkey"),
+                                                &String::from(""));
+        let msg = b"this is a test thing";
+        let mut bytes = key_pair.sign(msg).unwrap();
+        println!("Sig: {:?}", KeyPair::bytes_to_hex(bytes));
+        key_pair.verify(&bytes, msg).unwrap();
     }
-    
+    #[test]
+    #[should_panic]
+    fn test_generate_sign_verify() {        
+        let key_pair = KeyPair::generate().unwrap();
+        let new_key_pair = KeyPair::generate().unwrap();
+        let msg  =b"this is a test thing";
+        let bytes = new_key_pair.sign(msg).unwrap();
+        key_pair.verify(&bytes, msg).unwrap();
+    }
+
+    #[test]
+    fn test_write_sign_verify() {
+        let new_key_pair = KeyPair::generate().unwrap();
+        new_key_pair.write_to_files(&String::from("test/keys/new.pub"),
+                                    &String::from("test/keys/new")).unwrap();
+        let msg  =b"this is a test thing";
+        let bytes = new_key_pair.sign(msg).unwrap();
+        let loaded_key_pair = KeyPair::read_from_files(&String::from("test/keys/new.pub"),
+                                                       &String::from("test/keys/new"),
+                                                       &String::from(""));
+        loaded_key_pair.verify(&bytes, msg).unwrap();
+    }
     
 }
 
