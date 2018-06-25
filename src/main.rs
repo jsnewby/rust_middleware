@@ -37,7 +37,6 @@ use swagger_client::{ ApiNoContext, ContextWrapperExt,Api, ApiError,
                       CallContractResponse, CompileContractResponse,
                       EncodeCalldataResponse,
                       GetAccountBalanceResponse,
-                      GetAccountTransactionsResponse,
                       GetAccountsBalancesResponse,
                       GetBlockByHashResponse,
                       GetBlockByHeightResponse,
@@ -118,15 +117,36 @@ impl Epoch {
             swagger_client::GetTopResponse::SuccessfulOperation(op) =>
                 op.height.unwrap_or(0),
         }
-    }    
+    }
+
+    fn get_block_at_height(&self, height: i64) ->
+        Option<swagger_client::models::Block> {
+            let future_val: Box<Future<Item=GetBlockByHeightResponse, Error=ApiError> + Send> =
+                self.client.get_block_by_height(height as i32, Some(String::from("json")),
+                                                &self.context);
+            let result: swagger_client::GetBlockByHeightResponse =
+                future_val.wait().unwrap();
+            match result {
+                swagger_client::GetBlockByHeightResponse::TheBlockBeingFound(block) =>
+                    return Some(block),
+                swagger_client::GetBlockByHeightResponse::BlockNotFound(_) =>
+                    return None,
+            }
+        }
 }
     
-
-
 fn main() {
-//    let epoch = Epoch::new(String::from("http:localhost:3013"));
-    //    println!("Top: {:?}", epoch.top());
-
+    let epoch = Epoch::new(String::from("http://31.13.249.76:3013"));
+    println!("Top: {:?}", epoch.top());
+    for x in 1 .. epoch.top() {
+        let block = epoch.get_block_at_height(x).unwrap();
+        println!("Tx: {:?}", block.height);
+        let transactions = block.transactions.unwrap();
+        for tx in transactions.into_iter() {
+            println!("{:?}", tx);
+        }
+    }
+        
 }
 
 #[cfg(test)]
