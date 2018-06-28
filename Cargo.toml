@@ -18,11 +18,12 @@ hex = "0.3.2"
 blake2b = "0.7.0"
 untrusted = "0.5"
 futures = "0.1"
-hyper = {version = "0.11", optional = true}
+hyper = "0.12"
+curl = "0.4.12"
+http = "0.1"
 hyper-tls = {version = "0.1.2", optional = true}
 swagger = "0.12.1"
 rust_sodium = "0.9.0"
-
 # Not required by example server.
 #
 lazy_static = "0.2"

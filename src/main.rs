@@ -16,10 +16,16 @@ extern crate hex;
 extern crate blake2b;
 extern crate rand;
 
+extern crate curl;
+use curl::easy::Easy;
+
 extern crate rust_base58;
 use rust_base58::{ToBase58, FromBase58};
 
 extern crate rust_sodium;
+
+extern crate serde_json;
+use serde_json::{Value, Error};
 
 use rand::prelude::*;
 
@@ -93,9 +99,8 @@ use swagger_client::{ ApiNoContext, ContextWrapperExt,Api, ApiError,
                       PostOracleResponseTxResponse,
                       PostSpendTxResponse };
 
-use clap::{App,Arg};
-
 pub struct Epoch {
+    base_uri: String,
     client: swagger_client::client::Client,
     context: swagger_client::Context,
 }
@@ -103,12 +108,18 @@ pub struct Epoch {
 impl Epoch {
     fn new(base_url: String) -> Epoch {
         let mut core = reactor::Core::new().unwrap();
-        let client = swagger_client::client::Client::try_new_http(&base_url).expect("Failed to connect");
+        let mut client;
+        if base_url.starts_with("https://") {
+            client = swagger_client::client::Client::try_new_https(&base_url, "test/ca.pem").expect("Failed to connect");
+        } else {
+            client = swagger_client::client::Client::try_new_http(&base_url).expect("Failed to connect");
+        }
         let context = swagger_client::Context::new_with_span_id(self::uuid::Uuid::new_v4().to_string());
-        Epoch { client: client, context: context }
-    }
+
+        Epoch { client: client, context: context, base_uri: base_url } }
 
     fn top(&self) -> i64 {
+
         let future_val: std::boxed::Box<futures::Future<Error=swagger_client::ApiError, Item=swagger_client::GetTopResponse>> =
             self.client.get_top(&self.context);
         let topresult: swagger_client::GetTopResponse =
@@ -120,12 +131,16 @@ impl Epoch {
     }
 
     fn get_block_at_height(&self, height: i64) ->
-        Option<swagger_client::models::Block> {
-            let future_val: Box<Future<Item=GetBlockByHeightResponse, Error=ApiError> + Send> =
+        Option<serde_json::Value> {
+/*            
+            let val =
                 self.client.get_block_by_height(height as i32, Some(String::from("json")),
-                                                &self.context);
-            let result: swagger_client::GetBlockByHeightResponse =
-                future_val.wait().unwrap();
+                                                &self.context).wait();
+            let result: swagger_client::GetBlockByHeightResponse;
+            match val {
+                Ok(res) => result = res,
+                Err(_) => return None,
+            }
             match result {
                 swagger_client::GetBlockByHeightResponse::TheBlockBeingFound(block) =>
                     return Some(block),
@@ -133,18 +148,37 @@ impl Epoch {
                     return None,
             }
         }
+             */
+            let uri = self.base_uri.clone() + "/v2/block/height/" + &height.to_string();
+            let mut data = Vec::new();
+            let mut handle = Easy::new();
+            handle.url(&uri).unwrap();
+            {
+                let mut transfer = handle.transfer();
+                transfer.write_function(|new_data| {
+                    data.extend_from_slice(new_data);
+                    Ok(new_data.len())
+                }).unwrap();
+                transfer.perform().unwrap();
+            }
+            let value: Value = serde_json::from_str(std::str::from_utf8(&data).unwrap()).unwrap();
+            Some(value)
+        }
 }
     
 fn main() {
-    let epoch = Epoch::new(String::from("http://31.13.249.76:3013"));
+    let epoch = Epoch::new(String::from("https://sdk-testnet.aepps.com"));
     println!("Top: {:?}", epoch.top());
-    for x in 1 .. epoch.top() {
-        let block = epoch.get_block_at_height(x).unwrap();
-        println!("Tx: {:?}", block.height);
-        let transactions = block.transactions.unwrap();
-        for tx in transactions.into_iter() {
-            println!("{:?}", tx);
+    for x in 1360 .. epoch.top() {
+        let block;
+        match epoch.get_block_at_height(x) {
+            Some(res) => block = res,
+            None => {
+                println!("Failed at block {}", x);
+                continue
+            }
         }
+        println!("Tx: {:?}", block["height"]);
     }
         
 }
