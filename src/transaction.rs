@@ -4,26 +4,21 @@ extern crate rust_base58;
 use rust_base58::{ToBase58, FromBase58};
 
 extern crate crypto;
-use crypto::{ symmetriccipher, buffer, aes, blockmodes };
+//use crypto::{ symmetriccipher, buffer, aes, blockmodes };
 
 extern crate hex;
 
 extern crate blake2b;
 use blake2b::blake2b;
 
-use std::env;
 use std::fs::File;
-use std::io::prelude::*;
 use std::io::Read;
 use std::io::Write;
 
 extern crate rand;
 use rand::prelude::*;
-use rand::OsRng;
-use rand::Rng;
 
 extern crate rust_sodium;
-use rust_sodium::crypto::sign::ed25519;
 
 pub fn hash(input: Vec<u8>) -> Vec<u8> {
     blake2b(32, &input).to_vec()
@@ -79,7 +74,7 @@ impl KeyPair {
         let mut public_key = String::new();
         let mut private_key = String::new();
         let mut file = File::open(public_key_file).unwrap();
-        file.read_to_string(&mut public_key);
+        let result = file.read_to_string(&mut public_key);
         file = File::open(private_key_file).unwrap();
         file.read_to_string(&mut private_key);
         KeyPair::from_public_private_key_strings(&public_key, &private_key,
@@ -133,7 +128,7 @@ impl KeyPair {
 
     pub fn bytes_to_hex(bytes: [u8; 64]) -> String {
         let strs: Vec<String> = bytes.iter().map(|b|format!("{:02X}", b)).collect();
-        strs.connect("")
+        strs.join("")
     }
 
 }

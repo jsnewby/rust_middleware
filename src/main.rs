@@ -1,7 +1,6 @@
 #![allow(missing_docs, unused_variables, trivial_casts)]
 
 #[allow(unused_extern_crates)]
-#[macro_use]
 extern crate swagger;
 #[allow(unused_extern_crates)]
 extern crate futures;
@@ -16,20 +15,19 @@ extern crate hex;
 extern crate blake2b;
 extern crate rand;
 
+extern crate regex;
+use regex::Regex;
+
 extern crate curl;
 use curl::easy::Easy;
 
 extern crate rust_base58;
-use rust_base58::{ToBase58, FromBase58};
+//use rust_base58::{ToBase58, FromBase58};
 
 extern crate rust_sodium;
 
 extern crate serde_json;
-use serde_json::{Value, Error};
-
-use rand::prelude::*;
-
-use swagger::{ContextBuilder, EmptyContext, XSpanIdString, Has, Push, AuthData};
+use serde_json::{Value};
 
 #[allow(unused_imports)]
 use futures::{Future, future, Stream, stream};
@@ -37,9 +35,30 @@ use tokio_core::reactor;
 
 pub mod transaction;
 
-use transaction::KeyPair;
+#[macro_use]
+extern crate diesel;
+extern crate dotenv;
 
-use swagger_client::{ ApiNoContext, ContextWrapperExt,Api, ApiError,
+pub mod schema;
+
+
+use diesel::prelude::*;
+use diesel::pg::PgConnection;
+use dotenv::dotenv;
+use std::env;
+
+pub mod models;
+
+pub fn establish_connection() -> PgConnection {
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+    PgConnection::establish(&database_url)
+        .expect(&format!("Error connecting to {}", database_url))
+}
+
+use swagger_client::{ ContextWrapperExt,ApiError,
                       CallContractResponse, CompileContractResponse,
                       EncodeCalldataResponse,
                       GetAccountBalanceResponse,
@@ -100,15 +119,14 @@ use swagger_client::{ ApiNoContext, ContextWrapperExt,Api, ApiError,
                       PostSpendTxResponse };
 
 pub struct Epoch {
-    base_uri: String,
     client: swagger_client::client::Client,
-    context: swagger_client::Context,
+    base_uri: String,
 }
 
 impl Epoch {
     fn new(base_url: String) -> Epoch {
-        let mut core = reactor::Core::new().unwrap();
-        let mut client;
+        let core = reactor::Core::new().unwrap();
+        let client;
         if base_url.starts_with("https://") {
             client = swagger_client::client::Client::try_new_https(&base_url, "test/ca.pem").expect("Failed to connect");
         } else {
@@ -116,40 +134,15 @@ impl Epoch {
         }
         let context = swagger_client::Context::new_with_span_id(self::uuid::Uuid::new_v4().to_string());
 
-        Epoch { client: client, context: context, base_uri: base_url } }
+        Epoch { client: client, base_uri: base_url } }
 
-    fn top(&self) -> i64 {
-
-        let future_val: std::boxed::Box<futures::Future<Error=swagger_client::ApiError, Item=swagger_client::GetTopResponse>> =
-            self.client.get_top(&self.context);
-        let topresult: swagger_client::GetTopResponse =
-            future_val.wait().unwrap();
-        match topresult {
-            swagger_client::GetTopResponse::SuccessfulOperation(op) =>
-                op.height.unwrap_or(0),
-        }
+    fn top(&self) -> Option<serde_json::Value> {
+            self.get(&String::from("/top"))
     }
 
-    fn get_block_at_height(&self, height: i64) ->
-        Option<serde_json::Value> {
-/*            
-            let val =
-                self.client.get_block_by_height(height as i32, Some(String::from("json")),
-                                                &self.context).wait();
-            let result: swagger_client::GetBlockByHeightResponse;
-            match val {
-                Ok(res) => result = res,
-                Err(_) => return None,
-            }
-            match result {
-                swagger_client::GetBlockByHeightResponse::TheBlockBeingFound(block) =>
-                    return Some(block),
-                swagger_client::GetBlockByHeightResponse::BlockNotFound(_) =>
-                    return None,
-            }
-        }
-             */
-            let uri = self.base_uri.clone() + "/v2/block/height/" + &height.to_string();
+    fn get(&self, operation: &String) -> Option<serde_json::Value> {
+        let uri = self.base_uri.clone() + "/v2" + operation;
+        println!("{}", uri);
             let mut data = Vec::new();
             let mut handle = Easy::new();
             handle.url(&uri).unwrap();
@@ -163,22 +156,70 @@ impl Epoch {
             }
             let value: Value = serde_json::from_str(std::str::from_utf8(&data).unwrap()).unwrap();
             Some(value)
+    }
+
+    fn get_block_at_height(&self, height: i64) ->
+        Option<serde_json::Value> {
+            self.get(&format!("{}{}", String::from("/block/height/"),&height.to_string()))
         }
+
+    fn get_block_by_hash(&self, hash: &String) ->
+        Option<serde_json::Value> {
+            self.get(&format!("{}{}", String::from("/block/hash/"),&hash))
+        }
+
+    fn save_block(&self, conn: PgConnection, block: serde_json::Value) {
+        use schema::blocks::dsl::*;
+        use models::Block;
+        let newblock = Block {
+            hash: block["hash"].to_string(),
+            height: block["height"].as_i64().unwrap(),
+            miner: block["miner"].to_string(),
+            nonce: block["nonce"].as_i64().unwrap(),
+            prev_hash: block["prev_hash"].to_string(),
+            state_hash: block["state_hash"].to_string(),
+            txs_hash: block["txs_hash"].to_string(),
+            target: block["target"].as_i64().unwrap(),
+            time_: block["time"].as_i64().unwrap(),
+            version: block["version"].as_i64().unwrap() as i32,
+        };
+        
+        diesel::insert_into(blocks)
+            .values(&newblock).execute(&conn);
+    }
+}
+
+fn from_json(val: &String) -> String {
+    let foo = "^\"(.*)\"$";
+    println!("{}", foo);
+    let re = Regex::new(foo).unwrap();
+    match re.captures(val) {
+        Some(matches) => {
+            println!("Match: {:?}", String::from(&matches[1]));
+            String::from(&matches[1])
+        }
+        None => val.clone()
+    }
 }
     
 fn main() {
+    let connection = establish_connection();
+    
     let epoch = Epoch::new(String::from("https://sdk-testnet.aepps.com"));
     println!("Top: {:?}", epoch.top());
-    for x in 1360 .. epoch.top() {
-        let block;
-        match epoch.get_block_at_height(x) {
-            Some(res) => block = res,
+    let top_response = epoch.top().unwrap();
+    let mut _hash = from_json(&top_response["hash"].to_string());
+    loop  {
+        let result = epoch.get_block_by_hash(&_hash);
+        match result {
+            Some(block) => {
+                _hash = from_json(&block["prev_hash"].to_string());
+                println!("{:?}", block);
+            }
             None => {
-                println!("Failed at block {}", x);
-                continue
+                break;
             }
         }
-        println!("Tx: {:?}", block["height"]);
     }
         
 }
@@ -226,6 +267,46 @@ mod tests {
                                                        &String::from(""));
         loaded_key_pair.verify(&bytes, msg).unwrap();
     }
+
+    use diesel::prelude::*;
+    use diesel::pg::PgConnection;
+    use dotenv::dotenv;
+    use std::env;
+    
+    pub fn establish_connection() -> PgConnection {
+        dotenv().ok();
+        
+        let database_url = env::var("DATABASE_URL")
+            .expect("DATABASE_URL must be set");
+        PgConnection::establish(&database_url)
+            .expect(&format!("Error connecting to {}", database_url))
+    }
+    
+    #[test]
+    fn test_save_block() {
+        extern crate diesel;
+        let conn = establish_connection();
+        use schema::blocks::dsl::*;
+        use models::Block;
+        let newblock = Block {
+            hash: String::from("bh$abcdef0123456789abcdef0123456789abcdef0123456789"),
+            height: 123456,
+            miner: String::from("ak$abcdef0123456789abcdef0123456789abcdef0123456789"),
+            nonce: 567876876876,
+            prev_hash: String::from("bh$abcdef0123456789abcdef0123456789abcdef0123456789"),
+            state_hash: String::from("sh$abcdef0123456789abcdef0123456789abcdef0123456789"),
+            txs_hash: String::from("th$abcdef0123456789abcdef0123456789abcdef0123456789"),
+            target: 12345676,
+            time_: 78798797987,
+            version: 1,
+        };
+        use diesel::{insert_into};
+        use diesel::prelude::*;
+        use diesel::pg::PgConnection;
+        diesel::insert_into(blocks)
+            .values(&newblock).execute(&conn);
+    }
+
     
 }
 
