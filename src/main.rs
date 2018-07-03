@@ -27,7 +27,7 @@ extern crate rust_base58;
 extern crate rust_sodium;
 
 extern crate serde_json;
-use serde_json::{Value};
+pub use serde_json::{Value};
 
 #[allow(unused_imports)]
 use futures::{Future, future, Stream, stream};
@@ -43,8 +43,10 @@ pub mod schema;
 
 
 use diesel::prelude::*;
+use diesel::sql_types::*;
 use diesel::pg::PgConnection;
 use dotenv::dotenv;
+
 use std::env;
 
 pub mod models;
@@ -58,65 +60,14 @@ pub fn establish_connection() -> PgConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
-use swagger_client::{ ContextWrapperExt,ApiError,
-                      CallContractResponse, CompileContractResponse,
-                      EncodeCalldataResponse,
-                      GetAccountBalanceResponse,
-                      GetAccountsBalancesResponse,
-                      GetBlockByHashResponse,
-                      GetBlockByHeightResponse,
-                      GetBlockGenesisResponse, GetBlockLatestResponse,
-                      GetBlockPendingResponse,
-                      GetCommitmentHashResponse,
-                      GetContractCallFromTxResponse,
-                      GetHeaderByHashResponse,
-                      GetHeaderByHeightResponse, GetInfoResponse,
-                      GetNameResponse, GetPeerKeyResponse,
-                      GetTopResponse, GetTxResponse, GetTxsResponse,
-                      GetVersionResponse, PostBlockResponse,
-                      PostChannelCloseMutualResponse,
-                      PostChannelCloseSoloResponse,
-                      PostChannelCreateResponse,
-                      PostChannelDepositResponse,
-                      PostChannelSettleResponse,
-                      PostChannelSlashResponse,
-                      PostChannelWithdrawalResponse,
-                      PostContractCallResponse,
-                      PostContractCallComputeResponse,
-                      PostContractCreateResponse,
-                      PostNameClaimResponse, PostNamePreclaimResponse,
-                      PostNameRevokeResponse,
-                      PostNameTransferResponse,
-                      PostNameUpdateResponse,
-                      PostOracleExtendResponse,
-                      PostOracleQueryResponse,
-                      PostOracleRegisterResponse,
-                      PostOracleResponseResponse, PostSpendResponse,
-                      PostTxResponse,
-                      GetActiveRegisteredOraclesResponse,
-                      GetBlockNumberResponse,
-                      GetBlockTxsCountByHashResponse,
-                      GetBlockTxsCountByHeightResponse,
-                      GetGenesisBlockTxsCountResponse,
-                      GetLatestBlockTxsCountResponse,
-                      GetOracleQuestionsResponse, GetPeersResponse,
-                      GetPendingBlockTxsCountResponse,
-                      GetPubKeyResponse,
-                      GetTransactionFromBlockHashResponse,
-                      GetTransactionFromBlockHeightResponse,
-                      GetTransactionFromBlockLatestResponse,
-                      GetTxsListFromBlockRangeByHashResponse,
-                      GetTxsListFromBlockRangeByHeightResponse,
-                      PostNameClaimTxResponse,
-                      PostNamePreclaimTxResponse,
-                      PostNameRevokeTxResponse,
-                      PostNameTransferTxResponse,
-                      PostNameUpdateTxResponse,
-                      PostOracleExtendTxResponse,
-                      PostOracleQueryTxResponse,
-                      PostOracleRegisterTxResponse,
-                      PostOracleResponseTxResponse,
-                      PostSpendTxResponse };
+pub fn get_last_block_id(conn: &PgConnection) ->
+    Result<i64, Box<std::error::Error + 'static >> {
+        use diesel::dsl::{select};
+        let id = select(currval("blocks_id_seq")).get_result::<i64>(conn)?;
+        Ok(id)
+    }
+
+sql_function!(fn currval(x: VarChar) -> BigInt);
 
 pub struct Epoch {
     client: swagger_client::client::Client,
@@ -168,25 +119,6 @@ impl Epoch {
             self.get(&format!("{}{}", String::from("/block/hash/"),&hash))
         }
 
-    fn save_block(&self, conn: PgConnection, block: serde_json::Value) {
-        use schema::blocks::dsl::*;
-        use models::Block;
-        let newblock = Block {
-            hash: block["hash"].to_string(),
-            height: block["height"].as_i64().unwrap(),
-            miner: block["miner"].to_string(),
-            nonce: block["nonce"].as_i64().unwrap(),
-            prev_hash: block["prev_hash"].to_string(),
-            state_hash: block["state_hash"].to_string(),
-            txs_hash: block["txs_hash"].to_string(),
-            target: block["target"].as_i64().unwrap(),
-            time_: block["time"].as_i64().unwrap(),
-            version: block["version"].as_i64().unwrap() as i32,
-        };
-        
-        diesel::insert_into(blocks)
-            .values(&newblock).execute(&conn);
-    }
 }
 
 fn from_json(val: &String) -> String {
@@ -227,6 +159,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use transaction::KeyPair;
+    use get_last_block_id;
     #[test]
     fn test_read_sign_verify() {
         // Read a key pair from a file (these were generated by the JS
@@ -281,14 +214,16 @@ mod tests {
         PgConnection::establish(&database_url)
             .expect(&format!("Error connecting to {}", database_url))
     }
-    
+
+        
     #[test]
     fn test_save_block() {
-        extern crate diesel;
-        let conn = establish_connection();
-        use schema::blocks::dsl::*;
+        use Epoch;
+
+        let epoch = Epoch::new(String::from("http://localhost:3013"));
+        
         use models::Block;
-        let newblock = Block {
+        let block = Block {
             hash: String::from("bh$abcdef0123456789abcdef0123456789abcdef0123456789"),
             height: 123456,
             miner: String::from("ak$abcdef0123456789abcdef0123456789abcdef0123456789"),
@@ -300,11 +235,11 @@ mod tests {
             time_: 78798797987,
             version: 1,
         };
-        use diesel::{insert_into};
-        use diesel::prelude::*;
-        use diesel::pg::PgConnection;
-        diesel::insert_into(blocks)
-            .values(&newblock).execute(&conn);
+        let conn = establish_connection();
+        block.save(&conn);
+        let id = get_last_block_id(&conn).unwrap();
+        println!("{}", id);
+        
     }
 
     

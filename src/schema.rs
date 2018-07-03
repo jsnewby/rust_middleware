@@ -1,3 +1,4 @@
+
 table! {
     blocks (id) {
         id -> Int4,
