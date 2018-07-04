@@ -222,8 +222,8 @@ mod tests {
 
         let epoch = Epoch::new(String::from("http://localhost:3013"));
         
-        use models::Block;
-        let block = Block {
+        use models::InsertableBlock;
+        let block = InsertableBlock {
             hash: String::from("bh$abcdef0123456789abcdef0123456789abcdef0123456789"),
             height: 123456,
             miner: String::from("ak$abcdef0123456789abcdef0123456789abcdef0123456789"),
@@ -236,9 +236,11 @@ mod tests {
             version: 1,
         };
         let conn = establish_connection();
+        use models::Block;
+        let last_id = Block::max_id(&conn).unwrap();
         block.save(&conn);
         let id = get_last_block_id(&conn).unwrap();
-        println!("{}", id);
+        assert_eq!((last_id+1i32) as i64, id);
         
     }
 

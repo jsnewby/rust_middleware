@@ -11,6 +11,32 @@ use std;
 #[derive(Queryable)]
 pub struct Block {
     pub id: i32,
+    pub hash: Option<String>,
+    pub height: Option<i64>,
+    pub miner: Option<String>,
+    pub nonce: Option<i64>,
+    pub prev_hash: Option<String>,
+    pub state_hash: Option<String>,
+    pub target: Option<i64>,
+    pub time_: Option<i64>,
+    pub txs_hash: Option<String>,
+    pub version: Option<i32>,
+}
+
+sql_function!(fn currval(x: VarChar) -> BigInt);
+
+impl Block {
+
+    pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
+        let b = blocks::table.order(blocks::id.desc()).load::<Block>(conn)?;
+        Ok(b.first().unwrap().id)
+    }
+                                                           
+}
+
+#[derive(Insertable)]
+#[table_name="blocks"]
+pub struct InsertableBlock {
     pub hash: String,
     pub height: i64,
     pub miner: String,
@@ -23,13 +49,11 @@ pub struct Block {
     pub version: i32,
 }
 
-sql_function!(fn currval(x: VarChar) -> BigInt);
-
-impl Block {
+impl InsertableBlock {
 
     pub fn from_json(json: &serde_json::Value) ->
-        Result<Block, Box<std::error::Error>>{
-            let newblock = Block {
+        Result<InsertableBlock, Box<std::error::Error>>{
+            let newblock = InsertableBlock {
                 hash: json["hash"].to_string(),
                 height: json["height"].as_i64().unwrap(),
                 miner: json["miner"].to_string(),
@@ -46,7 +70,7 @@ impl Block {
     
     pub fn extract_and_save(conn: &PgConnection, block: serde_json::Value) ->
         Result<i64, Box<std::error::Error>>{
-            let newblock = Block::from_json(&block)?;
+            let newblock = InsertableBlock::from_json(&block)?;
             newblock.save(conn)
         }
 
@@ -61,11 +85,6 @@ impl Block {
             Ok(generated_id)
         }
 
-    pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        let block: Block = blocks::table.find(1).first(conn).unwrap();
-        Ok(1)
-    }
-                                                           
 }
 
 use super::schema::transactions;
@@ -73,7 +92,7 @@ use super::schema::transactions;
 #[derive(Queryable)]
 pub struct Transaction {
     pub id: i32,
-    pub block_id: i64,
+    pub block_id: i32,
     pub original_json: String,
     pub recipient_pubkey: String,
     pub amount: i64,
@@ -96,3 +115,39 @@ pub struct InsertableTransaction {
     pub payload: String,
 }
 
+impl InsertableTransaction {
+
+/*
+    pub fn from_json(block_id: i32, json: &serde_json::Value) ->
+        Result<InsertableTransaction, Box<std::error::Error>>{
+            let tran = InsertableTransaction {
+                block_id: block_id,
+                pub original_json: String::from(""),
+                pub recipient_pubkey: ,
+                pub amount: i64,
+                pub fee: i64,
+                pub ttl: i64,
+                pub sender: String,
+                pub payload: String,
+            };
+            Ok(tran)
+        }    
+    
+    pub fn extract_and_save(conn: &PgConnection, tx: serde_json::Value) ->
+        Result<i64, Box<std::error::Error>>{
+            let tran = InsertableTransaction::from_json(&tx)?;
+            tran.save(conn)
+        }
+
+*/    pub fn save(&self, conn: &PgConnection) ->
+        Result<i64, Box<std::error::Error>> {
+            use diesel::dsl::{select, insert_into};
+            use diesel::RunQueryDsl;
+            use schema::transactions::dsl::*;
+            insert_into(transactions)
+                .values(self).execute(&*conn)?;
+            let generated_id = select(currval("transactions_id_seq")).get_result::<i64>(&*conn)?;
+            Ok(generated_id)
+        }
+
+}
