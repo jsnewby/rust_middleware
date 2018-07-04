@@ -1,6 +1,0 @@
-
-CREATE TABLE transactions (
-       id SERIAL PRIMARY KEY,
-       block_id INTEGER REFERENCES blocks(id),
-       encoded_data TEXT NOT NULL);
-       
