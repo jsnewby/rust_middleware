@@ -24,6 +24,7 @@ http = "0.1"
 hyper-tls = {version = "0.1.2", optional = true}
 swagger = "0.12.1"
 rust_sodium = "0.9.0"
+regex = "1.0"
 # Not required by example server.
 #
 lazy_static = "0.2"
@@ -33,7 +34,7 @@ multipart = {version = "0.13.3", optional = true}
 native-tls = {version = "0.1.4", optional = true}
 openssl = {version = "0.9.14", optional = true}
 percent-encoding = {version = "1.0.0", optional = true}
-regex = {version = "0.2", optional = true}
+#regex = {version = "0.2", optional = true}
 serde = "1.0"
 serde_derive = "1.0"
 serde_ignored = {version = "0.0.4"}
@@ -50,3 +51,5 @@ uuid = {version = "0.5"}
 serde-xml-rs = {git = "git://github.com/Metaswitch/serde-xml-rs.git" , branch = "master", optional = true}
 clap = "2.25"
 error-chain = "0.11"
+diesel = { version = "1.3.2", features = ["postgres"] }
+dotenv = "0.13.0"
