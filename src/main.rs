@@ -137,11 +137,14 @@ fn from_json(val: &String) -> String {
 fn main() {
     let connection = establish_connection();
     
-    let epoch = Epoch::new(String::from("https://sdk-testnet.aepps.com"));
+    let epoch = Epoch::new(String::from("http://localhost:3013"));
     println!("Top: {:?}", epoch.top());
     let top_response = epoch.top().unwrap();
     let mut _hash = from_json(&top_response["hash"].to_string());
     loop  {
+        if _hash == "null" {
+            break;
+        }
         let result = epoch.get_block_by_hash(&_hash);
         match result {
             Some(block) => {
