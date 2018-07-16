@@ -9,7 +9,8 @@ table! {
         prev_hash -> Nullable<Varchar>,
         state_hash -> Nullable<Varchar>,
         target -> Nullable<Int8>,
-        time_ -> Nullable<Int8>,
+        #[sql_name="time_"]
+        time -> Nullable<Int8>,
         txs_hash -> Nullable<Varchar>,
         version -> Nullable<Int4>,
     }

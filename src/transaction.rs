@@ -70,15 +70,15 @@ impl KeyPair {
     }
 
     pub fn read_from_files(public_key_file: &String, private_key_file: &String,
-                       password: &String) -> KeyPair {
+                       password: &String) -> Result<KeyPair, Box<::std::error::Error>> {
         let mut public_key = String::new();
         let mut private_key = String::new();
-        let mut file = File::open(public_key_file).unwrap();
+        let mut file = File::open(public_key_file)?;
         let result = file.read_to_string(&mut public_key);
-        file = File::open(private_key_file).unwrap();
-        file.read_to_string(&mut private_key);
-        KeyPair::from_public_private_key_strings(&public_key, &private_key,
-                                                 &password)
+        file = File::open(private_key_file)?;
+        file.read_to_string(&mut private_key)?;
+        Ok(KeyPair::from_public_private_key_strings(&public_key, &private_key,
+                                                    &password))
     }
 
     pub fn write_to_files(&self, public_key_file: &String, private_key_file: &String)

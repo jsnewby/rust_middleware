@@ -4,7 +4,6 @@
 extern crate swagger;
 #[allow(unused_extern_crates)]
 extern crate futures;
-#[macro_use]
 extern crate swagger_client;
 #[allow(unused_extern_crates)]
 extern crate uuid;
@@ -26,8 +25,11 @@ extern crate rust_base58;
 
 extern crate rust_sodium;
 
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
-pub use serde_json::{Value};
+use serde_json::Value;
+
 
 #[allow(unused_imports)]
 use futures::{Future, future, Stream, stream};
@@ -50,6 +52,7 @@ use dotenv::dotenv;
 use std::env;
 
 pub mod models;
+use models::InsertableBlock;
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -87,35 +90,31 @@ impl Epoch {
 
         Epoch { client: client, base_uri: base_url } }
 
-    fn top(&self) -> Option<serde_json::Value> {
+    fn top(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
             self.get(&String::from("/top"))
     }
 
-    fn get(&self, operation: &String) -> Option<serde_json::Value> {
+    // Get a URL, and parse the JSON returned.
+    fn get(&self, operation: &String) -> Result<serde_json::Value, Box<std::error::Error>> {
         let uri = self.base_uri.clone() + "/v2" + operation;
         println!("{}", uri);
             let mut data = Vec::new();
             let mut handle = Easy::new();
-            handle.url(&uri).unwrap();
+            handle.url(&uri)?;
             {
                 let mut transfer = handle.transfer();
                 transfer.write_function(|new_data| {
                     data.extend_from_slice(new_data);
                     Ok(new_data.len())
-                }).unwrap();
-                transfer.perform().unwrap();
+                })?;
+                transfer.perform()?;
             }
-            let value: Value = serde_json::from_str(std::str::from_utf8(&data).unwrap()).unwrap();
-            Some(value)
+        let value: Value = serde_json::from_str(std::str::from_utf8(&data)?)?;
+        Ok(value)
     }
 
-    fn get_block_at_height(&self, height: i64) ->
-        Option<serde_json::Value> {
-            self.get(&format!("{}{}", String::from("/block/height/"),&height.to_string()))
-        }
-
     fn get_block_by_hash(&self, hash: &String) ->
-        Option<serde_json::Value> {
+        Result<serde_json::Value, Box<std::error::Error>> {
             self.get(&format!("{}{}", String::from("/block/hash/"),&hash))
         }
 
@@ -123,7 +122,8 @@ impl Epoch {
 
 fn from_json(val: &String) -> String {
     let foo = "^\"(.*)\"$";
-    println!("{}", foo);
+    // I think the below unwrap() is OK b/c if we can't compile a regexp which we know to be
+    // good then something is badly wrong. But I am not sure.
     let re = Regex::new(foo).unwrap();
     match re.captures(val) {
         Some(matches) => {
@@ -132,6 +132,11 @@ fn from_json(val: &String) -> String {
         }
         None => val.clone()
     }
+}
+
+fn insertable_block_from_json(json: Value) -> Result<InsertableBlock, Box<std::error::Error>> {
+    let block: InsertableBlock = serde_json::from_value(json)?;
+    Ok(block)
 }
     
 fn main() {
@@ -147,11 +152,13 @@ fn main() {
         }
         let result = epoch.get_block_by_hash(&_hash);
         match result {
-            Some(block) => {
-                _hash = from_json(&block["prev_hash"].to_string());
-                println!("{:?}", block);
+            Ok(block) => {
+                let newblock = insertable_block_from_json(block).unwrap();
+                _hash = newblock.prev_hash.clone();
+//                newblock.save(&connection);
+                println!("{:?}", serde_json::to_string(&newblock));
             }
-            None => {
+            Err(_) => {
                 break;
             }
         }
@@ -235,7 +242,7 @@ mod tests {
             state_hash: String::from("sh$abcdef0123456789abcdef0123456789abcdef0123456789"),
             txs_hash: String::from("th$abcdef0123456789abcdef0123456789abcdef0123456789"),
             target: 12345676,
-            time_: 78798797987,
+            time: 78798797987,
             version: 1,
         };
         let conn = establish_connection();

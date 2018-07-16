@@ -5,7 +5,7 @@ use diesel::sql_types::*;
 use diesel::pg::PgConnection;
 
 extern crate serde_json;
-use serde_json::Value;
+
 use std;
 
 #[derive(Queryable)]
@@ -18,7 +18,7 @@ pub struct Block {
     pub prev_hash: Option<String>,
     pub state_hash: Option<String>,
     pub target: Option<i64>,
-    pub time_: Option<i64>,
+    pub time: Option<i64>,
     pub txs_hash: Option<String>,
     pub version: Option<i32>,
 }
@@ -35,6 +35,7 @@ impl Block {
 }
 
 #[derive(Insertable)]
+#[derive(Serialize, Deserialize)]
 #[table_name="blocks"]
 pub struct InsertableBlock {
     pub hash: String,
@@ -44,7 +45,7 @@ pub struct InsertableBlock {
     pub prev_hash: String,
     pub state_hash: String,
     pub target: i64,
-    pub time_: i64,
+    pub time: i64,
     pub txs_hash: String,
     pub version: i32,
 }
@@ -62,7 +63,7 @@ impl InsertableBlock {
                 state_hash: json["state_hash"].to_string(),
                 txs_hash: json["txs_hash"].to_string(),
                 target: json["target"].as_i64().unwrap(),
-                time_: json["time"].as_i64().unwrap(),
+                time: json["time"].as_i64().unwrap(),
                 version: json["version"].as_i64().unwrap() as i32,
             };
             Ok(newblock)
