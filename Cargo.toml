@@ -38,7 +38,7 @@ percent-encoding = {version = "1.0.0", optional = true}
 serde = "1.0"
 serde_derive = "1.0"
 serde_ignored = {version = "0.0.4"}
-serde_json = {version = "1.0"}
+serde_json = {version = "1.0.22", features=["arbitrary_precision"]}
 serde_urlencoded = {version = "0.5.1"}
 tokio-core = {version = "0.1.6"}
 tokio-proto = {version = "0.1.1"}
@@ -51,5 +51,6 @@ uuid = {version = "0.5"}
 serde-xml-rs = {git = "git://github.com/Metaswitch/serde-xml-rs.git" , branch = "master", optional = true}
 clap = "2.25"
 error-chain = "0.11"
-diesel = { version = "1.3.2", features = ["postgres"] }
+diesel = { version = "1.3.2", features = ["postgres", "numeric"] }
 dotenv = "0.13.0"
+bigdecimal = "0.0.11"

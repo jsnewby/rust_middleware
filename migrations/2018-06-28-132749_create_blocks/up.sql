@@ -3,7 +3,7 @@ CREATE TABLE blocks (
        hash VARCHAR(55),
        height BIGINT,
        miner VARCHAR(55),
-       nonce BIGINT,
+       nonce numeric(20,0),
        prev_hash VARCHAR(55),
        state_hash VARCHAR(55),
        target BIGINT,

@@ -40,6 +40,8 @@ pub mod transaction;
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
+extern crate bigdecimal;
+pub use bigdecimal::BigDecimal;
 
 pub mod schema;
 
@@ -53,6 +55,7 @@ use std::env;
 
 pub mod models;
 use models::InsertableBlock;
+use models::JsonBlock;
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -134,8 +137,8 @@ fn from_json(val: &String) -> String {
     }
 }
 
-fn insertable_block_from_json(json: Value) -> Result<InsertableBlock, Box<std::error::Error>> {
-    let block: InsertableBlock = serde_json::from_value(json)?;
+fn insertable_block_from_json(json: Value) -> Result<JsonBlock, Box<std::error::Error>> {
+    let block: JsonBlock = serde_json::from_value(json)?;
     Ok(block)
 }
     
@@ -155,7 +158,8 @@ fn main() {
             Ok(block) => {
                 let newblock = insertable_block_from_json(block).unwrap();
                 _hash = newblock.prev_hash.clone();
-//                newblock.save(&connection);
+                let ib: InsertableBlock = InsertableBlock::from_json_block(&newblock).unwrap();
+                ib.save(&connection);
                 println!("{:?}", serde_json::to_string(&newblock));
             }
             Err(_) => {
@@ -237,7 +241,7 @@ mod tests {
             hash: String::from("bh$abcdef0123456789abcdef0123456789abcdef0123456789"),
             height: 123456,
             miner: String::from("ak$abcdef0123456789abcdef0123456789abcdef0123456789"),
-            nonce: 567876876876,
+            nonce: bigdecimal::BigDecimal::from(567876876876),
             prev_hash: String::from("bh$abcdef0123456789abcdef0123456789abcdef0123456789"),
             state_hash: String::from("sh$abcdef0123456789abcdef0123456789abcdef0123456789"),
             txs_hash: String::from("th$abcdef0123456789abcdef0123456789abcdef0123456789"),

@@ -1,11 +1,10 @@
-
 table! {
     blocks (id) {
         id -> Int4,
         hash -> Nullable<Varchar>,
         height -> Nullable<Int8>,
         miner -> Nullable<Varchar>,
-        nonce -> Nullable<Int8>,
+        nonce -> Nullable<Numeric>,
         prev_hash -> Nullable<Varchar>,
         state_hash -> Nullable<Varchar>,
         target -> Nullable<Int8>,

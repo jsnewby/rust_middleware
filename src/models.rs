@@ -5,6 +5,9 @@ use diesel::sql_types::*;
 use diesel::pg::PgConnection;
 
 extern crate serde_json;
+use serde_json::Number;
+
+use bigdecimal;
 
 use std;
 
@@ -14,7 +17,7 @@ pub struct Block {
     pub hash: Option<String>,
     pub height: Option<i64>,
     pub miner: Option<String>,
-    pub nonce: Option<i64>,
+    pub nonce: Option<bigdecimal::BigDecimal>,
     pub prev_hash: Option<String>,
     pub state_hash: Option<String>,
     pub target: Option<i64>,
@@ -35,13 +38,12 @@ impl Block {
 }
 
 #[derive(Insertable)]
-#[derive(Serialize, Deserialize)]
 #[table_name="blocks"]
 pub struct InsertableBlock {
     pub hash: String,
     pub height: i64,
     pub miner: String,
-    pub nonce: i64,
+    pub nonce: bigdecimal::BigDecimal,
     pub prev_hash: String,
     pub state_hash: String,
     pub target: i64,
@@ -49,6 +51,7 @@ pub struct InsertableBlock {
     pub txs_hash: String,
     pub version: i32,
 }
+
 
 impl InsertableBlock {
 
@@ -58,7 +61,7 @@ impl InsertableBlock {
                 hash: json["hash"].to_string(),
                 height: json["height"].as_i64().unwrap(),
                 miner: json["miner"].to_string(),
-                nonce: json["nonce"].as_i64().unwrap(),
+                nonce: bigdecimal::BigDecimal::from(1),
                 prev_hash: json["prev_hash"].to_string(),
                 state_hash: json["state_hash"].to_string(),
                 txs_hash: json["txs_hash"].to_string(),
@@ -86,6 +89,37 @@ impl InsertableBlock {
             Ok(generated_id)
         }
 
+    pub fn from_json_block(jb: &JsonBlock) ->
+        Result<InsertableBlock, Box<std::error::Error>> {
+            Ok(InsertableBlock {
+                hash: jb.hash.clone(),
+                height: jb.height,
+                miner: jb.miner.clone(),
+                nonce: bigdecimal::BigDecimal::from(1),
+                prev_hash: jb.prev_hash.clone(),
+                state_hash: jb.state_hash.clone(),
+                target: jb.target.clone(),
+                time: jb.time,
+                txs_hash: jb.txs_hash.clone(),
+                version: jb.version,
+            })
+        }
+            
+
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct JsonBlock {
+    pub hash: String,
+    pub height: i64,
+    pub miner: String,
+    pub nonce: Number,
+    pub prev_hash: String,
+    pub state_hash: String,
+    pub target: i64,
+    pub time: i64,
+    pub txs_hash: String,
+    pub version: i32,
 }
 
 use super::schema::transactions;
@@ -118,29 +152,7 @@ pub struct InsertableTransaction {
 
 impl InsertableTransaction {
 
-/*
-    pub fn from_json(block_id: i32, json: &serde_json::Value) ->
-        Result<InsertableTransaction, Box<std::error::Error>>{
-            let tran = InsertableTransaction {
-                block_id: block_id,
-                pub original_json: String::from(""),
-                pub recipient_pubkey: ,
-                pub amount: i64,
-                pub fee: i64,
-                pub ttl: i64,
-                pub sender: String,
-                pub payload: String,
-            };
-            Ok(tran)
-        }    
-    
-    pub fn extract_and_save(conn: &PgConnection, tx: serde_json::Value) ->
-        Result<i64, Box<std::error::Error>>{
-            let tran = InsertableTransaction::from_json(&tx)?;
-            tran.save(conn)
-        }
-
-*/    pub fn save(&self, conn: &PgConnection) ->
+    pub fn save(&self, conn: &PgConnection) ->
         Result<i64, Box<std::error::Error>> {
             use diesel::dsl::{select, insert_into};
             use diesel::RunQueryDsl;
