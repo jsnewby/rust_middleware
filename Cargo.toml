@@ -54,3 +54,6 @@ error-chain = "0.11"
 diesel = { version = "1.3.2", features = ["postgres", "numeric"] }
 dotenv = "0.13.0"
 bigdecimal = "0.0.11"
+itertools = "0.7.8"
+rocket = "0.3.15"
+rocket_codegen = "0.3.15"

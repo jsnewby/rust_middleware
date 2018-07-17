@@ -29,7 +29,7 @@ extern crate rust_sodium;
 extern crate serde_derive;
 extern crate serde_json;
 use serde_json::Value;
-
+use serde_json::Value::Array;
 
 #[allow(unused_imports)]
 use futures::{Future, future, Stream, stream};
@@ -43,6 +43,10 @@ extern crate dotenv;
 extern crate bigdecimal;
 pub use bigdecimal::BigDecimal;
 
+extern crate itertools;
+
+extern crate rocket;
+
 pub mod schema;
 
 
@@ -55,7 +59,9 @@ use std::env;
 
 pub mod models;
 use models::InsertableBlock;
+use models::InsertableTransaction;
 use models::JsonBlock;
+use models::JsonTransaction;
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -137,37 +143,60 @@ fn from_json(val: &String) -> String {
     }
 }
 
-fn insertable_block_from_json(json: Value) -> Result<JsonBlock, Box<std::error::Error>> {
+fn block_from_json(json: Value) -> Result<JsonBlock, Box<std::error::Error>> {
     let block: JsonBlock = serde_json::from_value(json)?;
     Ok(block)
 }
+
+fn transaction_from_json(json: Value) -> Result<JsonTransaction, Box<std::error::Error>> {
+    let transaction: JsonTransaction = serde_json::from_value(json)?;
+    Ok(transaction)
+}
     
-fn main() {
-    let connection = establish_connection();
-    
-    let epoch = Epoch::new(String::from("http://localhost:3013"));
-    println!("Top: {:?}", epoch.top());
-    let top_response = epoch.top().unwrap();
-    let mut _hash = from_json(&top_response["hash"].to_string());
+fn populate_db(connection: &PgConnection, epoch: Epoch, top_hash: String) -> Result<String,
+                                                                  Box<std::error::Error>> {
+    let mut _hash = top_hash;
     loop  {
+        println!("{}", _hash);
         if _hash == "null" {
             break;
         }
         let result = epoch.get_block_by_hash(&_hash);
         match result {
             Ok(block) => {
-                let newblock = insertable_block_from_json(block).unwrap();
+                let newblock = block_from_json(block)?;
                 _hash = newblock.prev_hash.clone();
-                let ib: InsertableBlock = InsertableBlock::from_json_block(&newblock).unwrap();
-                ib.save(&connection);
-                println!("{:?}", serde_json::to_string(&newblock));
+                let ib: InsertableBlock = InsertableBlock::from_json_block(&newblock)?;
+                ib.save(connection);
+                let block_id = get_last_block_id(connection)? as i32;
+                for i in 0 .. newblock.transactions.len() {
+                    let jtx: &JsonTransaction = &newblock.transactions[i];
+                    let tx_type: String = serde_json::to_string(&jtx.tx["type"])?.clone();
+                    let tx: InsertableTransaction =
+                        InsertableTransaction::from_json_transaction(jtx, tx_type, block_id)?;
+                    tx.save(connection);
+                }
+
             }
             Err(_) => {
                 break;
             }
         }
     }
-        
+    Ok(String::from("AOK"))
+}               
+
+fn main() {
+    let connection = establish_connection();
+    
+    let epoch = Epoch::new(String::from("http://localhost:3013"));
+    println!("Top: {:?}", epoch.top());
+    let top_response = epoch.top().unwrap();
+    let mut top_hash = from_json(&top_response["hash"].to_string());
+    populate_db(&connection, epoch, top_hash);
+
+    
+    
 }
 
 #[cfg(test)]

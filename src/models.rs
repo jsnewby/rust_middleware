@@ -11,6 +11,8 @@ use bigdecimal;
 
 use std;
 
+use itertools::join;
+
 #[derive(Queryable)]
 pub struct Block {
     pub id: i32,
@@ -54,30 +56,7 @@ pub struct InsertableBlock {
 
 
 impl InsertableBlock {
-
-    pub fn from_json(json: &serde_json::Value) ->
-        Result<InsertableBlock, Box<std::error::Error>>{
-            let newblock = InsertableBlock {
-                hash: json["hash"].to_string(),
-                height: json["height"].as_i64().unwrap(),
-                miner: json["miner"].to_string(),
-                nonce: bigdecimal::BigDecimal::from(1),
-                prev_hash: json["prev_hash"].to_string(),
-                state_hash: json["state_hash"].to_string(),
-                txs_hash: json["txs_hash"].to_string(),
-                target: json["target"].as_i64().unwrap(),
-                time: json["time"].as_i64().unwrap(),
-                version: json["version"].as_i64().unwrap() as i32,
-            };
-            Ok(newblock)
-        }    
     
-    pub fn extract_and_save(conn: &PgConnection, block: serde_json::Value) ->
-        Result<i64, Box<std::error::Error>>{
-            let newblock = InsertableBlock::from_json(&block)?;
-            newblock.save(conn)
-        }
-
     pub fn save(&self, conn: &PgConnection) ->
         Result<i64, Box<std::error::Error>> {
             use diesel::dsl::{select, insert_into};
@@ -91,11 +70,16 @@ impl InsertableBlock {
 
     pub fn from_json_block(jb: &JsonBlock) ->
         Result<InsertableBlock, Box<std::error::Error>> {
+            //TODO: fix this.
+            let nonce: u64 = match jb.nonce.as_u64() {
+                Some(val) => val,
+                None => 0,
+            };
             Ok(InsertableBlock {
                 hash: jb.hash.clone(),
                 height: jb.height,
                 miner: jb.miner.clone(),
-                nonce: bigdecimal::BigDecimal::from(1),
+                nonce: bigdecimal::BigDecimal::from(nonce),
                 prev_hash: jb.prev_hash.clone(),
                 state_hash: jb.state_hash.clone(),
                 target: jb.target.clone(),
@@ -108,6 +92,14 @@ impl InsertableBlock {
 
 }
 
+/*
+In a better world, the serialization object would be the same as we
+use for persistence, but in this one right now that doesn't work,
+because serde_json needs serde_json::Number, and diesel needs a
+bigdecimal::BigDecimal. So this struct exists to be pulled from the
+JSON.  If @newby gets smart enough he will write the implementations
+for these missing methods.
+*/
 #[derive(Serialize, Deserialize)]
 pub struct JsonBlock {
     pub hash: String,
@@ -120,7 +112,17 @@ pub struct JsonBlock {
     pub time: i64,
     pub txs_hash: String,
     pub version: i32,
+    pub transactions: Vec<JsonTransaction>,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct JsonTransaction {
+    pub block_height: i32,
+    pub block_hash: String,
+    pub hash: String,
+    pub signatures: Vec<String>,
+    pub tx: serde_json::Value,
+} 
 
 use super::schema::transactions;
 
@@ -128,26 +130,23 @@ use super::schema::transactions;
 pub struct Transaction {
     pub id: i32,
     pub block_id: i32,
-    pub original_json: String,
-    pub recipient_pubkey: String,
-    pub amount: i64,
-    pub fee: i64,
-    pub ttl: i64,
-    pub sender: String,
-    pub payload: String,
+    pub block_height: i32,
+    pub block_hash: String,
+    pub hash: String,
+    pub signatures: String,
+    pub tx: String,
 }
 
-#[derive(Insertable,Debug)]
+#[derive(Insertable)]
 #[table_name="transactions"]
 pub struct InsertableTransaction {
     pub block_id: i32,
-    pub original_json: String,
-    pub recipient_pubkey: String,
-    pub amount: i64,
-    pub fee: i64,
-    pub ttl: i64,
-    pub sender: String,
-    pub payload: String,
+    pub block_height: i32,
+    pub block_hash: String,
+    pub hash: String,
+    pub signatures: String,
+    pub tx_type: String,
+    pub tx: String,
 }
 
 impl InsertableTransaction {
@@ -163,4 +162,27 @@ impl InsertableTransaction {
             Ok(generated_id)
         }
 
+    pub fn from_json_transaction(jt: &JsonTransaction, tx_type: String, block_id: i32)
+                                 -> Result<InsertableTransaction,
+                                           Box<std::error::Error>>
+    {
+        
+        let mut signatures = String::new();
+        for i in 0 .. jt.signatures.len() {
+            if(i > 0) {
+                signatures.push_str(" ");
+            }
+            signatures.push_str(&jt.signatures[i].clone());
+        }
+        Ok(InsertableTransaction {
+            block_id: block_id,
+            block_height: jt.block_height,
+            block_hash: jt.block_hash.clone(),
+            hash: jt.hash.clone(),
+            signatures: signatures,
+            tx_type: tx_type,
+            tx: serde_json::to_string(&jt.tx).unwrap_or(String::from("")),
+        })
+    }
+                
 }

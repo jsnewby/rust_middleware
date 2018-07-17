@@ -18,14 +18,13 @@ table! {
 table! {
     transactions (id) {
         id -> Int4,
-        block_id -> Nullable<Int4>,
-        original_json -> Text,
-        recipient_pubkey -> Nullable<Varchar>,
-        amount -> Nullable<Int8>,
-        fee -> Nullable<Int8>,
-        ttl -> Nullable<Int8>,
-        sender -> Nullable<Varchar>,
-        payload -> Nullable<Text>,
+        block_id -> Int4,
+        block_height -> Int4,
+        block_hash -> Varchar,
+        hash -> Varchar,
+        signatures -> Text,
+        tx_type -> Text,
+        tx -> Text,
     }
 }
 
