@@ -24,7 +24,7 @@ table! {
         hash -> Varchar,
         signatures -> Text,
         tx_type -> Text,
-        tx -> Text,
+        tx -> Jsonb,
     }
 }
 

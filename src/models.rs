@@ -2,6 +2,7 @@ use super::schema::blocks;
 
 use diesel::prelude::*;
 use diesel::sql_types::*;
+use diesel::sql_types::Jsonb;
 use diesel::pg::PgConnection;
 
 extern crate serde_json;
@@ -134,7 +135,7 @@ pub struct Transaction {
     pub block_hash: String,
     pub hash: String,
     pub signatures: String,
-    pub tx: String,
+    pub tx: serde_json::Value,
 }
 
 #[derive(Insertable)]
@@ -146,7 +147,7 @@ pub struct InsertableTransaction {
     pub hash: String,
     pub signatures: String,
     pub tx_type: String,
-    pub tx: String,
+    pub tx: serde_json::Value,
 }
 
 impl InsertableTransaction {
@@ -181,7 +182,7 @@ impl InsertableTransaction {
             hash: jt.hash.clone(),
             signatures: signatures,
             tx_type: tx_type,
-            tx: serde_json::to_string(&jt.tx).unwrap_or(String::from("")),
+            tx: jt.tx.to_string(),
         })
     }
                 

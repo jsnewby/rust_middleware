@@ -51,9 +51,10 @@ uuid = {version = "0.5"}
 serde-xml-rs = {git = "git://github.com/Metaswitch/serde-xml-rs.git" , branch = "master", optional = true}
 clap = "2.25"
 error-chain = "0.11"
-diesel = { version = "1.3.2", features = ["postgres", "numeric"] }
+diesel = { version = "1.3.2", features = ["postgres", "numeric", "serde_json", ] }
 dotenv = "0.13.0"
 bigdecimal = "0.0.11"
 itertools = "0.7.8"
-rocket = "0.3.15"
-rocket_codegen = "0.3.15"
+#rocket = "0.3.15"
+#rocket_codegen = "0.3.15"
+#rocket_cors = "0.2.3"

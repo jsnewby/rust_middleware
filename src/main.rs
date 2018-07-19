@@ -15,13 +15,16 @@ extern crate blake2b;
 extern crate rand;
 
 extern crate regex;
-use regex::Regex;
 
 extern crate curl;
 use curl::easy::Easy;
 
+use regex::Regex;
+
+
+
+
 extern crate rust_base58;
-//use rust_base58::{ToBase58, FromBase58};
 
 extern crate rust_sodium;
 
@@ -45,7 +48,7 @@ pub use bigdecimal::BigDecimal;
 
 extern crate itertools;
 
-extern crate rocket;
+//extern crate rocket;
 
 pub mod schema;
 
@@ -72,14 +75,14 @@ pub fn establish_connection() -> PgConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
+sql_function!(fn currval(x: VarChar) -> BigInt);
+
 pub fn get_last_block_id(conn: &PgConnection) ->
     Result<i64, Box<std::error::Error + 'static >> {
         use diesel::dsl::{select};
         let id = select(currval("blocks_id_seq")).get_result::<i64>(conn)?;
         Ok(id)
     }
-
-sql_function!(fn currval(x: VarChar) -> BigInt);
 
 pub struct Epoch {
     client: swagger_client::client::Client,
@@ -153,28 +156,35 @@ fn transaction_from_json(json: Value) -> Result<JsonTransaction, Box<std::error:
     Ok(transaction)
 }
     
+/*
+Walk backward through the chain, grabbing the transactions and stash them in the DB.
+
+The strings that this function returns are meaningless.
+*/
 fn populate_db(connection: &PgConnection, epoch: Epoch, top_hash: String) -> Result<String,
                                                                   Box<std::error::Error>> {
     let mut _hash = top_hash;
     loop  {
-        println!("{}", _hash);
         if _hash == "null" {
             break;
         }
         let result = epoch.get_block_by_hash(&_hash);
         match result {
             Ok(block) => {
-                let newblock = block_from_json(block)?;
+                let newblock = match block_from_json(block) {
+                    Ok(newblock) => newblock,
+                    Err(_) => return Ok(String::from("Rootytoot"))
+                };
                 _hash = newblock.prev_hash.clone();
                 let ib: InsertableBlock = InsertableBlock::from_json_block(&newblock)?;
                 ib.save(connection);
                 let block_id = get_last_block_id(connection)? as i32;
                 for i in 0 .. newblock.transactions.len() {
                     let jtx: &JsonTransaction = &newblock.transactions[i];
-                    let tx_type: String = serde_json::to_string(&jtx.tx["type"])?.clone();
+                    let tx_type: String = from_json(&serde_json::to_string(&jtx.tx["type"])?);
                     let tx: InsertableTransaction =
                         InsertableTransaction::from_json_transaction(jtx, tx_type, block_id)?;
-                    tx.save(connection);
+                    tx.save(connection)?;
                 }
 
             }
@@ -193,10 +203,7 @@ fn main() {
     println!("Top: {:?}", epoch.top());
     let top_response = epoch.top().unwrap();
     let mut top_hash = from_json(&top_response["hash"].to_string());
-    populate_db(&connection, epoch, top_hash);
-
-    
-    
+    populate_db(&connection, epoch, top_hash).unwrap();
 }
 
 #[cfg(test)]

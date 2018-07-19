@@ -26,9 +26,17 @@ pub mod server {
     fn index() -> &'static str {
         "Hello, world!"
     }
+
+    #[get("/middle/reverse-name")]
+    fn reverse_name() -> &'static str {
+        
+    }
     
     pub fn start() {
-        rocket::ignite().mount("/", routes![index]).launch();
-    }
+        let mut git_routes = vec![];
+        for method in &[Get, Put, Post, Delete, Options, Head, Trace, Connect, Patch] {
+            epoch_routes.push(Route::new(*method, "/", git_http));
+        }
+        rocket.ignite().mount("/v2", epoch_routes).launch()
 }
 
