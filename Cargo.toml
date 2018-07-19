@@ -7,11 +7,7 @@ authors = ["John Newby <john@newby.org>"]
 client = [ ]
 
 [dependencies]
-swagger_client = { path = "../rust-epoch" }
-# Required by example server.
-#
 rust-base58 = "*"
-chrono = { version = "0.4", features = ["serde"] }
 rust-crypto = "^0.2"
 rand = "^0.5.1"
 hex = "0.3.2"
@@ -22,11 +18,8 @@ hyper = "0.12"
 curl = "0.4.12"
 http = "0.1"
 hyper-tls = {version = "0.1.2", optional = true}
-swagger = "0.12.1"
 rust_sodium = "0.9.0"
 regex = "1.0"
-# Not required by example server.
-#
 lazy_static = "0.2"
 log = "0.3.0"
 mime = "0.3.3"
@@ -34,22 +27,12 @@ multipart = {version = "0.13.3", optional = true}
 native-tls = {version = "0.1.4", optional = true}
 openssl = {version = "0.9.14", optional = true}
 percent-encoding = {version = "1.0.0", optional = true}
-#regex = {version = "0.2", optional = true}
 serde = "1.0"
 serde_derive = "1.0"
 serde_ignored = {version = "0.0.4"}
 serde_json = {version = "1.0.22", features=["arbitrary_precision"]}
-serde_urlencoded = {version = "0.5.1"}
-tokio-core = {version = "0.1.6"}
-tokio-proto = {version = "0.1.1"}
-tokio-tls = {version = "0.1.3", optional = true, features = ["tokio-proto"]}
-url = {version = "1.5", optional = true}
-uuid = {version = "0.5"}
-# , optional = true, features = ["serde", "v4"]}
-# ToDo: this should be updated to point at the official crate once
-# https://github.com/RReverser/serde-xml-rs/pull/45 is accepted upstream
+#serde_urlencoded = {version = "0.5.1"}
 serde-xml-rs = {git = "git://github.com/Metaswitch/serde-xml-rs.git" , branch = "master", optional = true}
-clap = "2.25"
 error-chain = "0.11"
 diesel = { version = "1.3.2", features = ["postgres", "numeric", "serde_json", ] }
 dotenv = "0.13.0"

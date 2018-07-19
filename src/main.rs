@@ -1,14 +1,5 @@
 #![allow(missing_docs, unused_variables, trivial_casts)]
 
-#[allow(unused_extern_crates)]
-extern crate swagger;
-#[allow(unused_extern_crates)]
-extern crate futures;
-extern crate swagger_client;
-#[allow(unused_extern_crates)]
-extern crate uuid;
-extern crate clap;
-extern crate tokio_core;
 extern crate crypto;
 extern crate hex;
 extern crate blake2b;
@@ -18,25 +9,14 @@ extern crate regex;
 
 extern crate curl;
 use curl::easy::Easy;
-
 use regex::Regex;
-
-
-
-
 extern crate rust_base58;
-
 extern crate rust_sodium;
-
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 use serde_json::Value;
 use serde_json::Value::Array;
-
-#[allow(unused_imports)]
-use futures::{Future, future, Stream, stream};
-use tokio_core::reactor;
 
 pub mod transaction;
 
@@ -85,22 +65,12 @@ pub fn get_last_block_id(conn: &PgConnection) ->
     }
 
 pub struct Epoch {
-    client: swagger_client::client::Client,
     base_uri: String,
 }
 
 impl Epoch {
     fn new(base_url: String) -> Epoch {
-        let core = reactor::Core::new().unwrap();
-        let client;
-        if base_url.starts_with("https://") {
-            client = swagger_client::client::Client::try_new_https(&base_url, "test/ca.pem").expect("Failed to connect");
-        } else {
-            client = swagger_client::client::Client::try_new_http(&base_url).expect("Failed to connect");
-        }
-        let context = swagger_client::Context::new_with_span_id(self::uuid::Uuid::new_v4().to_string());
-
-        Epoch { client: client, base_uri: base_url } }
+        Epoch { base_uri: base_url } }
 
     fn top(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
             self.get(&String::from("/top"))

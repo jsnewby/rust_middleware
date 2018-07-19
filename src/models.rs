@@ -182,7 +182,7 @@ impl InsertableTransaction {
             hash: jt.hash.clone(),
             signatures: signatures,
             tx_type: tx_type,
-            tx: jt.tx.to_string(),
+            tx: serde_json::from_str(&jt.tx.to_string()).unwrap(),
         })
     }
                 
