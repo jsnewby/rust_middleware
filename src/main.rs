@@ -1,5 +1,3 @@
-#![allow(missing_docs, unused_variables, trivial_casts)]
-
 extern crate crypto;
 extern crate hex;
 extern crate blake2b;
@@ -28,10 +26,23 @@ pub use bigdecimal::BigDecimal;
 
 extern crate itertools;
 
-//extern crate rocket;
+extern crate futures;
+extern crate hyper;
+
+use futures::Stream;
+use hyper::Client;
+/*
+use hyper::server::Http;
+use hyper_reverse_proxy::ReverseProxy;
+use tokio_core::net::TcpListener;
+use tokio_core::reactor::Core;
+use std::net::{SocketAddr, Ipv4Addr};
+*/
 
 pub mod schema;
+pub mod server;
 
+use server::MiddlewareServer;
 
 use diesel::prelude::*;
 use diesel::sql_types::*;
@@ -169,11 +180,20 @@ fn populate_db(connection: &PgConnection, epoch: Epoch, top_hash: String) -> Res
 fn main() {
     let connection = establish_connection();
     
+/*
     let epoch = Epoch::new(String::from("http://localhost:3013"));
     println!("Top: {:?}", epoch.top());
     let top_response = epoch.top().unwrap();
     let mut top_hash = from_json(&top_response["hash"].to_string());
     populate_db(&connection, epoch, top_hash).unwrap();
+*/
+    let ms = MiddlewareServer {
+        dest_url: String::from("http://localhost:3013"),
+        port: 3013,
+    };
+    ms.start();
+        
+    
 }
 
 #[cfg(test)]
