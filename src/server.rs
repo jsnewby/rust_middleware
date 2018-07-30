@@ -1,31 +1,23 @@
 
-use diesel::prelude::*;
-use diesel::sql_types::*;
-use diesel::pg::PgConnection;
-use dotenv::dotenv;
-
-use std;
-use std::env;
-
-use models::*;
-use models::InsertableBlock;
-use models::InsertableTransaction;
-use models::JsonBlock;
-use models::JsonTransaction;
-
-
 extern crate futures;
+
 extern crate hyper;
 use futures::future;
 use hyper::rt::{Future, Stream};
 use hyper::service::service_fn;
-use hyper::{Body, Method, Request, Response, Server, StatusCode};
+use hyper::{Body, Client, Method, Request, Response, Server, StatusCode, Uri};
+
+extern crate http;
+use http::request::{Parts, };
+
+use epoch::Epoch;
 
 type BoxFut = Box<Future<Item = Response<Body>, Error = hyper::Error> + Send>;
 
 pub struct MiddlewareServer {
+    pub epoch: Epoch,
     pub dest_url: String, // address to forward to
-    pub port: u8, // port to listen on
+    pub port: u16, // port to listen on
     
 }
 
@@ -84,9 +76,20 @@ impl MiddlewareServer {
 
             // The 404 Not Found route...
             _ => {
-                *response.status_mut() = StatusCode::NOT_FOUND;
+                let new_url = format!("{}{}?{}", "http://localhost:3013",
+                                      req.uri().path(),
+                                      match req.uri().query() {
+                                          Some(val) => val,
+                                          None => "" });
+                println!("Requesting {}", new_url);
+                let (mut parts, body) = req.into_parts();
+                parts.uri = new_url.parse::<Uri>().unwrap();
+                let request = Request::from_parts(parts, body);
+                let client = Client::new();
+                let resp = client.request(request).wait();
+                return Box::new(future::ok(resp.unwrap()));
             }
-        };
+        }
 
         Box::new(future::ok(response))
     }

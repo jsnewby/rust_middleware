@@ -2,7 +2,6 @@ use super::schema::blocks;
 
 use diesel::prelude::*;
 use diesel::sql_types::*;
-use diesel::sql_types::Jsonb;
 use diesel::pg::PgConnection;
 
 extern crate serde_json;
@@ -11,8 +10,6 @@ use serde_json::Number;
 use bigdecimal;
 
 use std;
-
-use itertools::join;
 
 #[derive(Queryable)]
 pub struct Block {
@@ -170,7 +167,7 @@ impl InsertableTransaction {
         
         let mut signatures = String::new();
         for i in 0 .. jt.signatures.len() {
-            if(i > 0) {
+            if i > 0 {
                 signatures.push_str(" ");
             }
             signatures.push_str(&jt.signatures[i].clone());

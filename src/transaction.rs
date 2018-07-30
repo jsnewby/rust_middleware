@@ -87,7 +87,7 @@ impl KeyPair {
         f.write_all(self.get_public_key_readable().as_bytes())?;
         f.flush()?;
         f = File::create(private_key_file)?;
-        f.write_all(KeyPair::bytes_to_hex(self.private_key).as_bytes());
+        f.write_all(KeyPair::bytes_to_hex(self.private_key).as_bytes())?;
         f.flush();
         Ok(())
     }
