@@ -37,7 +37,7 @@ pub mod models;
 fn main() {
     let connection = epoch::establish_connection();
     
-    let epoch = epoch::Epoch::new(String::from("http://localhost:3013"));
+    let epoch = epoch::Epoch::new(String::from("https://sdk-testnet.aepps.com"));
     println!("Top: {:?}", epoch.top().unwrap());
 /*
     let top_response = epoch.top().unwrap();
@@ -46,7 +46,7 @@ fn main() {
 */
     let ms = MiddlewareServer {
         epoch: epoch,
-        dest_url: String::from("http://localhost:3013"),
+        dest_url: String::from("https://sdk-testnet.aepps.com"),
         port: 3013,
     };
     ms.start();
