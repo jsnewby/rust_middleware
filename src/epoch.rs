@@ -6,10 +6,12 @@ use dotenv::dotenv;
 use std;
 use std::env;
 
-use models::InsertableBlock;
+use models::InsertableKeyBlock;
 use models::InsertableTransaction;
-use models::JsonBlock;
+use models::InsertableMicroBlock;
+use models::JsonKeyBlock;
 use models::JsonTransaction;
+use models::JsonTransactionList;
 
 use serde_json;
 use serde_json::Value;
@@ -29,12 +31,21 @@ pub fn establish_connection() -> PgConnection {
 
 sql_function!(fn currval(x: VarChar) -> BigInt);
 
-pub fn get_last_block_id(conn: &PgConnection) ->
+//TODO refactor
+pub fn get_last_key_block_id(conn: &PgConnection) ->
     Result<i64, Box<std::error::Error + 'static >> {
         use diesel::dsl::{select};
-        let id = select(currval("blocks_id_seq")).get_result::<i64>(conn)?;
+        let id = select(currval("key_blocks_id_seq")).get_result::<i64>(conn)?;
         Ok(id)
     }
+
+pub fn get_last_micro_block_id(conn: &PgConnection) ->
+    Result<i64, Box<std::error::Error + 'static >> {
+        use diesel::dsl::{select};
+        let id = select(currval("micro_blocks_id_seq")).get_result::<i64>(conn)?;
+        Ok(id)
+    }
+
 
 pub struct Epoch {
     base_uri: String,
@@ -44,8 +55,9 @@ impl Epoch {
     pub fn new(base_url: String) -> Epoch {
         Epoch { base_uri: base_url } }
 
-    pub fn top(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
-            self.get(&String::from("/top"))
+    pub fn current_generation(&self) ->
+        Result<serde_json::Value, Box<std::error::Error>> {
+            self.get(&String::from("/generations/current"))
     }
 
     // Get a URL, and parse the JSON returned.
@@ -63,22 +75,43 @@ impl Epoch {
                 })?;
                 transfer.perform()?;
             }
+		
         let value: Value = serde_json::from_str(std::str::from_utf8(&data)?)?;
         Ok(value)
     }
 
-    fn get_block_by_hash(&self, hash: &String) ->
+    fn get_key_block_by_hash(&self, hash: &String) ->
         Result<serde_json::Value, Box<std::error::Error>> {
-            self.get(&format!("{}{}", String::from("/block/hash/"),&hash))
+            let result =
+                self.get(&format!("{}{}", String::from("/key-blocks/hash/"),&hash))?;
+            Ok(result)
+        }
+
+    fn get_micro_block_by_hash(&self, hash: &String) ->
+        Result<serde_json::Value, Box<std::error::Error>> {
+            let result =
+                self.get(&format!("{}{}{}",
+                                  String::from("/micro-blocks/hash/"),
+                                  &hash,
+                                  String::from("/header")))?;
+            Ok(result)
+        }
+
+    fn get_transaction_list_by_micro_block(&self, hash: &String) ->
+        Result<serde_json::Value, Box<std::error::Error>> {
+            let result =
+                self.get(&format!("{}{}{}",
+                                  String::from("/micro-blocks/hash/"),
+                                  &hash,
+                                  String::from("/transactions")))?;
+            Ok(result)
+                
         }
 
 }
 
-fn from_json(val: &String) -> String {
-    let foo = "^\"(.*)\"$";
-    // I think the below unwrap() is OK b/c if we can't compile a regexp which we know to be
-    // good then something is badly wrong. But I am not sure.
-    let re = Regex::new(foo).unwrap();
+pub fn from_json(val: &String) -> String {
+    let re = Regex::new("^\"(.*)\"$").unwrap();
     match re.captures(val) {
         Some(matches) => {
             println!("Match: {:?}", String::from(&matches[1]));
@@ -88,8 +121,13 @@ fn from_json(val: &String) -> String {
     }
 }
 
-fn block_from_json(json: Value) -> Result<JsonBlock, Box<std::error::Error>> {
-    let block: JsonBlock = serde_json::from_value(json)?;
+fn key_block_from_json(json: Value) -> Result<JsonKeyBlock, Box<std::error::Error>> {
+    let block: JsonKeyBlock = serde_json::from_value(json)?;
+    Ok(block)
+}
+
+fn micro_block_from_json(json: Value) -> Result<InsertableMicroBlock, Box<std::error::Error>> {
+    let block: InsertableMicroBlock = serde_json::from_value(json)?;
     Ok(block)
 }
 
@@ -97,38 +135,44 @@ fn transaction_from_json(json: Value) -> Result<JsonTransaction, Box<std::error:
     let transaction: JsonTransaction = serde_json::from_value(json)?;
     Ok(transaction)
 }
-    
+
 /*
 Walk backward through the chain, grabbing the transactions and stash them in the DB.
 
 The strings that this function returns are meaningless.
 */
-fn populate_db(connection: &PgConnection, epoch: Epoch, top_hash: String) -> Result<String,
+pub fn populate_db(connection: &PgConnection, epoch: Epoch, top_hash: String) -> Result<String,
                                                                   Box<std::error::Error>> {
-    let mut _hash = top_hash;
+    let mut next_hash = top_hash;
     loop  {
-        if _hash == "null" {
+        if next_hash == "null" {
             break;
         }
-        let result = epoch.get_block_by_hash(&_hash);
+        let result = epoch.get_key_block_by_hash(&next_hash);
         match result {
             Ok(block) => {
-                let newblock = match block_from_json(block) {
-                    Ok(newblock) => newblock,
-                    Err(_) => return Ok(String::from("Rootytoot"))
-                };
-                _hash = newblock.prev_hash.clone();
-                let ib: InsertableBlock = InsertableBlock::from_json_block(&newblock)?;
+                let newblock = key_block_from_json(block).unwrap(); // TODO: handle error better
+                next_hash = newblock.prev_key_hash.clone();
+                let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&newblock)?;
                 ib.save(connection)?;
-                let block_id = get_last_block_id(connection)? as i32;
-                for i in 0 .. newblock.transactions.len() {
-                    let jtx: &JsonTransaction = &newblock.transactions[i];
-                    let tx_type: String = from_json(&serde_json::to_string(&jtx.tx["type"])?);
-                    let tx: InsertableTransaction =
-                        InsertableTransaction::from_json_transaction(jtx, tx_type, block_id)?;
-                    tx.save(connection)?;
+                let key_block_id = get_last_key_block_id(connection)? as i32;
+                let mut prev = newblock.prev_hash;
+                while str::eq(&prev[0..1], "m") {
+                    let mut mb = micro_block_from_json(epoch.get_micro_block_by_hash(&prev)?)?;
+                    mb.key_block_id = key_block_id;
+                    mb.save(connection).unwrap();
+                    let micro_block_id = get_last_micro_block_id(connection)? as i32;
+                    let mut trans: JsonTransactionList =
+                        serde_json::from_value(epoch.get_transaction_list_by_micro_block(&prev)?)?;
+                    for i in 0 .. trans.transactions.len() {
+                        let jtx: &JsonTransaction = &trans.transactions[i];
+                        let tx_type: String = from_json(&serde_json::to_string(&jtx.tx["type"])?);
+                        let tx: InsertableTransaction =
+                            InsertableTransaction::from_json_transaction(jtx, tx_type, micro_block_id)?;
+                        tx.save(connection)?;
+                    }
+                    prev = mb.prev_hash;
                 }
-
             }
             Err(_) => {
                 break;

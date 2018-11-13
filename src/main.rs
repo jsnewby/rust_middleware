@@ -38,18 +38,18 @@ fn main() {
     let connection = epoch::establish_connection();
     
     let epoch = epoch::Epoch::new(String::from("https://sdk-testnet.aepps.com"));
-    println!("Top: {:?}", epoch.top().unwrap());
+    println!("Top: {:?}", epoch.current_generation().unwrap());
+    let current_generation = epoch.current_generation().unwrap();
+    let mut top_hash = epoch::from_json(&current_generation["key_block"]["hash"].to_string());
+    epoch::populate_db(&connection, epoch, top_hash).unwrap();
 /*
-    let top_response = epoch.top().unwrap();
-    let mut top_hash = from_json(&top_response["hash"].to_string());
-    populate_db(&connection, epoch, top_hash).unwrap();
-*/
     let ms = MiddlewareServer {
         epoch: epoch,
         dest_url: String::from("https://sdk-testnet.aepps.com"),
         port: 3013,
     };
     ms.start();
+*/
         
     
 }

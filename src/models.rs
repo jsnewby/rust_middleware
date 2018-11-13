@@ -1,4 +1,6 @@
-use super::schema::blocks;
+use super::schema::key_blocks;
+use super::schema::micro_blocks;
+use super::schema::transactions;
 
 use diesel::prelude::*;
 use diesel::sql_types::*;
@@ -12,82 +14,80 @@ use bigdecimal;
 use std;
 
 #[derive(Queryable)]
-pub struct Block {
+pub struct KeyBlock {
     pub id: i32,
     pub hash: Option<String>,
     pub height: Option<i64>,
     pub miner: Option<String>,
     pub nonce: Option<bigdecimal::BigDecimal>,
     pub prev_hash: Option<String>,
+    pub prev_key_hash: Option<String>,
     pub state_hash: Option<String>,
     pub target: Option<i64>,
     pub time: Option<i64>,
-    pub txs_hash: Option<String>,
     pub version: Option<i32>,
 }
 
 sql_function!(fn currval(x: VarChar) -> BigInt);
 
-impl Block {
+impl KeyBlock {
 
     pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        let b = blocks::table.order(blocks::id.desc()).load::<Block>(conn)?;
+        let b = key_blocks::table.order(key_blocks::id.desc()).load::<KeyBlock>(conn)?;
         Ok(b.first().unwrap().id)
     }
                                                            
 }
 
 #[derive(Insertable)]
-#[table_name="blocks"]
-pub struct InsertableBlock {
+#[table_name="key_blocks"]
+pub struct InsertableKeyBlock {
     pub hash: String,
     pub height: i64,
     pub miner: String,
     pub nonce: bigdecimal::BigDecimal,
     pub prev_hash: String,
+    pub prev_key_hash: String,
     pub state_hash: String,
     pub target: i64,
     pub time: i64,
-    pub txs_hash: String,
     pub version: i32,
 }
 
 
-impl InsertableBlock {
+impl InsertableKeyBlock {
     
     pub fn save(&self, conn: &PgConnection) ->
         Result<i64, Box<std::error::Error>> {
             use diesel::dsl::{select, insert_into};
             use diesel::RunQueryDsl;
-            use schema::blocks::dsl::*;
-            insert_into(blocks)
+            use schema::key_blocks::dsl::*;
+            insert_into(key_blocks)
                 .values(self).execute(&*conn)?;
-            let generated_id = select(currval("blocks_id_seq")).get_result::<i64>(&*conn)?;
+            let generated_id = select(currval("key_blocks_id_seq")).get_result::<i64>(&*conn)?;
             Ok(generated_id)
         }
 
-    pub fn from_json_block(jb: &JsonBlock) ->
-        Result<InsertableBlock, Box<std::error::Error>> {
+    pub fn from_json_key_block(jb: &JsonKeyBlock) ->
+        Result<InsertableKeyBlock, Box<std::error::Error>> {
             //TODO: fix this.
             let nonce: u64 = match jb.nonce.as_u64() {
                 Some(val) => val,
                 None => 0,
             };
-            Ok(InsertableBlock {
+            Ok(InsertableKeyBlock {
                 hash: jb.hash.clone(),
                 height: jb.height,
                 miner: jb.miner.clone(),
                 nonce: bigdecimal::BigDecimal::from(nonce),
                 prev_hash: jb.prev_hash.clone(),
+                prev_key_hash: jb.prev_key_hash.clone(),
                 state_hash: jb.state_hash.clone(),
                 target: jb.target.clone(),
                 time: jb.time,
-                txs_hash: jb.txs_hash.clone(),
                 version: jb.version,
             })
         }
-            
-
 }
 
 /*
@@ -99,18 +99,77 @@ JSON.  If @newby gets smart enough he will write the implementations
 for these missing methods.
 */
 #[derive(Serialize, Deserialize)]
-pub struct JsonBlock {
+pub struct JsonKeyBlock {
     pub hash: String,
     pub height: i64,
     pub miner: String,
+    #[serde(default="zero")]
     pub nonce: Number,
     pub prev_hash: String,
+    pub prev_key_hash: String,
     pub state_hash: String,
     pub target: i64,
     pub time: i64,
+    pub version: i32,
+}
+
+fn zero() -> Number {
+    serde_json::Number::from_f64(0.0).unwrap()
+}
+
+#[derive(Queryable)]
+pub struct MicroBlock {
+    pub id: i32,
+    pub key_block: i32,
+    pub hash: String,
+    pub pof_hash: String,
+    pub prev_hash: String,
+    pub prev_key_hash: String,
+    pub signature: String,
+    pub state_hash: String,
     pub txs_hash: String,
     pub version: i32,
-    pub transactions: Vec<JsonTransaction>,
+}
+
+impl MicroBlock {
+    pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
+        let b = micro_blocks::table.order(micro_blocks::id.desc()).load::<MicroBlock>(conn)?;
+        Ok(b.first().unwrap().id)
+    }
+}
+
+#[derive(Insertable)]
+#[table_name="micro_blocks"]
+#[derive(Serialize, Deserialize)]
+pub struct InsertableMicroBlock {
+    #[serde(default="zero_i32")]
+    pub key_block_id: i32,
+    pub hash: String,
+    pub pof_hash: String,
+    pub prev_hash: String,
+    pub prev_key_hash: String,
+    pub signature: String,
+    pub state_hash: String,
+    pub txs_hash: String,
+    pub version: i32,
+}
+
+fn zero_i32() -> i32 {
+    0
+}
+
+impl InsertableMicroBlock {
+    
+    pub fn save(&self, conn: &PgConnection) ->
+        Result<i64, Box<std::error::Error>> {
+            use diesel::dsl::{select, insert_into};
+            use diesel::RunQueryDsl;
+            use schema::micro_blocks::dsl::*;
+            insert_into(micro_blocks)
+                .values(self).execute(&*conn)?;
+            let generated_id = select(currval("micro_blocks_id_seq")).get_result::<i64>(&*conn)?;
+            Ok(generated_id)
+        }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -120,14 +179,17 @@ pub struct JsonTransaction {
     pub hash: String,
     pub signatures: Vec<String>,
     pub tx: serde_json::Value,
-} 
+}
 
-use super::schema::transactions;
+#[derive(Serialize, Deserialize)]
+pub struct JsonTransactionList {
+    pub transactions: Vec<JsonTransaction>,
+}
 
 #[derive(Queryable)]
 pub struct Transaction {
     pub id: i32,
-    pub block_id: i32,
+    pub micro_block_id: i32,
     pub block_height: i32,
     pub block_hash: String,
     pub hash: String,
@@ -138,7 +200,7 @@ pub struct Transaction {
 #[derive(Insertable)]
 #[table_name="transactions"]
 pub struct InsertableTransaction {
-    pub block_id: i32,
+    pub micro_block_id: i32,
     pub block_height: i32,
     pub block_hash: String,
     pub hash: String,
@@ -160,7 +222,7 @@ impl InsertableTransaction {
             Ok(generated_id)
         }
 
-    pub fn from_json_transaction(jt: &JsonTransaction, tx_type: String, block_id: i32)
+    pub fn from_json_transaction(jt: &JsonTransaction, tx_type: String, micro_block_id: i32)
                                  -> Result<InsertableTransaction,
                                            Box<std::error::Error>>
     {
@@ -173,7 +235,7 @@ impl InsertableTransaction {
             signatures.push_str(&jt.signatures[i].clone());
         }
         Ok(InsertableTransaction {
-            block_id: block_id,
+            micro_block_id: micro_block_id,
             block_height: jt.block_height,
             block_hash: jt.block_hash.clone(),
             hash: jt.hash.clone(),
