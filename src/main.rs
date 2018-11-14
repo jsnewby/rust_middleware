@@ -19,10 +19,7 @@ extern crate rust_sodium;
 extern crate serde_derive;
 extern crate serde_json;
 
-pub mod transaction;
-
-#[macro_use] extern crate rocket;
-use rocket::*;
+extern crate rocket;
 
 #[macro_use]
 extern crate diesel;
@@ -41,14 +38,14 @@ extern crate futures;
 extern crate hyper;
 
 extern crate clap;
-use clap::{App, Arg, SubCommand, };
+use clap::{App, Arg, };
 
 pub mod epoch;
 pub mod schema;
 pub mod server;
 use server::MiddlewareServer;
 
-use std::sync::Mutex;
+//use std::sync::{Mutex, Arc, };
 
 pub mod models;
 
@@ -71,10 +68,9 @@ fn main() {
              .help("Don't populate DB").takes_value(false))
         .get_matches();
 
-    let mut url = "https://sdk-testnet.aepps.com";
     let url = match matches.value_of("url") {
         Some(u) => u,
-        None => url,
+        None => "https://sdk-testnet.aepps.com",
     };
     let connection = epoch::establish_connection();
     let epoch = epoch::Epoch::new(String::from(url));
@@ -83,18 +79,17 @@ fn main() {
     if populate {
         println!("Connecting to æternity node with URL {}", url);
         let current_generation = epoch.current_generation().unwrap();
-        let top_hash: String;
         let top_hash = match matches.value_of("start") {
             Some(h) => String::from(h),
             None => String::from(epoch::from_json(&current_generation["key_block"]["hash"].to_string())),
         };
         println!("Starting from hash: {}", top_hash);
-        epoch::populate_db(&connection, &epoch, top_hash).unwrap();
+        epoch::populate_db(&connection.get().unwrap(), &epoch, top_hash).unwrap();
     }      
 
     let serve = matches.is_present("server");
     if serve {
-        let ms = MiddlewareServer {
+        let ms: MiddlewareServer = MiddlewareServer {
             epoch: epoch,
             dest_url: String::from("https://sdk-testnet.aepps.com"),
             port: 3013,
@@ -102,7 +97,7 @@ fn main() {
         };
         ms.start();
     }
-        if(!populate && !serve) {
+        if !populate && !serve {
         println!("Nothing to do!");
     }    
 }

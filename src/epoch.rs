@@ -18,17 +18,26 @@ use serde_json::Value;
 
 use curl::easy::Easy;
 
+use r2d2::{Pool, };
+use r2d2_diesel::ConnectionManager;
+
 use regex::Regex;
 
-pub fn establish_connection() -> PgConnection {
-    dotenv().ok();
+use std::sync::{Arc, };
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url))
-}
+pub fn establish_connection() -> Arc<Pool<ConnectionManager<PgConnection>>> {
+    dotenv().ok(); // Grabbing ENV vars
 
+    // Pull DATABASE_URL env var
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+
+    // Create a connection pool manager for a Postgres connection at the `database_url`
+    let manager = ConnectionManager::<PgConnection>::new(database_url);
+
+    // Create the pool with the default config and the r2d2_diesel connection manager
+    Arc::new(Pool::new(manager).expect("Failed to create pool."))
+} 
 sql_function!(fn currval(x: VarChar) -> BigInt);
 
 pub fn get_insert_id(conn: &PgConnection, table_name: String) ->
@@ -149,7 +158,7 @@ pub fn populate_db(connection: &PgConnection, epoch: &Epoch, top_hash: String) -
                 ib.save(connection)?;
                 let key_block_id = get_insert_id(connection, String::from("key_blocks"))? as i32;
                 let mut prev = newblock.prev_hash;
-                while str::eq(&prev[0..1], "m") {
+                while str::eq(&prev[0..1], "m") { // loop until we run out of microblocks
                     let mut mb = micro_block_from_json(epoch.get_micro_block_by_hash(&prev)?)?;
                     mb.key_block_id = key_block_id;
                     mb.save(connection).unwrap();
