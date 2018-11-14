@@ -4,6 +4,8 @@ table! {
         hash -> Nullable<Varchar>,
         height -> Nullable<Int8>,
         miner -> Nullable<Varchar>,
+        beneficiary -> Nullable<Varchar>,
+        pow -> Nullable<Varchar>,
         nonce -> Nullable<Numeric>,
         prev_hash -> Nullable<Varchar>,
         prev_key_hash -> Nullable<Varchar>,

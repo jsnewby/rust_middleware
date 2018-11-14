@@ -31,18 +31,10 @@ pub fn establish_connection() -> PgConnection {
 
 sql_function!(fn currval(x: VarChar) -> BigInt);
 
-//TODO refactor
-pub fn get_last_key_block_id(conn: &PgConnection) ->
+pub fn get_insert_id(conn: &PgConnection, table_name: String) ->
     Result<i64, Box<std::error::Error + 'static >> {
         use diesel::dsl::{select};
-        let id = select(currval("key_blocks_id_seq")).get_result::<i64>(conn)?;
-        Ok(id)
-    }
-
-pub fn get_last_micro_block_id(conn: &PgConnection) ->
-    Result<i64, Box<std::error::Error + 'static >> {
-        use diesel::dsl::{select};
-        let id = select(currval("micro_blocks_id_seq")).get_result::<i64>(conn)?;
+        let id = select(currval(format!("{}_id_seq", table_name))).get_result::<i64>(conn)?;
         Ok(id)
     }
 
@@ -141,7 +133,7 @@ Walk backward through the chain, grabbing the transactions and stash them in the
 
 The strings that this function returns are meaningless.
 */
-pub fn populate_db(connection: &PgConnection, epoch: Epoch, top_hash: String) -> Result<String,
+pub fn populate_db(connection: &PgConnection, epoch: &Epoch, top_hash: String) -> Result<String,
                                                                   Box<std::error::Error>> {
     let mut next_hash = top_hash;
     loop  {
@@ -155,13 +147,13 @@ pub fn populate_db(connection: &PgConnection, epoch: Epoch, top_hash: String) ->
                 next_hash = newblock.prev_key_hash.clone();
                 let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&newblock)?;
                 ib.save(connection)?;
-                let key_block_id = get_last_key_block_id(connection)? as i32;
+                let key_block_id = get_insert_id(connection, String::from("key_blocks"))? as i32;
                 let mut prev = newblock.prev_hash;
                 while str::eq(&prev[0..1], "m") {
                     let mut mb = micro_block_from_json(epoch.get_micro_block_by_hash(&prev)?)?;
                     mb.key_block_id = key_block_id;
                     mb.save(connection).unwrap();
-                    let micro_block_id = get_last_micro_block_id(connection)? as i32;
+                    let micro_block_id = get_insert_id(connection, String::from("micro_blocks"))? as i32;
                     let mut trans: JsonTransactionList =
                         serde_json::from_value(epoch.get_transaction_list_by_micro_block(&prev)?)?;
                     for i in 0 .. trans.transactions.len() {

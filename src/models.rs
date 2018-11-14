@@ -1,3 +1,5 @@
+#![allow(proc_macro_derive_resolution_fallback)]
+
 use super::schema::key_blocks;
 use super::schema::micro_blocks;
 use super::schema::transactions;
@@ -19,6 +21,8 @@ pub struct KeyBlock {
     pub hash: Option<String>,
     pub height: Option<i64>,
     pub miner: Option<String>,
+    pub beneficiary: Option<String>,
+    pub pow: Option<String>,
     pub nonce: Option<bigdecimal::BigDecimal>,
     pub prev_hash: Option<String>,
     pub prev_key_hash: Option<String>,
@@ -46,6 +50,8 @@ pub struct InsertableKeyBlock {
     pub height: i64,
     pub miner: String,
     pub nonce: bigdecimal::BigDecimal,
+    pub beneficiary: String,
+    pub pow: String,
     pub prev_hash: String,
     pub prev_key_hash: String,
     pub state_hash: String,
@@ -80,6 +86,8 @@ impl InsertableKeyBlock {
                 height: jb.height,
                 miner: jb.miner.clone(),
                 nonce: bigdecimal::BigDecimal::from(nonce),
+                beneficiary: jb.beneficiary.clone(),
+                pow: format!("{:?}", jb.pow),
                 prev_hash: jb.prev_hash.clone(),
                 prev_key_hash: jb.prev_key_hash.clone(),
                 state_hash: jb.state_hash.clone(),
@@ -103,8 +111,10 @@ pub struct JsonKeyBlock {
     pub hash: String,
     pub height: i64,
     pub miner: String,
+    pub beneficiary: String,
     #[serde(default="zero")]
     pub nonce: Number,
+    pub pow: Vec<i32>,
     pub prev_hash: String,
     pub prev_key_hash: String,
     pub state_hash: String,
