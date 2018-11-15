@@ -1,8 +1,8 @@
-# rust-swagger
+# æternity middleware
 
 ## Overview
 
-This is a first implementation of an interface between Epoch using Rust, and a simple cache for the æternity blockchain, in order to provide various services which are useful, yet missing from Epoch.
+This is a first implementation of a caching layer for Epoch. It reads the chain and records key- and micro-blocks, and transactions in a PostgreSQL database. 
 
 ## How to use
 
@@ -12,9 +12,17 @@ This is a first implementation of an interface between Epoch using Rust, and a s
 
 ## How to build
 
+You need a nightly rust build
+
+`rustup default nightly`
+
+then
+
 `cargo build`
 
 ## How to run
+
+`cargo run -- ` + flags below
 
 ```
 FLAGS:
@@ -29,7 +37,9 @@ OPTIONS:
 
 ```
 
+## Supported queries
 
+`GET /transactions/account/<account>` all transactioms for account
 
 
 
