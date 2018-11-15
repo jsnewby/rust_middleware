@@ -41,6 +41,8 @@ itertools = "0.7.8"
 tokio-core = "0.1.17"
 clap = "~2.32"
 rocket = "0.3.6"
+rocket_contrib = "0.3.6"
 rocket_codegen = "0.3.6"
+
 r2d2 = "*"
 r2d2-diesel = "*"

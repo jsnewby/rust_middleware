@@ -1,6 +1,7 @@
-extern crate futures;
+#![feature(plugin, custom_derive)]
+#![plugin(rocket_codegen)]
 
-extern crate hyper;
+use curl::easy::Easy;
 
 use diesel::sql_query;
 
@@ -8,6 +9,9 @@ use diesel::pg::PgConnection;
 use diesel::RunQueryDsl;    
 use rocket;
 use rocket::State;
+use rocket::request::Form;
+use rocket::response::content;
+use rocket_contrib::Json;
 use std::sync::{Arc, };
 
 use epoch::from_json;
@@ -20,6 +24,8 @@ use serde_json;
 use r2d2::{Pool, };
 use r2d2_diesel::ConnectionManager;
 
+use std::path::PathBuf;
+
 pub struct MiddlewareServer {
     pub epoch: Epoch,
     pub dest_url: String, // address to forward to
@@ -27,12 +33,33 @@ pub struct MiddlewareServer {
     pub connection: Arc<Pool<ConnectionManager<PgConnection>>>, // DB connection
 }
 
+// SQL santitizing method to prevent injection attacks.
 fn sanitize(s: String) -> String {
-    s
+    s.replace("'", "\\'")
 }
 
+#[derive(FromForm)]
+struct SampleForm {
+    description: String,
+    completed: bool
+}
+
+
+#[get("/<path..>")]
+fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
+    Json(state.epoch.get_naked(&String::from("/v2/"),
+                               &String::from(path.to_str().unwrap())).unwrap())
+}
+
+#[get("/")]
+fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> {
+    Json(state.epoch.get_naked(&String::from("/api"), &String::from("")).unwrap())
+}
+/*
+ * Gets all transactions for an account
+ */
 #[get("/transactions/account/<account>")]
-fn transactions_for_account(state: State<MiddlewareServer>, account: String) -> String {
+fn transactions_for_account(state: State<MiddlewareServer>, account: String) -> Json<JsonTransactionList> {
     let sql = format!("select * from transactions where (tx->>'type' = 'SpendTx' AND tx->>'sender_id'='{}')", sanitize(account));
     let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec!();
@@ -42,13 +69,15 @@ fn transactions_for_account(state: State<MiddlewareServer>, account: String) -> 
     let list = JsonTransactionList {
         transactions: trans,
     };
-    serde_json::to_string(&list).unwrap()
+    Json(list)
 }
 
 impl MiddlewareServer {
     pub fn start(self) {
         rocket::ignite()
-            .mount("/", routes![transactions_for_account])
+            .mount("/middleware", routes![transactions_for_account])
+            .mount("/v2", routes![epoch_get_handler])
+            .mount("/api", routes![epoch_api_handler])
             .manage(self)
             .launch();
     }

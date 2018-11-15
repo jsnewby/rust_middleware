@@ -12,3 +12,5 @@ CREATE TABLE key_blocks (
        target BIGINT,
        time_ BIGINT,
        version INTEGER);
+
+CREATE INDEX key_blocks_beneficiary ON key_blocks(beneficiary);

@@ -6,6 +6,8 @@ use dotenv::dotenv;
 use std;
 use std::env;
 
+use curl::easy::Easy;
+
 use models::InsertableKeyBlock;
 use models::InsertableTransaction;
 use models::InsertableMicroBlock;
@@ -15,8 +17,6 @@ use models::JsonTransactionList;
 
 use serde_json;
 use serde_json::Value;
-
-use curl::easy::Easy;
 
 use r2d2::{Pool, };
 use r2d2_diesel::ConnectionManager;
@@ -61,9 +61,13 @@ impl Epoch {
             self.get(&String::from("/generations/current"))
     }
 
+    pub fn get(&self, operation: &String) -> Result<serde_json::Value, Box<std::error::Error>> {
+        self.get_naked(&String::from("/v2/"), operation)
+    }
+    
     // Get a URL, and parse the JSON returned.
-    fn get(&self, operation: &String) -> Result<serde_json::Value, Box<std::error::Error>> {
-        let uri = self.base_uri.clone() + "/v2" + operation;
+    pub fn get_naked(&self, prefix: &String, operation: &String) -> Result<serde_json::Value, Box<std::error::Error>> {
+        let uri = self.base_uri.clone() + prefix  + operation;
         println!("{}", uri);
             let mut data = Vec::new();
             let mut handle = Easy::new();

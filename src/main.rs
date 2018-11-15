@@ -2,7 +2,7 @@
 #![feature(custom_attribute)]
 #![feature(plugin)]
 #![plugin(rocket_codegen)]
-
+#![feature(custom_derive)] 
 
 extern crate crypto;
 extern crate hex;
@@ -20,6 +20,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 extern crate rocket;
+extern crate rocket_contrib;
 
 #[macro_use]
 extern crate diesel;
