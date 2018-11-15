@@ -12,9 +12,17 @@ This is a first implementation of a caching layer for Epoch. It reads the chain 
 
 ## How to build
 
+You need a nightly rust build
+
+`rustup default nightly`
+
+then
+
 `cargo build`
 
 ## How to run
+
+`cargo run -- ` + flags below
 
 ```
 FLAGS:
