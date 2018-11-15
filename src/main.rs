@@ -62,10 +62,10 @@ fn main() {
              .help("Hash to start from.").takes_value(true))
         .arg(Arg::with_name("server")
              .short("s").long("server")
-             .help("Don't start server").takes_value(false))
+             .help("Start server").takes_value(false))
          .arg(Arg::with_name("populate")
              .short("p").long("populate")
-             .help("Don't populate DB").takes_value(false))
+             .help("Populate DB").takes_value(false))
         .get_matches();
 
     let url = match matches.value_of("url") {

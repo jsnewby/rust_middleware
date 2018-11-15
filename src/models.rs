@@ -182,6 +182,20 @@ impl InsertableMicroBlock {
         }
 }
 
+#[derive(Queryable)]
+#[derive(QueryableByName)]
+#[table_name="transactions"]
+#[derive(Serialize, Deserialize)]
+pub struct Transaction {
+    pub id: i32,
+    pub micro_block_id: i32,
+    pub block_height: i32,
+    pub block_hash: String,
+    pub hash: String,
+    pub signatures: String,
+    pub tx: serde_json::Value,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct JsonTransaction {
     pub block_height: i32,
@@ -191,20 +205,26 @@ pub struct JsonTransaction {
     pub tx: serde_json::Value,
 }
 
+impl JsonTransaction {
+    pub fn from_transaction(t: &Transaction) -> JsonTransaction {
+        let mut signatures: Vec<String> = vec!();
+        let _s = t.signatures.split(", ");
+        for s in _s {
+            signatures.push(String::from(s));
+        }
+        JsonTransaction {
+            block_height: t.block_height,
+            block_hash: t.block_hash.clone(),
+            hash: t.hash.clone(),
+            signatures: signatures,
+            tx: t.tx.clone(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct JsonTransactionList {
     pub transactions: Vec<JsonTransaction>,
-}
-
-#[derive(Queryable)]
-pub struct Transaction {
-    pub id: i32,
-    pub micro_block_id: i32,
-    pub block_height: i32,
-    pub block_hash: String,
-    pub hash: String,
-    pub signatures: String,
-    pub tx: serde_json::Value,
 }
 
 #[derive(Insertable)]
