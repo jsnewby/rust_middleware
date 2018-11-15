@@ -40,6 +40,15 @@ impl KeyBlock {
         let b = key_blocks::table.order(key_blocks::id.desc()).load::<KeyBlock>(conn)?;
         Ok(b.first().unwrap().id)
     }
+
+    pub fn top_hash(conn: &PgConnection) -> Result<String, Box<std::error::Error>> {
+        let b = key_blocks::table.order(key_blocks::id.desc()).load::<KeyBlock>(conn)?;
+        let h = match b.first() {
+            Some(x) => x,
+            None => return Ok(String::new()),
+        };
+        Ok(h.hash.clone().unwrap().clone())
+    }
                                                            
 }
 
@@ -114,6 +123,7 @@ pub struct JsonKeyBlock {
     pub beneficiary: String,
     #[serde(default="zero")]
     pub nonce: Number,
+    #[serde(default="zero_vec_i32")]
     pub pow: Vec<i32>,
     pub prev_hash: String,
     pub prev_key_hash: String,
@@ -125,6 +135,10 @@ pub struct JsonKeyBlock {
 
 fn zero() -> Number {
     serde_json::Number::from_f64(0.0).unwrap()
+}
+
+fn zero_vec_i32() -> Vec<i32> {
+    vec!(0)
 }
 
 #[derive(Queryable)]

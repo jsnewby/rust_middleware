@@ -38,23 +38,37 @@ fn sanitize(s: String) -> String {
     s.replace("'", "\\'")
 }
 
-#[derive(FromForm)]
-struct SampleForm {
-    description: String,
-    completed: bool
-}
-
-
+/*
+ * GET handler for Epoch
+ */
 #[get("/<path..>")]
 fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
     Json(state.epoch.get_naked(&String::from("/v2/"),
                                &String::from(path.to_str().unwrap())).unwrap())
 }
 
+/*
+ * POST handler for Epoch
+ */
+#[post("/<path..>", format="application/json", data="<body>")]
+fn epoch_post_handler(state: State<MiddlewareServer>, path: PathBuf, body: String) -> Json {
+    println!("{}", body);
+    let response = state.epoch.post_naked(&String::from("/v2/"),
+                                          &String::from(path.to_str().unwrap()),
+                                          body).unwrap();
+    println!("Response: {}", response);
+    Json(serde_json::from_str(response.as_str()).unwrap())
+}
+
+
+/*
+ * Epoch's only endpoint which lives outside of /v2/...
+ */
 #[get("/")]
 fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> {
     Json(state.epoch.get_naked(&String::from("/api"), &String::from("")).unwrap())
 }
+
 /*
  * Gets all transactions for an account
  */
@@ -77,6 +91,7 @@ impl MiddlewareServer {
         rocket::ignite()
             .mount("/middleware", routes![transactions_for_account])
             .mount("/v2", routes![epoch_get_handler])
+            .mount("/v2", routes![epoch_post_handler])
             .mount("/api", routes![epoch_api_handler])
             .manage(self)
             .launch();

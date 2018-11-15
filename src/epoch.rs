@@ -5,8 +5,10 @@ use dotenv::dotenv;
 
 use std;
 use std::env;
+use std::io::Read;
+use std::rc::Rc;
 
-use curl::easy::Easy;
+use curl::easy::{Easy, List};
 
 use models::InsertableKeyBlock;
 use models::InsertableTransaction;
@@ -58,37 +60,67 @@ impl Epoch {
 
     pub fn current_generation(&self) ->
         Result<serde_json::Value, Box<std::error::Error>> {
-            self.get(&String::from("/generations/current"))
+            self.get(&String::from("generations/current"))
     }
 
-    pub fn get(&self, operation: &String) -> Result<serde_json::Value, Box<std::error::Error>> {
+    pub fn get(&self, operation: &String)
+               -> Result<serde_json::Value, Box<std::error::Error>> {
         self.get_naked(&String::from("/v2/"), operation)
     }
     
     // Get a URL, and parse the JSON returned.
-    pub fn get_naked(&self, prefix: &String, operation: &String) -> Result<serde_json::Value, Box<std::error::Error>> {
+    pub fn get_naked(&self, prefix: &String, operation: &String)
+                     -> Result<serde_json::Value, Box<std::error::Error>> {
         let uri = self.base_uri.clone() + prefix  + operation;
         println!("{}", uri);
-            let mut data = Vec::new();
-            let mut handle = Easy::new();
-            handle.url(&uri)?;
-            {
-                let mut transfer = handle.transfer();
-                transfer.write_function(|new_data| {
-                    data.extend_from_slice(new_data);
-                    Ok(new_data.len())
-                })?;
-                transfer.perform()?;
-            }
-		
+        let mut data = Vec::new();
+        let mut handle = Easy::new();
+        handle.url(&uri)?;
+        {
+            let mut transfer = handle.transfer();
+            transfer.write_function(|new_data| {
+                data.extend_from_slice(new_data);
+                Ok(new_data.len())
+            })?;
+            transfer.perform()?;
+        }
         let value: Value = serde_json::from_str(std::str::from_utf8(&data)?)?;
         Ok(value)
+    }
+
+    pub fn post_naked(&self, prefix: &String, operation: &String, body: String)
+                      -> Result<String, Box<std::error::Error>> {
+        let uri = self.base_uri.clone() + prefix  + operation;
+        println!("URL: {}, body: {}", uri, body);
+        let mut data = body.as_bytes();
+        let mut handle = Easy::new();
+        handle.url(&uri)?;        
+        let mut list = List::new();
+        list.append("content-type: application/json").unwrap();
+        handle.http_headers(list).unwrap();
+        handle.post(true)?;
+        handle.post_field_size(data.len() as u64)?;
+        let mut response = Vec::new();        
+        {
+            let mut transfer = handle.transfer();
+            transfer.read_function(|buf| { 
+                Ok(data.read(buf).unwrap_or(0))
+            })?;
+            transfer.write_function(|new_data| {
+                response.extend_from_slice(new_data);
+                Ok(new_data.len())
+            })?;
+            transfer.perform()?;
+        }
+        let resp = String::from(std::str::from_utf8(&response).unwrap());
+        println!("{}", resp);
+        Ok(resp)
     }
 
     fn get_key_block_by_hash(&self, hash: &String) ->
         Result<serde_json::Value, Box<std::error::Error>> {
             let result =
-                self.get(&format!("{}{}", String::from("/key-blocks/hash/"),&hash))?;
+                self.get(&format!("{}{}", String::from("key-blocks/hash/"),&hash))?;
             Ok(result)
         }
 
@@ -96,7 +128,7 @@ impl Epoch {
         Result<serde_json::Value, Box<std::error::Error>> {
             let result =
                 self.get(&format!("{}{}{}",
-                                  String::from("/micro-blocks/hash/"),
+                                  String::from("micro-blocks/hash/"),
                                   &hash,
                                   String::from("/header")))?;
             Ok(result)
@@ -106,7 +138,7 @@ impl Epoch {
         Result<serde_json::Value, Box<std::error::Error>> {
             let result =
                 self.get(&format!("{}{}{}",
-                                  String::from("/micro-blocks/hash/"),
+                                  String::from("micro-blocks/hash/"),
                                   &hash,
                                   String::from("/transactions")))?;
             Ok(result)
@@ -146,9 +178,9 @@ Walk backward through the chain, grabbing the transactions and stash them in the
 
 The strings that this function returns are meaningless.
 */
-pub fn populate_db(connection: &PgConnection, epoch: &Epoch, top_hash: String) -> Result<String,
-                                                                  Box<std::error::Error>> {
-    let mut next_hash = top_hash;
+pub fn populate_db(connection: &PgConnection, epoch: &Epoch, top_hash: &String, last_hash: &String)
+                   -> Result<String, Box<std::error::Error>> {
+    let mut next_hash = top_hash.clone();
     loop  {
         if next_hash == "null" {
             break;
@@ -177,6 +209,9 @@ pub fn populate_db(connection: &PgConnection, epoch: &Epoch, top_hash: String) -
                         tx.save(connection)?;
                     }
                     prev = mb.prev_hash;
+                }
+                if newblock.height == 0 {
+                    break;
                 }
             }
             Err(_) => {
