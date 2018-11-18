@@ -6,16 +6,12 @@ use dotenv::dotenv;
 use std;
 use std::env;
 use std::io::Read;
-use std::rc::Rc;
 
 use curl::easy::{Easy, List};
 
-use models::InsertableKeyBlock;
-use models::InsertableTransaction;
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
-use models::JsonTransactionList;
 
 use serde_json;
 use serde_json::Value;
@@ -63,6 +59,11 @@ impl Epoch {
             self.get(&String::from("generations/current"))
     }
 
+    pub fn latest_key_block(&self) ->
+        Result<serde_json::Value, Box<std::error::Error>> {
+            self.get(&String::from("key-blocks/current"))
+    }
+
     pub fn get(&self, operation: &String)
                -> Result<serde_json::Value, Box<std::error::Error>> {
         self.get_naked(&String::from("/v2/"), operation)
@@ -85,6 +86,8 @@ impl Epoch {
             transfer.perform()?;
         }
         let value: Value = serde_json::from_str(std::str::from_utf8(&data)?)?;
+        println!("{}", serde_json::to_string(&value).unwrap());
+     
         Ok(value)
     }
 
@@ -117,14 +120,25 @@ impl Epoch {
         Ok(resp)
     }
 
-    fn get_key_block_by_hash(&self, hash: &String) ->
+    pub fn get_key_block_by_hash(&self, hash: &String) ->
         Result<serde_json::Value, Box<std::error::Error>> {
             let result =
-                self.get(&format!("{}{}", String::from("key-blocks/hash/"),&hash))?;
+                self.get(&format!("{}{}",
+                                  String::from("key-blocks/hash/"),
+                                  &hash))?;
             Ok(result)
         }
 
-    fn get_micro_block_by_hash(&self, hash: &String) ->
+    pub fn get_key_block_by_height(&self, height: i64) ->
+        Result<serde_json::Value, Box<std::error::Error>> {
+            let result =
+                self.get(&format!("{}{}",
+                                  String::from("key-blocks/height/"),
+                                  &height))?;
+            Ok(result)
+        }
+
+    pub fn get_micro_block_by_hash(&self, hash: &String) ->
         Result<serde_json::Value, Box<std::error::Error>> {
             let result =
                 self.get(&format!("{}{}{}",
@@ -134,7 +148,7 @@ impl Epoch {
             Ok(result)
         }
 
-    fn get_transaction_list_by_micro_block(&self, hash: &String) ->
+    pub fn get_transaction_list_by_micro_block(&self, hash: &String) ->
         Result<serde_json::Value, Box<std::error::Error>> {
             let result =
                 self.get(&format!("{}{}{}",
@@ -158,67 +172,19 @@ pub fn from_json(val: &String) -> String {
     }
 }
 
-fn key_block_from_json(json: Value) -> Result<JsonKeyBlock, Box<std::error::Error>> {
+pub fn key_block_from_json(json: Value) -> Result<JsonKeyBlock, Box<std::error::Error>> {
     let block: JsonKeyBlock = serde_json::from_value(json)?;
     Ok(block)
 }
 
-fn micro_block_from_json(json: Value) -> Result<InsertableMicroBlock, Box<std::error::Error>> {
+pub fn micro_block_from_json(json: Value) -> Result<InsertableMicroBlock, Box<std::error::Error>> {
     let block: InsertableMicroBlock = serde_json::from_value(json)?;
     Ok(block)
 }
 
-fn transaction_from_json(json: Value) -> Result<JsonTransaction, Box<std::error::Error>> {
+pub fn transaction_from_json(json: Value) -> Result<JsonTransaction, Box<std::error::Error>> {
     let transaction: JsonTransaction = serde_json::from_value(json)?;
     Ok(transaction)
 }
 
-/*
-Walk backward through the chain, grabbing the transactions and stash them in the DB.
-
-The strings that this function returns are meaningless.
-*/
-pub fn populate_db(connection: &PgConnection, epoch: &Epoch, top_hash: &String, last_hash: &String)
-                   -> Result<String, Box<std::error::Error>> {
-    let mut next_hash = top_hash.clone();
-    loop  {
-        if next_hash == "null" {
-            break;
-        }
-        let result = epoch.get_key_block_by_hash(&next_hash);
-        match result {
-            Ok(block) => {
-                let newblock = key_block_from_json(block).unwrap(); // TODO: handle error better
-                next_hash = newblock.prev_key_hash.clone();
-                let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&newblock)?;
-                ib.save(connection)?;
-                let key_block_id = get_insert_id(connection, String::from("key_blocks"))? as i32;
-                let mut prev = newblock.prev_hash;
-                while str::eq(&prev[0..1], "m") { // loop until we run out of microblocks
-                    let mut mb = micro_block_from_json(epoch.get_micro_block_by_hash(&prev)?)?;
-                    mb.key_block_id = key_block_id;
-                    mb.save(connection).unwrap();
-                    let micro_block_id = get_insert_id(connection, String::from("micro_blocks"))? as i32;
-                    let mut trans: JsonTransactionList =
-                        serde_json::from_value(epoch.get_transaction_list_by_micro_block(&prev)?)?;
-                    for i in 0 .. trans.transactions.len() {
-                        let jtx: &JsonTransaction = &trans.transactions[i];
-                        let tx_type: String = from_json(&serde_json::to_string(&jtx.tx["type"])?);
-                        let tx: InsertableTransaction =
-                            InsertableTransaction::from_json_transaction(jtx, tx_type, micro_block_id)?;
-                        tx.save(connection)?;
-                    }
-                    prev = mb.prev_hash;
-                }
-                if newblock.height == 0 {
-                    break;
-                }
-            }
-            Err(_) => {
-                break;
-            }
-        }
-    }
-    Ok(String::from("AOK"))
-}               
 

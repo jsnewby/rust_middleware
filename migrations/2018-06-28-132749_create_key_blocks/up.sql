@@ -1,7 +1,7 @@
 CREATE TABLE key_blocks (
        id SERIAL PRIMARY KEY,
-       hash VARCHAR(55),
-       height BIGINT,
+       hash VARCHAR(55) UNIQUE,
+       height BIGINT UNIQUE,
        miner VARCHAR(55),
        beneficiary VARCHAR(55),
        nonce numeric(20,0),
@@ -14,3 +14,4 @@ CREATE TABLE key_blocks (
        version INTEGER);
 
 CREATE INDEX key_blocks_beneficiary ON key_blocks(beneficiary);
+CREATE INDEX key_blocks_height ON key_blocks(height);

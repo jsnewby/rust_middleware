@@ -11,8 +11,6 @@ extern crate http;
 extern crate blake2b;
 extern crate crypto;
 extern crate curl;
-#[macro_use]
-
 extern crate dotenv;
 extern crate bigdecimal;
 pub use bigdecimal::BigDecimal;
@@ -29,14 +27,8 @@ extern crate rust_sodium;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-//extern crate serde_macros;
 
 use std::thread;
-use std::time::Duration;
-
-
-
-
 extern crate itertools;
 
 extern crate futures;
@@ -48,9 +40,10 @@ use clap::{App, Arg, };
 pub mod epoch;
 pub mod schema;
 pub mod server;
-use server::MiddlewareServer;
+pub mod loader;
 
-//use std::sync::{Mutex, Arc, };
+use server::MiddlewareServer;
+use loader::BlockLoader;
 
 pub mod models;
 
@@ -83,35 +76,24 @@ fn main() {
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
 
-    if populate {
-        println!("Connecting to æternity node with URL {}", url);
-        let current_generation = epoch.current_generation().unwrap();
-        let top_hash = match matches.value_of("start_hash") {
-            Some(h) => String::from(h),
-            None => String::from(epoch::from_json(&current_generation["key_block"]["hash"].to_string())),
-        };
-        println!("Starting from hash: {}", top_hash);
-        let last_hash = match models::KeyBlock::top_hash(&connection.get().unwrap()) {
-            Ok(h) => h,
-            Err(_) => String::from(""),
-        };
-        println!("Highest hash in DB {}", &last_hash);
-        epoch::populate_db(&connection.get().unwrap(), &epoch, &top_hash, &last_hash);
-        if serve { // if we're in server mode then loop getting top blocks every so often
-            let epoch2 = epoch::Epoch::new(String::from(url));
-            let connection = epoch::establish_connection();
-            let mut last_top_hash = top_hash;
+    if populate {        
+        let u = String::from(url);
+        let u2 = u.clone();
+        thread::spawn(move || {
+            let loader = BlockLoader::new(epoch::establish_connection(),
+                                          String::from(u));
+            let tx = loader.tx.clone();
             thread::spawn(move || {
                 loop {
-                    let top_block = epoch2.current_generation().unwrap();
-                    let new_top_hash = String::from(epoch::from_json(&current_generation["key_block"]["hash"].to_string()));
-                    epoch::populate_db(&connection.get().unwrap(), &epoch2, &new_top_hash, &last_top_hash).unwrap();
-                    last_top_hash = new_top_hash;
-                    thread::sleep(Duration::from_millis(30000));
+                    let epoch = epoch::Epoch::new(u2.clone());
+                    loader::BlockLoader::scan(&epoch, &tx);
+                    thread::sleep_ms(15000);
                 }
             });
-        }
-    }      
+            loader.start();
+        });
+        thread::sleep_ms(40000);
+    }
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
@@ -122,7 +104,7 @@ fn main() {
         };
         ms.start();
     }
-        if !populate && !serve {
+    if !populate && !serve {
         println!("Nothing to do!");
-    }    
+    }
 }

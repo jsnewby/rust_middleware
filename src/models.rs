@@ -1,9 +1,12 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 
 use super::schema::key_blocks;
+use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
 use super::schema::transactions;
 
+use diesel::dsl::exists;
+use diesel::dsl::select;
 use diesel::prelude::*;
 use diesel::sql_types::*;
 use diesel::pg::PgConnection;
@@ -36,20 +39,31 @@ sql_function!(fn currval(x: VarChar) -> BigInt);
 
 impl KeyBlock {
 
-    pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        let b = key_blocks::table.order(key_blocks::id.desc()).load::<KeyBlock>(conn)?;
+    pub fn max_id(conn: &PgConnection) ->
+        Result<i32, Box<std::error::Error>> {
+            let b = key_blocks::table.order(key_blocks::id.desc()).
+                load::<KeyBlock>(conn)?;
         Ok(b.first().unwrap().id)
     }
-
-    pub fn top_hash(conn: &PgConnection) -> Result<String, Box<std::error::Error>> {
-        let b = key_blocks::table.order(key_blocks::id.desc()).load::<KeyBlock>(conn)?;
+    
+    pub fn top_height(conn: &PgConnection) ->
+        Result<i64, Box<std::error::Error>> {
+        let b = key_blocks::table.order(key_blocks::height.desc()).load::<KeyBlock>(conn)?;
         let h = match b.first() {
             Some(x) => x,
-            None => return Ok(String::new()),
+            None => return Ok(0),
         };
-        Ok(h.hash.clone().unwrap().clone())
+        Ok(h.height.unwrap())
     }
                                                            
+    pub fn height_exists(conn: &PgConnection, h: i64)  -> bool {
+        match select(exists(key_blocks.filter(height.eq(h)))).get_result(conn) {
+            Ok(result) => return result,
+            _ => return false,
+        };
+            
+    }
+
 }
 
 #[derive(Insertable)]
@@ -86,7 +100,7 @@ impl InsertableKeyBlock {
     pub fn from_json_key_block(jb: &JsonKeyBlock) ->
         Result<InsertableKeyBlock, Box<std::error::Error>> {
             //TODO: fix this.
-            let nonce: u64 = match jb.nonce.as_u64() {
+            let n: u64 = match jb.nonce.as_u64() {
                 Some(val) => val,
                 None => 0,
             };
@@ -94,7 +108,7 @@ impl InsertableKeyBlock {
                 hash: jb.hash.clone(),
                 height: jb.height,
                 miner: jb.miner.clone(),
-                nonce: bigdecimal::BigDecimal::from(nonce),
+                nonce: bigdecimal::BigDecimal::from(n),
                 beneficiary: jb.beneficiary.clone(),
                 pow: format!("{:?}", jb.pow),
                 prev_hash: jb.prev_hash.clone(),

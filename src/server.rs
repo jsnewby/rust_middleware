@@ -1,20 +1,11 @@
-#![feature(plugin, custom_derive)]
-#![plugin(rocket_codegen)]
-
-use curl::easy::Easy;
-
 use diesel::sql_query;
 
 use diesel::pg::PgConnection;
 use diesel::RunQueryDsl;    
 use rocket;
 use rocket::State;
-use rocket::request::Form;
-use rocket::response::content;
 use rocket_contrib::Json;
 use std::sync::{Arc, };
-
-use epoch::from_json;
 
 use epoch::Epoch;
 use models::{Transaction, JsonTransaction, JsonTransactionList, };
