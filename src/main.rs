@@ -107,8 +107,9 @@ fn main() {
             });
             loader.start();
         });
-        thread::sleep_ms(40000);
-        
+        loop {
+            thread::sleep_ms(40000);
+        }        
     }
 
     if serve {
