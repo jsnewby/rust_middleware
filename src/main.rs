@@ -76,6 +76,11 @@ fn main() {
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
 
+    /*
+     * we start 2 populate processes--one scans for missing blocks
+     * and works through that list, then exits. The other polls for 
+     * new blocks to load, and loops endlessly.
+     */
     if populate {        
         let u = String::from(url);
         let u2 = u.clone();
@@ -84,15 +89,26 @@ fn main() {
                                           String::from(u));
             let tx = loader.tx.clone();
             thread::spawn(move || {
-                loop {
-                    let epoch = epoch::Epoch::new(u2.clone());
-                    loader::BlockLoader::scan(&epoch, &tx);
-                    thread::sleep_ms(15000);
-                }
+                let epoch = epoch::Epoch::new(u2.clone());
+                loader::BlockLoader::scan(&epoch, &tx);
             });
             loader.start();
         });
         thread::sleep_ms(40000);
+        let u = String::from(url);
+        let u2 = u.clone();
+        thread::spawn(move || {
+            let loader = BlockLoader::new(epoch::establish_connection(),
+                                          String::from(u));
+            let tx = loader.tx.clone();
+            thread::spawn(move || {
+                let epoch = epoch::Epoch::new(u2.clone());
+                loader::BlockLoader::scan(&epoch, &tx);
+            });
+            loader.start();
+        });
+        thread::sleep_ms(40000);
+        
     }
 
     if serve {
