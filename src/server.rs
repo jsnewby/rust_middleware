@@ -1,21 +1,23 @@
 use diesel::sql_query;
 
-use diesel::pg::PgConnection;
-use diesel::RunQueryDsl;    
-use rocket;
-use rocket::State;
-use rocket_contrib::Json;
-use std::sync::{Arc, };
 
 use epoch::Epoch;
 use models::{Transaction, JsonTransaction, JsonTransactionList, };
 
-use serde_json;
 
-use r2d2::{Pool, };
+use diesel::pg::PgConnection;
+use diesel::RunQueryDsl;    
 use r2d2_diesel::ConnectionManager;
-
+use r2d2::{Pool, };
+use rocket;
+use rocket::http::Method;
+use rocket::State;
+use rocket_contrib::Json;
+use rocket_cors;
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use serde_json;
 use std::path::PathBuf;
+use std::sync::{Arc, };
 
 pub struct MiddlewareServer {
     pub epoch: Epoch,
@@ -79,11 +81,21 @@ fn transactions_for_account(state: State<MiddlewareServer>, account: String) -> 
 
 impl MiddlewareServer {
     pub fn start(self) {
+        let allowed_origins = AllowedOrigins::all();            
+        let options = rocket_cors::Cors {
+            allowed_origins: allowed_origins,
+            allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+            allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+            allow_credentials: true,
+            ..Default::default()
+    };
+
         rocket::ignite()
             .mount("/middleware", routes![transactions_for_account])
             .mount("/v2", routes![epoch_get_handler])
             .mount("/v2", routes![epoch_post_handler])
             .mount("/api", routes![epoch_api_handler])
+            .attach(options)
             .manage(self)
             .launch();
     }

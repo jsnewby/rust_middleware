@@ -14,18 +14,17 @@ hex = "0.3.2"
 blake2b = "0.7.0"
 untrusted = "0.5"
 futures = "0.1"
-hyper = "0.12.2"
-curl = "0.4.12"
-http = "0.1.8"
+#hyper = "0.12.4"
+curl = "0.4.19"
+#http = "0.1.8"
 hyper-tls = {version = "0.1.2", optional = true}
-rust_sodium = "0.9.0"
 regex = "1.0"
 lazy_static = "0.2"
 log = "0.3.0"
 mime = "0.3.3"
 # multipart = {version = "0.13.3", optional = true}
-native-tls = {version = "0.1.4", optional = true}
-openssl = {version = "0.9.14", optional = true}
+native-tls = {version = "0.2.2", optional = true}
+openssl = {version = "0.10.15", optional = true}
 percent-encoding = {version = "1.0.0", optional = true}
 serde = "1.0"
 serde_derive = "1.0"
@@ -44,6 +43,6 @@ clap = "~2.32"
 rocket = "0.3.6"
 rocket_contrib = "0.3.6"
 rocket_codegen = "0.3.6"
-#rocket_cors = "0.3"
+rocket_cors = "0.3.0"
 r2d2 = "*"
 r2d2-diesel = "*"

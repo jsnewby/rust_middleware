@@ -1,5 +1,7 @@
+use diesel::dsl::sql;
 use diesel::prelude::*;
 use diesel::sql_types::*;
+use diesel::sql_query;
 use diesel::pg::PgConnection;
 use dotenv::dotenv;
 
@@ -45,7 +47,24 @@ pub fn get_insert_id(conn: &PgConnection, table_name: String) ->
         Ok(id)
     }
 
+/*
+#[derive(Queryable)]
+#[derive(QueryableByName)]
+pub struct MissingCount {
+    #[sql_type = "Integer"]
+    missing_count: i32,
+}
 
+    pub fn db_complete(conn: &PgConnection) ->
+    Result<bool, Box<std::error::Error>> {
+        let missing_counts: Vec<&MissingCount> =
+            sql_query("SELECT count(1) AS missing_height FROM generate_series(0,14000) s(i) WHERE NOT EXISTS (SELECT 1 FROM key_blocks WHERE height = s.i)").
+            load(conn)?;
+        let missing_count = missing_counts.first().unwrap();
+        Ok(missing_count.missing_count == 0)
+    }
+
+*/
 pub struct Epoch {
     base_uri: String,
 }

@@ -6,24 +6,22 @@
 
 extern crate rand;
 
-extern crate http;
-
+extern crate bigdecimal;
 extern crate blake2b;
 extern crate crypto;
 extern crate curl;
-extern crate dotenv;
-extern crate bigdecimal;
-pub use bigdecimal::BigDecimal;
-extern crate hex;
 #[macro_use]
 extern crate diesel;
+extern crate dotenv;
+pub use bigdecimal::BigDecimal;
+extern crate hex;
 extern crate rocket;
+extern crate rocket_contrib;
+extern crate rocket_cors;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate regex;
-extern crate rocket_contrib;
 extern crate rust_base58;
-extern crate rust_sodium;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
@@ -32,7 +30,7 @@ use std::thread;
 extern crate itertools;
 
 extern crate futures;
-extern crate hyper;
+//extern crate hyper;
 
 extern crate clap;
 use clap::{App, Arg, };
