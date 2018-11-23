@@ -40,6 +40,12 @@ fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serd
                                &String::from(path.to_str().unwrap())).unwrap())
 }
 
+#[get("/v2/<path..>")]
+fn epoch_test_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
+    Json(state.epoch.get_naked(&String::from("/v2/"),
+                               &String::from(path.to_str().unwrap())).unwrap())
+}
+
 /*
  * POST handler for Epoch
  */
@@ -92,6 +98,7 @@ impl MiddlewareServer {
 
         rocket::ignite()
             .mount("/middleware", routes![transactions_for_account])
+            .mount("/v2/key-blocks/height/", routes![epoch_test_handler])
             .mount("/v2", routes![epoch_get_handler])
             .mount("/v2", routes![epoch_post_handler])
             .mount("/api", routes![epoch_api_handler])

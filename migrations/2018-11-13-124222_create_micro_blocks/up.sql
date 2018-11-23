@@ -2,7 +2,7 @@
 
 CREATE TABLE micro_blocks (
        id SERIAL PRIMARY KEY,
-       key_block_id INT NOT NULL REFERENCES key_blocks(id),
+       key_block_id INT NOT NULL REFERENCES key_blocks(id) ON DELETE CASCADE,
        hash VARCHAR(55) NOT NULL,
        pof_hash VARCHAR(55) NOT NULL,
        prev_hash VARCHAR(55) NOT NULL,

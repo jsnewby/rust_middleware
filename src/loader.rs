@@ -35,6 +35,12 @@ impl BlockLoader {
         }
     }
 
+    pub fn in_fork(height: i64 ) {
+        let connection = epoch::establish_sql_connection();
+        connection.execute("DELETE FROM key_blocks where height >= $1",
+                           &[&height]);
+    }
+    
     pub fn scan(epoch: &Epoch, tx: &std::sync::mpsc::Sender<i64> ) {
         let connection = epoch::establish_connection();
         let top_block_chain =
@@ -44,6 +50,11 @@ impl BlockLoader {
                                                 get().unwrap()).unwrap();
         if top_block_chain.height == top_block_db {
             println!("Up-to-date");
+            return;
+        }
+        if top_block_chain.height < top_block_db {
+            println!("Fork detected");
+            //in_fork();
             return;
         }
         println!("Reading blocks {} to {}",
