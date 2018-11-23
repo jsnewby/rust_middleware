@@ -20,6 +20,14 @@ then
 
 `cargo build`
 
+and to install the database
+
+```
+cargo install diesel_cli
+diesel database reset
+```
+
+
 ## How to run
 
 `cargo run -- ` + flags below
