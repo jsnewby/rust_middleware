@@ -42,11 +42,15 @@ impl BlockLoader {
                                 unwrap()).unwrap();
         let top_block_db = KeyBlock::top_height(&connection.
                                                 get().unwrap()).unwrap();
+        if top_block_chain.height == top_block_db {
+            println!("Up-to-date");
+            return;
+        }
         println!("Reading blocks {} to {}",
                  top_block_chain.height, top_block_db);
         let mut height = top_block_chain.height;
         loop {
-            if height == top_block_db {
+            if height <= top_block_db {
                 break;
             }
             if ! KeyBlock::height_exists(&connection.get().unwrap(),
