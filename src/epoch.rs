@@ -1,29 +1,42 @@
+use curl::easy::{Easy, List};
+
 use diesel::dsl::sql;
 use diesel::prelude::*;
 use diesel::sql_types::*;
 use diesel::sql_query;
 use diesel::pg::PgConnection;
 use dotenv::dotenv;
-
+use postgres::{Connection, TlsMode};
+use r2d2::{Pool, };
+use r2d2_diesel::ConnectionManager;
+use regex::Regex;
+use serde_json;
+use serde_json::Value;
 use std;
+use std::sync::{Arc, };
 use std::env;
 use std::io::Read;
-
-use curl::easy::{Easy, List};
 
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
 
-use serde_json;
-use serde_json::Value;
 
-use r2d2::{Pool, };
-use r2d2_diesel::ConnectionManager;
+pub fn establish_sql_connection() -> postgres::Connection {
+    dotenv().ok();
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    Connection::connect(database_url, TlsMode::None).unwrap()
+}
 
-use regex::Regex;
-
-use std::sync::{Arc, };
+pub fn get_missing_heights(height: i64) -> Vec<i32> {
+    let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
+    println!("{}", &sql);
+    let mut missing_heights = Vec::new();
+    for row in &establish_sql_connection().query(&sql, &[]).unwrap() {
+        missing_heights.push(row.get(0));
+    }
+    missing_heights
+}
 
 pub fn establish_connection() -> Arc<Pool<ConnectionManager<PgConnection>>> {
     dotenv().ok(); // Grabbing ENV vars
@@ -47,24 +60,6 @@ pub fn get_insert_id(conn: &PgConnection, table_name: String) ->
         Ok(id)
     }
 
-/*
-#[derive(Queryable)]
-#[derive(QueryableByName)]
-pub struct MissingCount {
-    #[sql_type = "Integer"]
-    missing_count: i32,
-}
-
-    pub fn db_complete(conn: &PgConnection) ->
-    Result<bool, Box<std::error::Error>> {
-        let missing_counts: Vec<&MissingCount> =
-            sql_query("SELECT count(1) AS missing_height FROM generate_series(0,14000) s(i) WHERE NOT EXISTS (SELECT 1 FROM key_blocks WHERE height = s.i)").
-            load(conn)?;
-        let missing_count = missing_counts.first().unwrap();
-        Ok(missing_count.missing_count == 0)
-    }
-
-*/
 pub struct Epoch {
     base_uri: String,
 }

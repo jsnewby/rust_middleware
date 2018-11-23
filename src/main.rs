@@ -30,7 +30,7 @@ use std::thread;
 extern crate itertools;
 
 extern crate futures;
-//extern crate hyper;
+extern crate postgres;
 
 extern crate clap;
 use clap::{App, Arg, };
@@ -75,9 +75,9 @@ fn main() {
     let serve = matches.is_present("server");
 
     /*
-     * we start 2 populate processes--one scans for missing blocks
+     * we start 2 populate processes--one queries for missing heights
      * and works through that list, then exits. The other polls for 
-     * new blocks to load, and loops endlessly.
+     * new blocks to load, then sleeps and does it again
      */
     if populate {        
         let u = String::from(url);
@@ -85,14 +85,15 @@ fn main() {
         thread::spawn(move || {
             let loader = BlockLoader::new(epoch::establish_connection(),
                                           String::from(u));
-            let tx = loader.tx.clone();
-            thread::spawn(move || {
-                let epoch = epoch::Epoch::new(u2.clone());
-                loader::BlockLoader::scan(&epoch, &tx);
-            });
+            let epoch = epoch::Epoch::new(u2.clone());
+            let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
+            let missing_heights = epoch::get_missing_heights(top_block.height);
+            for height in missing_heights {
+                println!("Adding {} to load queue", &height);
+                loader.tx.send(height as i64);
+            }
             loader.start();
         });
-        thread::sleep_ms(40000);
         let u = String::from(url);
         let u2 = u.clone();
         thread::spawn(move || {
@@ -101,7 +102,12 @@ fn main() {
             let tx = loader.tx.clone();
             thread::spawn(move || {
                 let epoch = epoch::Epoch::new(u2.clone());
-                loader::BlockLoader::scan(&epoch, &tx);
+                loop {
+                    println!("Scanning for new blocks");
+                    loader::BlockLoader::scan(&epoch, &tx);
+                    println!("Sleeping.");
+                    thread::sleep_ms(40000);
+                }
             });
             loader.start();
         });
