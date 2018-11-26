@@ -111,9 +111,6 @@ fn main() {
             });
             loader.start();
         });
-        loop {
-            thread::sleep_ms(40000);
-        }        
     }
 
     if serve {
@@ -125,6 +122,9 @@ fn main() {
         };
         ms.start();
     }
+    loop {
+       thread::sleep_ms(40000);
+   }        
     if !populate && !serve {
         println!("Nothing to do!");
     }
