@@ -61,7 +61,7 @@ impl BlockLoader {
                  top_block_chain.height, top_block_db);
         let mut height = top_block_chain.height;
         loop {
-            if height <= top_block_db {
+            if height < top_block_db {
                 break;
             }
             if ! KeyBlock::height_exists(&connection.get().unwrap(),

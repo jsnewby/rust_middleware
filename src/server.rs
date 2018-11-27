@@ -85,6 +85,25 @@ fn transactions_for_account(state: State<MiddlewareServer>, account: String) -> 
     Json(list)
 }
 
+/*
+ * Gets transactions between blocks
+ */
+#[get("/transactions/interval/<from>/<to>")]
+fn transactions_for_interval(state: State<MiddlewareServer>, from: i64, to: i64) ->
+    Json<JsonTransactionList> {
+    let sql = format!("select t.* from transactions t, micro_blocks m, key_blocks k where t.micro_block_id=m.id and m.key_block_id=k.id and k.height >={} and k.height <= {}", from, to);
+    let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
+    let mut trans: Vec<JsonTransaction> = vec!();
+    for i in 0 .. transactions.len() {
+        trans.push(JsonTransaction::from_transaction(&transactions[i]));
+    }
+    let list = JsonTransactionList {
+        transactions: trans,
+    };
+    Json(list)
+}
+
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();            
@@ -98,7 +117,7 @@ impl MiddlewareServer {
 
         rocket::ignite()
             .mount("/middleware", routes![transactions_for_account])
-            .mount("/v2/key-blocks/height/", routes![epoch_test_handler])
+            .mount("/middleware", routes![transactions_for_interval])
             .mount("/v2", routes![epoch_get_handler])
             .mount("/v2", routes![epoch_post_handler])
             .mount("/api", routes![epoch_api_handler])
