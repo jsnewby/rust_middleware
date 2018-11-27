@@ -73,7 +73,7 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
  */
 #[get("/transactions/account/<account>")]
 fn transactions_for_account(state: State<MiddlewareServer>, account: String) -> Json<JsonTransactionList> {
-    let sql = format!("select * from transactions where (tx->>'type' = 'SpendTx' AND tx->>'sender_id'='{}')", sanitize(account));
+    let sql = format!("select * from transactions where tx->>'sender_id'='{}'", sanitize(account));
     let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec!();
     for i in 0 .. transactions.len() {
