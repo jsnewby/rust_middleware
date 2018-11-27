@@ -1,5 +1,5 @@
 [package]
-name = "rust_test"
+name = "aeternity_middleware"
 version = "0.1.0"
 authors = ["John Newby <john@newby.org>"]
 

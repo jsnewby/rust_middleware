@@ -53,13 +53,6 @@ pub fn establish_connection() -> Arc<Pool<ConnectionManager<PgConnection>>> {
 } 
 sql_function!(fn currval(x: VarChar) -> BigInt);
 
-pub fn get_insert_id(conn: &PgConnection, table_name: String) ->
-    Result<i64, Box<std::error::Error + 'static >> {
-        use diesel::dsl::{select};
-        let id = select(currval(format!("{}_id_seq", table_name))).get_result::<i64>(conn)?;
-        Ok(id)
-    }
-
 pub struct Epoch {
     base_uri: String,
 }
