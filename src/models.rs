@@ -51,7 +51,7 @@ impl KeyBlock {
         let b = key_blocks::table.order(key_blocks::height.desc()).load::<KeyBlock>(conn)?;
         let h = match b.first() {
             Some(x) => x,
-            None => return Ok(-1),
+            None => return Ok(0),
         };
         Ok(h.height.unwrap())
     }
@@ -63,7 +63,6 @@ impl KeyBlock {
         };
             
     }
-
 }
 
 #[derive(Insertable)]

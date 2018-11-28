@@ -73,7 +73,7 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
  */
 #[get("/transactions/account/<account>")]
 fn transactions_for_account(state: State<MiddlewareServer>, account: String) -> Json<JsonTransactionList> {
-    let sql = format!("select * from transactions where tx->>'sender_id'='{}'", sanitize(account));
+    let sql = format!("select * from transactions where tx->>'sender_id'='{}' order by id asc", sanitize(account));
     let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec!();
     for i in 0 .. transactions.len() {
@@ -91,7 +91,7 @@ fn transactions_for_account(state: State<MiddlewareServer>, account: String) -> 
 #[get("/transactions/interval/<from>/<to>")]
 fn transactions_for_interval(state: State<MiddlewareServer>, from: i64, to: i64) ->
     Json<JsonTransactionList> {
-    let sql = format!("select t.* from transactions t, micro_blocks m, key_blocks k where t.micro_block_id=m.id and m.key_block_id=k.id and k.height >={} and k.height <= {}", from, to);
+    let sql = format!("select t.* from transactions t, micro_blocks m, key_blocks k where t.micro_block_id=m.id and m.key_block_id=k.id and k.height >={} and k.height <= {} order by h.height asc", from, to);
     let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec!();
     for i in 0 .. transactions.len() {
