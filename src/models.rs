@@ -7,9 +7,9 @@ use super::schema::transactions;
 
 use diesel::dsl::exists;
 use diesel::dsl::select;
+use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_types::*;
-use diesel::pg::PgConnection;
 
 extern crate serde_json;
 use serde_json::Number;
@@ -38,36 +38,34 @@ pub struct KeyBlock {
 sql_function!(fn currval(x: VarChar) -> BigInt);
 
 impl KeyBlock {
-
-    pub fn max_id(conn: &PgConnection) ->
-        Result<i32, Box<std::error::Error>> {
-            let b = key_blocks::table.order(key_blocks::id.desc()).
-                load::<KeyBlock>(conn)?;
+    pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
+        let b = key_blocks::table
+            .order(key_blocks::id.desc())
+            .load::<KeyBlock>(conn)?;
         Ok(b.first().unwrap().id)
     }
-    
-    pub fn top_height(conn: &PgConnection) ->
-        Result<i64, Box<std::error::Error>> {
-        let b = key_blocks::table.order(key_blocks::height.desc()).load::<KeyBlock>(conn)?;
+
+    pub fn top_height(conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
+        let b = key_blocks::table
+            .order(key_blocks::height.desc())
+            .load::<KeyBlock>(conn)?;
         let h = match b.first() {
             Some(x) => x,
             None => return Ok(-1),
         };
         Ok(h.height.unwrap())
     }
-                                                           
-    pub fn height_exists(conn: &PgConnection, h: i64)  -> bool {
+
+    pub fn height_exists(conn: &PgConnection, h: i64) -> bool {
         match select(exists(key_blocks.filter(height.eq(h)))).get_result(conn) {
             Ok(result) => return result,
             _ => return false,
         };
-            
     }
-
 }
 
 #[derive(Insertable)]
-#[table_name="key_blocks"]
+#[table_name = "key_blocks"]
 pub struct InsertableKeyBlock {
     pub hash: String,
     pub height: i64,
@@ -83,42 +81,39 @@ pub struct InsertableKeyBlock {
     pub version: i32,
 }
 
-
 impl InsertableKeyBlock {
-    
-    pub fn save(&self, conn: &PgConnection) ->
-        Result<i64, Box<std::error::Error>> {
-            use diesel::dsl::{select, insert_into};
-            use diesel::RunQueryDsl;
-            use schema::key_blocks::dsl::*;
-            insert_into(key_blocks)
-                .values(self).execute(&*conn)?;
-            let generated_id = select(currval("key_blocks_id_seq")).get_result::<i64>(&*conn)?;
-            Ok(generated_id)
-        }
+    pub fn save(&self, conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
+        use diesel::dsl::{insert_into, select};
+        use diesel::RunQueryDsl;
+        use schema::key_blocks::dsl::*;
+        insert_into(key_blocks).values(self).execute(&*conn)?;
+        let generated_id = select(currval("key_blocks_id_seq")).get_result::<i64>(&*conn)?;
+        Ok(generated_id)
+    }
 
-    pub fn from_json_key_block(jb: &JsonKeyBlock) ->
-        Result<InsertableKeyBlock, Box<std::error::Error>> {
-            //TODO: fix this.
-            let n: u64 = match jb.nonce.as_u64() {
-                Some(val) => val,
-                None => 0,
-            };
-            Ok(InsertableKeyBlock {
-                hash: jb.hash.clone(),
-                height: jb.height,
-                miner: jb.miner.clone(),
-                nonce: bigdecimal::BigDecimal::from(n),
-                beneficiary: jb.beneficiary.clone(),
-                pow: format!("{:?}", jb.pow),
-                prev_hash: jb.prev_hash.clone(),
-                prev_key_hash: jb.prev_key_hash.clone(),
-                state_hash: jb.state_hash.clone(),
-                target: jb.target.clone(),
-                time: jb.time,
-                version: jb.version,
-            })
-        }
+    pub fn from_json_key_block(
+        jb: &JsonKeyBlock,
+    ) -> Result<InsertableKeyBlock, Box<std::error::Error>> {
+        //TODO: fix this.
+        let n: u64 = match jb.nonce.as_u64() {
+            Some(val) => val,
+            None => 0,
+        };
+        Ok(InsertableKeyBlock {
+            hash: jb.hash.clone(),
+            height: jb.height,
+            miner: jb.miner.clone(),
+            nonce: bigdecimal::BigDecimal::from(n),
+            beneficiary: jb.beneficiary.clone(),
+            pow: format!("{:?}", jb.pow),
+            prev_hash: jb.prev_hash.clone(),
+            prev_key_hash: jb.prev_key_hash.clone(),
+            state_hash: jb.state_hash.clone(),
+            target: jb.target.clone(),
+            time: jb.time,
+            version: jb.version,
+        })
+    }
 }
 
 /*
@@ -135,9 +130,9 @@ pub struct JsonKeyBlock {
     pub height: i64,
     pub miner: String,
     pub beneficiary: String,
-    #[serde(default="zero")]
+    #[serde(default = "zero")]
     pub nonce: Number,
-    #[serde(default="zero_vec_i32")]
+    #[serde(default = "zero_vec_i32")]
     pub pow: Vec<i32>,
     pub prev_hash: String,
     pub prev_key_hash: String,
@@ -152,7 +147,7 @@ fn zero() -> Number {
 }
 
 fn zero_vec_i32() -> Vec<i32> {
-    vec!(0)
+    vec![0]
 }
 
 #[derive(Queryable)]
@@ -171,16 +166,18 @@ pub struct MicroBlock {
 
 impl MicroBlock {
     pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        let b = micro_blocks::table.order(micro_blocks::id.desc()).load::<MicroBlock>(conn)?;
+        let b = micro_blocks::table
+            .order(micro_blocks::id.desc())
+            .load::<MicroBlock>(conn)?;
         Ok(b.first().unwrap().id)
     }
 }
 
 #[derive(Insertable)]
-#[table_name="micro_blocks"]
+#[table_name = "micro_blocks"]
 #[derive(Serialize, Deserialize)]
 pub struct InsertableMicroBlock {
-    #[serde(default="zero_i32")]
+    #[serde(default = "zero_i32")]
     pub key_block_id: i32,
     pub hash: String,
     pub pof_hash: String,
@@ -197,22 +194,18 @@ fn zero_i32() -> i32 {
 }
 
 impl InsertableMicroBlock {
-    
-    pub fn save(&self, conn: &PgConnection) ->
-        Result<i64, Box<std::error::Error>> {
-            use diesel::dsl::{select, insert_into};
-            use diesel::RunQueryDsl;
-            use schema::micro_blocks::dsl::*;
-            insert_into(micro_blocks)
-                .values(self).execute(&*conn)?;
-            let generated_id = select(currval("micro_blocks_id_seq")).get_result::<i64>(&*conn)?;
-            Ok(generated_id)
-        }
+    pub fn save(&self, conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
+        use diesel::dsl::{insert_into, select};
+        use diesel::RunQueryDsl;
+        use schema::micro_blocks::dsl::*;
+        insert_into(micro_blocks).values(self).execute(&*conn)?;
+        let generated_id = select(currval("micro_blocks_id_seq")).get_result::<i64>(&*conn)?;
+        Ok(generated_id)
+    }
 }
 
-#[derive(Queryable)]
-#[derive(QueryableByName)]
-#[table_name="transactions"]
+#[derive(Queryable, QueryableByName)]
+#[table_name = "transactions"]
 #[derive(Serialize, Deserialize)]
 pub struct Transaction {
     pub id: i32,
@@ -235,7 +228,7 @@ pub struct JsonTransaction {
 
 impl JsonTransaction {
     pub fn from_transaction(t: &Transaction) -> JsonTransaction {
-        let mut signatures: Vec<String> = vec!();
+        let mut signatures: Vec<String> = vec![];
         let _s = t.signatures.split(", ");
         for s in _s {
             signatures.push(String::from(s));
@@ -256,7 +249,7 @@ pub struct JsonTransactionList {
 }
 
 #[derive(Insertable)]
-#[table_name="transactions"]
+#[table_name = "transactions"]
 pub struct InsertableTransaction {
     pub micro_block_id: i32,
     pub block_height: i32,
@@ -268,25 +261,22 @@ pub struct InsertableTransaction {
 }
 
 impl InsertableTransaction {
+    pub fn save(&self, conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
+        use diesel::dsl::{insert_into, select};
+        use diesel::RunQueryDsl;
+        use schema::transactions::dsl::*;
+        insert_into(transactions).values(self).execute(&*conn)?;
+        let generated_id = select(currval("transactions_id_seq")).get_result::<i64>(&*conn)?;
+        Ok(generated_id)
+    }
 
-    pub fn save(&self, conn: &PgConnection) ->
-        Result<i64, Box<std::error::Error>> {
-            use diesel::dsl::{select, insert_into};
-            use diesel::RunQueryDsl;
-            use schema::transactions::dsl::*;
-            insert_into(transactions)
-                .values(self).execute(&*conn)?;
-            let generated_id = select(currval("transactions_id_seq")).get_result::<i64>(&*conn)?;
-            Ok(generated_id)
-        }
-
-    pub fn from_json_transaction(jt: &JsonTransaction, tx_type: String, micro_block_id: i32)
-                                 -> Result<InsertableTransaction,
-                                           Box<std::error::Error>>
-    {
-        
+    pub fn from_json_transaction(
+        jt: &JsonTransaction,
+        tx_type: String,
+        micro_block_id: i32,
+    ) -> Result<InsertableTransaction, Box<std::error::Error>> {
         let mut signatures = String::new();
-        for i in 0 .. jt.signatures.len() {
+        for i in 0..jt.signatures.len() {
             if i > 0 {
                 signatures.push_str(" ");
             }
@@ -302,5 +292,4 @@ impl InsertableTransaction {
             tx: serde_json::from_str(&jt.tx.to_string()).unwrap(),
         })
     }
-                
 }
