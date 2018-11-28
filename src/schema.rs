@@ -49,8 +49,4 @@ table! {
 joinable!(micro_blocks -> key_blocks (key_block_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
 
-allow_tables_to_appear_in_same_query!(
-    key_blocks,
-    micro_blocks,
-    transactions,
-);
+allow_tables_to_appear_in_same_query!(key_blocks, micro_blocks, transactions,);

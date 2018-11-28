@@ -15,12 +15,12 @@ extern crate diesel;
 extern crate dotenv;
 pub use bigdecimal::BigDecimal;
 extern crate hex;
-extern crate rocket;
-extern crate rocket_contrib;
-extern crate rocket_cors;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate regex;
+extern crate rocket;
+extern crate rocket_contrib;
+extern crate rocket_cors;
 extern crate rust_base58;
 #[macro_use]
 extern crate serde_derive;
@@ -33,15 +33,15 @@ extern crate futures;
 extern crate postgres;
 
 extern crate clap;
-use clap::{App, Arg, };
+use clap::{App, Arg};
 
 pub mod epoch;
+pub mod loader;
 pub mod schema;
 pub mod server;
-pub mod loader;
 
-use server::MiddlewareServer;
 use loader::BlockLoader;
+use server::MiddlewareServer;
 
 pub mod models;
 
@@ -50,18 +50,36 @@ fn main() {
         .version("0.1")
         .author("John Newby <john@newby.org>")
         .about("----")
-        .arg(Arg::with_name("url")
-             .short("u").long("url").value_name("URL")
-             .help("URL of æternity node.").takes_value(true))
-        .arg(Arg::with_name("start_hash")
-             .short("h").long("start_hash").value_name("START_HASH")
-             .help("Hash to start from.").takes_value(true))
-        .arg(Arg::with_name("server")
-             .short("s").long("server")
-             .help("Start server").takes_value(false))
-         .arg(Arg::with_name("populate")
-             .short("p").long("populate")
-             .help("Populate DB").takes_value(false))
+        .arg(
+            Arg::with_name("url")
+                .short("u")
+                .long("url")
+                .value_name("URL")
+                .help("URL of æternity node.")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("start_hash")
+                .short("h")
+                .long("start_hash")
+                .value_name("START_HASH")
+                .help("Hash to start from.")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("server")
+                .short("s")
+                .long("server")
+                .help("Start server")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("populate")
+                .short("p")
+                .long("populate")
+                .help("Populate DB")
+                .takes_value(false),
+        )
         .get_matches();
 
     let url = match matches.value_of("url") {
@@ -76,15 +94,14 @@ fn main() {
 
     /*
      * we start 2 populate processes--one queries for missing heights
-     * and works through that list, then exits. The other polls for 
+     * and works through that list, then exits. The other polls for
      * new blocks to load, then sleeps and does it again
      */
-    if populate {        
+    if populate {
         let u = String::from(url);
         let u2 = u.clone();
         thread::spawn(move || {
-            let loader = BlockLoader::new(epoch::establish_connection(),
-                                          String::from(u));
+            let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
             let epoch = epoch::Epoch::new(u2.clone());
             let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
             let missing_heights = epoch::get_missing_heights(top_block.height);
@@ -97,8 +114,7 @@ fn main() {
         let u = String::from(url);
         let u2 = u.clone();
         thread::spawn(move || {
-            let loader = BlockLoader::new(epoch::establish_connection(),
-                                          String::from(u));
+            let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
             let tx = loader.tx.clone();
             thread::spawn(move || {
                 let epoch = epoch::Epoch::new(u2.clone());
@@ -123,8 +139,8 @@ fn main() {
         ms.start();
     }
     loop {
-       thread::sleep_ms(40000);
-   }        
+        thread::sleep_ms(40000);
+    }
     if !populate && !serve {
         println!("Nothing to do!");
     }
