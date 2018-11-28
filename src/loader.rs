@@ -1,6 +1,3 @@
-#![feature(plugin, custom_derive)]
-#![plugin(rocket_codegen)]
-
 use diesel::pg::PgConnection;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -29,10 +26,7 @@ impl BlockLoader {
         let (tx, rx): (Sender<i64>, Receiver<i64>) = mpsc::channel();
         let epoch = Epoch::new(epoch_url.clone());
         BlockLoader {
-            epoch: epoch,
-            connection: connection,
-            rx: rx,
-            tx: tx,
+            epoch, connection, rx, tx
         }
     }
 
@@ -72,7 +66,7 @@ impl BlockLoader {
             } else {
                 println!("Block already in DB at height {}", height);
             }
-            height = height - 1;
+            height -= 1;
         }
     }
 

@@ -58,9 +58,9 @@ impl KeyBlock {
 
     pub fn height_exists(conn: &PgConnection, h: i64) -> bool {
         match select(exists(key_blocks.filter(height.eq(h)))).get_result(conn) {
-            Ok(result) => return result,
-            _ => return false,
-        };
+            Ok(result) => result,
+            _ => false,
+        }
     }
 }
 
@@ -214,6 +214,8 @@ pub struct Transaction {
     pub block_hash: String,
     pub hash: String,
     pub signatures: String,
+    pub fee: i64,
+    pub size: i32,
     pub tx: serde_json::Value,
 }
 
@@ -237,7 +239,7 @@ impl JsonTransaction {
             block_height: t.block_height,
             block_hash: t.block_hash.clone(),
             hash: t.hash.clone(),
-            signatures: signatures,
+            signatures,
             tx: t.tx.clone(),
         }
     }
@@ -257,6 +259,8 @@ pub struct InsertableTransaction {
     pub hash: String,
     pub signatures: String,
     pub tx_type: String,
+    pub fee: i64,
+    pub size: i32,
     pub tx: serde_json::Value,
 }
 
@@ -283,12 +287,14 @@ impl InsertableTransaction {
             signatures.push_str(&jt.signatures[i].clone());
         }
         Ok(InsertableTransaction {
-            micro_block_id: micro_block_id,
+            micro_block_id,
             block_height: jt.block_height,
             block_hash: jt.block_hash.clone(),
             hash: jt.hash.clone(),
-            signatures: signatures,
-            tx_type: tx_type,
+            signatures,
+            tx_type,
+            fee: jt.tx["fee"].as_i64().unwrap(),
+            size: jt.tx.to_string().len() as i32,
             tx: serde_json::from_str(&jt.tx.to_string()).unwrap(),
         })
     }

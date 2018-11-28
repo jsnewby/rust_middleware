@@ -42,6 +42,8 @@ table! {
         signatures -> Text,
         tx_type -> Varchar,
         tx -> Jsonb,
+        fee -> Int8,
+        size -> Int4,
         valid -> Bool,
     }
 }

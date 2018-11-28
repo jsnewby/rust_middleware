@@ -131,10 +131,10 @@ fn main() {
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
-            epoch: epoch,
+            epoch,
             dest_url: String::from("https://sdk-testnet.aepps.com"),
             port: 3013,
-            connection: connection,
+            connection,
         };
         ms.start();
     }
