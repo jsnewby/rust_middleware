@@ -46,7 +46,6 @@ pub fn establish_connection() -> Arc<Pool<ConnectionManager<PgConnection>>> {
     // Create the pool with the default config and the r2d2_diesel connection manager
     Arc::new(Pool::new(manager).expect("Failed to create pool."))
 }
-sql_function!(fn currval(x: VarChar) -> BigInt);
 
 pub struct Epoch {
     base_uri: String,

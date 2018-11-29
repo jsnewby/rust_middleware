@@ -121,7 +121,7 @@ fn transactions_for_interval(state: State<MiddlewareServer>, from: i64, to: i64)
 }
 
 /*
- * Gets gas price for a transaction
+ * Gets average gas price for a block
  */
 #[get("/key-blocks/height/<height>/gas-price")]
 fn key_block_gas_price(state: State<MiddlewareServer>, height: i64) -> Option<String> {

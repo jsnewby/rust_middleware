@@ -5,6 +5,7 @@ use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
 use super::schema::transactions;
 
+use diesel::sql_query;
 use diesel::dsl::exists;
 use diesel::dsl::select;
 use diesel::pg::PgConnection;
@@ -35,16 +36,7 @@ pub struct KeyBlock {
     pub version: Option<i32>,
 }
 
-sql_function!(fn currval(x: VarChar) -> BigInt);
-
 impl KeyBlock {
-    pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        let b = key_blocks::table
-            .order(key_blocks::id.desc())
-            .load::<KeyBlock>(conn)?;
-        Ok(b.first().unwrap().id)
-    }
-
     pub fn top_height(conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
         let b = key_blocks::table
             .order(key_blocks::height.desc())
@@ -55,6 +47,16 @@ impl KeyBlock {
         };
         Ok(h.height.unwrap())
     }
+
+    pub fn load_at_height(conn: &PgConnection, _height: i64) -> Result<KeyBlock, Box<std::error::Error>> {
+        let mut blocks = key_blocks::table
+            .filter(height.eq(_height))
+            .limit(1)
+            .load::<KeyBlock>(conn)?;
+        Ok(blocks.pop().unwrap())
+    }
+
+
 
     pub fn height_exists(conn: &PgConnection, h: i64) -> bool {
         match select(exists(key_blocks.filter(height.eq(h)))).get_result(conn) {
@@ -82,13 +84,12 @@ pub struct InsertableKeyBlock {
 }
 
 impl InsertableKeyBlock {
-    pub fn save(&self, conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
+    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
         use diesel::dsl::{insert_into, select};
         use diesel::RunQueryDsl;
         use schema::key_blocks::dsl::*;
-        insert_into(key_blocks).values(self).execute(&*conn)?;
-        let generated_id = select(currval("key_blocks_id_seq")).get_result::<i64>(&*conn)?;
-        Ok(generated_id)
+        let generated_ids: Vec<i32> = insert_into(key_blocks).values(self).returning(id).get_results(&*conn)?;
+        Ok(generated_ids[0])
     }
 
     pub fn from_json_key_block(
@@ -194,13 +195,12 @@ fn zero_i32() -> i32 {
 }
 
 impl InsertableMicroBlock {
-    pub fn save(&self, conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
+    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
         use diesel::dsl::{insert_into, select};
         use diesel::RunQueryDsl;
         use schema::micro_blocks::dsl::*;
-        insert_into(micro_blocks).values(self).execute(&*conn)?;
-        let generated_id = select(currval("micro_blocks_id_seq")).get_result::<i64>(&*conn)?;
-        Ok(generated_id)
+        let generated_ids: Vec<i32> = insert_into(micro_blocks).values(self).returning(id).get_results(&*conn)?;
+        Ok(generated_ids[0])
     }
 }
 
@@ -265,13 +265,12 @@ pub struct InsertableTransaction {
 }
 
 impl InsertableTransaction {
-    pub fn save(&self, conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
+    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
         use diesel::dsl::{insert_into, select};
         use diesel::RunQueryDsl;
         use schema::transactions::dsl::*;
-        insert_into(transactions).values(self).execute(&*conn)?;
-        let generated_id = select(currval("transactions_id_seq")).get_result::<i64>(&*conn)?;
-        Ok(generated_id)
+        let generated_ids: Vec<i32> = insert_into(transactions).values(self).returning(id).get_results(&*conn)?;
+        Ok(generated_ids[0])
     }
 
     pub fn from_json_transaction(

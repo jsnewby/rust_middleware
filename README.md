@@ -48,6 +48,7 @@ OPTIONS:
 ## Supported queries
 
 `GET /transactions/account/<account>` all transactioms for account
-
+`GET /transactions/interval/<from>/<to>` transactions from block <from> to block <to> inclusive`
+`GET /key-blocks/height/<height>/gas-price` get the average gas price for a certain block (currently super inaccurate)
 
 

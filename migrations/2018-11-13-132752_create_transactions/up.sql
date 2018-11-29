@@ -15,4 +15,4 @@ CREATE TABLE transactions (
 );
        
 CREATE INDEX transactions_tx_type_index ON transactions(tx_type);
-
+CREATE INDEX transactions_block_hash_index ON transactions(block_hash);

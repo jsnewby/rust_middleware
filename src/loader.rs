@@ -50,11 +50,11 @@ impl BlockLoader {
         }
         println!(
             "Reading blocks {} to {}",
-            top_block_chain.height, top_block_db
+            top_block_db+1, top_block_chain.height
         );
         let mut height = top_block_chain.height;
         loop {
-            if height < top_block_db {
+            if height <= top_block_db {
                 break;
             }
             if !KeyBlock::height_exists(&connection.get().unwrap(), height) {
@@ -72,15 +72,21 @@ impl BlockLoader {
 
     fn load_blocks(&self, height: i64) -> Result<String, Box<std::error::Error>> {
         let connection = self.connection.get()?;
-        let kb = self.epoch.get_key_block_by_height(height)?;
+        let mut kb = self.epoch.get_key_block_by_height(height)?; 
         let newblock = key_block_from_json(kb)?;
         let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&newblock)?;
         let key_block_id = ib.save(&connection)? as i32;
+        println!("Saved key_block_id={}", key_block_id);
         let mut prev = newblock.prev_hash;
+
+        // we're currently (naively) getting transactions working back from the latest mined keyblock
+        // so this is necessary in order to get the keyblock to which these microblocks relate
+        let last_key_block = KeyBlock::load_at_height(&connection, height-1)?;
         while str::eq(&prev[0..1], "m") {
             // loop until we run out of microblocks
             let mut mb = micro_block_from_json(self.epoch.get_micro_block_by_hash(&prev)?)?;
-            mb.key_block_id = key_block_id;
+            mb.key_block_id = last_key_block.id;
+            println!("Inserting micro w. key_block_id={}", key_block_id);
             let micro_block_id = mb.save(&connection).unwrap() as i32;
             let trans: JsonTransactionList =
                 serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&prev)?)?;
