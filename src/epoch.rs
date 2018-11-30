@@ -169,6 +169,13 @@ impl Epoch {
         ))?;
         Ok(result)
     }
+
+    pub fn get_pending_transaction_list(
+        &self,
+    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+        let result = self.get(&String::from("debug/transactions/pending"))?;
+        Ok(result)
+    }
 }
 
 pub fn from_json(val: &String) -> String {

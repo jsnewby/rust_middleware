@@ -1,3 +1,4 @@
+#![feature(slice_concat_ext)]
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(custom_attribute)]
 #![feature(plugin)]
@@ -93,11 +94,23 @@ fn main() {
     let serve = matches.is_present("server");
 
     /*
-     * we start 2 populate processes--one queries for missing heights
-     * and works through that list, then exits. The other polls for
-     * new blocks to load, then sleeps and does it again
+     * we start 3 populate processes--one queries for missing heights
+     * and works through that list, then exits. Another polls for
+     * new blocks to load, then sleeps and does it again, and yet 
+     * another reads the mempool (if available).
      */
     if populate {
+        let u = String::from(url);
+        let u2 = u.clone();
+        thread::spawn(move || {
+            let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
+            let epoch = epoch::Epoch::new(u2.clone());
+            loop {
+                loader.load_mempool(&epoch);
+                thread::sleep(std::time::Duration::new(5,0));
+            }
+        });
+
         let u = String::from(url);
         let u2 = u.clone();
         thread::spawn(move || {
