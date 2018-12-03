@@ -81,7 +81,14 @@ impl BlockLoader {
 
         // we're currently (naively) getting transactions working back from the latest mined keyblock
         // so this is necessary in order to get the keyblock to which these microblocks relate
-        let last_key_block = KeyBlock::load_at_height(&connection, height-1)?;
+        let last_key_block = match KeyBlock::load_at_height(&connection, height-1) {
+            Some(x) => x,
+            None => {
+                let err = format!("Didn't load key block at height {}", height-1);
+                println!("{}", err);
+                return Ok(err);
+            },
+        };
         while str::eq(&prev[0..1], "m") {
             // loop until we run out of microblocks
             let mut mb = micro_block_from_json(self.epoch.get_micro_block_by_hash(&prev)?)?;

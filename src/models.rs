@@ -48,12 +48,18 @@ impl KeyBlock {
         Ok(h.height.unwrap())
     }
 
-    pub fn load_at_height(conn: &PgConnection, _height: i64) -> Result<KeyBlock, Box<std::error::Error>> {
-        let mut blocks = key_blocks::table
+    pub fn load_at_height(conn: &PgConnection, _height: i64) -> Option<KeyBlock> {
+        let mut blocks = match key_blocks::table
             .filter(height.eq(_height))
             .limit(1)
-            .load::<KeyBlock>(conn)?;
-        Ok(blocks.pop().unwrap())
+            .load::<KeyBlock>(conn) {
+                Ok(x) => x,
+                Err(y) => {
+                    println!("Error loading key block: {:?}", y);
+                    return None;
+                },
+            };
+        Some(blocks.pop()?)
     }
 
 
