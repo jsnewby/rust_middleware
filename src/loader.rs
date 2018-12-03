@@ -57,7 +57,7 @@ impl BlockLoader {
              micro_block_id IS NULL AND \
              hash NOT IN ({})",
             hashes_in_mempool.join(", "));
-        println!("__sql: {}", sql);
+        epoch::establish_sql_connection.execute(sql);
     }        
 
     pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
