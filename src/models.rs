@@ -62,8 +62,6 @@ impl KeyBlock {
         Some(blocks.pop()?)
     }
 
-
-
     pub fn height_exists(conn: &PgConnection, h: i64) -> bool {
         match select(exists(key_blocks.filter(height.eq(h)))).get_result(conn) {
             Ok(result) => result,
@@ -211,11 +209,12 @@ impl InsertableMicroBlock {
 }
 
 #[derive(Queryable, QueryableByName)]
-#[table_name = "transactions"]
+#[derive(Identifiable)]
 #[derive(Serialize, Deserialize)]
+#[table_name = "transactions"]
 pub struct Transaction {
     pub id: i32,
-    pub micro_block_id: i32,
+    pub micro_block_id: Option<i32>,
     pub block_height: i32,
     pub block_hash: String,
     pub hash: String,
@@ -259,7 +258,7 @@ pub struct JsonTransactionList {
 #[derive(Insertable)]
 #[table_name = "transactions"]
 pub struct InsertableTransaction {
-    pub micro_block_id: i32,
+    pub micro_block_id: Option<i32>,
     pub block_height: i32,
     pub block_hash: String,
     pub hash: String,
@@ -282,7 +281,7 @@ impl InsertableTransaction {
     pub fn from_json_transaction(
         jt: &JsonTransaction,
         tx_type: String,
-        micro_block_id: i32,
+        micro_block_id: Option<i32>,
     ) -> Result<InsertableTransaction, Box<std::error::Error>> {
         let mut signatures = String::new();
         for i in 0..jt.signatures.len() {

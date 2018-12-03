@@ -35,7 +35,7 @@ table! {
 table! {
     transactions (id) {
         id -> Int4,
-        micro_block_id -> Int4,
+        micro_block_id -> Nullable<Int4>,
         block_height -> Int4,
         block_hash -> Varchar,
         hash -> Varchar,
