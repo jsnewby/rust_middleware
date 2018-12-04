@@ -49,7 +49,7 @@ impl BlockLoader {
             serde_json::from_value(self.epoch.get_pending_transaction_list().unwrap()).unwrap();
         let mut hashes_in_mempool = vec!();
         for i in 0..trans.transactions.len() {
-            self.store_or_update_transaction(&conn, &trans.transactions[i], None);
+            self.store_or_update_transaction(&conn, &trans.transactions[i], None).unwrap();
             hashes_in_mempool.push(format!("'{}'", trans.transactions[i].hash));
         }
         let sql = format!(
@@ -57,7 +57,7 @@ impl BlockLoader {
              micro_block_id IS NULL AND \
              hash NOT IN ({})",
             hashes_in_mempool.join(", "));
-        epoch::establish_sql_connection.execute(sql);
+        epoch::establish_sql_connection().execute(&sql, &[]);
     }        
 
     pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
@@ -135,9 +135,10 @@ impl BlockLoader {
     ) ->
         Result<i32, Box<std::error::Error>>
     {
-        let mut results: Vec<Transaction> = sql_query(
-            "select * from transactions where hash = '?' limit 1").
-            bind::<diesel::sql_types::Text, _>(trans.hash.clone()).
+        let sql = format!("select * from transactions where hash = '{}' limit 1", &trans.hash);
+        println!("{}", sql);
+        let mut results: Vec<Transaction> = sql_query(sql).
+            // bind::<diesel::sql_types::Text, _>(trans.hash.clone()).
             get_results(conn)?;
         match results.pop() {
             Some(x) => {
