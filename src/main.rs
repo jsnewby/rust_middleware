@@ -16,6 +16,8 @@ extern crate diesel;
 extern crate dotenv;
 pub use bigdecimal::BigDecimal;
 extern crate hex;
+#[macro_use]
+extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate regex;
@@ -119,7 +121,7 @@ fn main() {
             let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
             let missing_heights = epoch::get_missing_heights(top_block.height);
             for height in missing_heights {
-                println!("Adding {} to load queue", &height);
+                debug!("Adding {} to load queue", &height);
                 loader.tx.send(height as i64);
             }
             loader.start();
@@ -132,9 +134,9 @@ fn main() {
             thread::spawn(move || {
                 let epoch = epoch::Epoch::new(u2.clone());
                 loop {
-                    println!("Scanning for new blocks");
+                    debug!("Scanning for new blocks");
                     loader::BlockLoader::scan(&epoch, &tx);
-                    println!("Sleeping.");
+                    debug!("Sleeping.");
                     thread::sleep_ms(40000);
                 }
             });
@@ -151,10 +153,10 @@ fn main() {
         };
         ms.start();
     }
+    if !populate && !serve {
+        warn!("Nothing to do!");
+    }
     loop {
         thread::sleep_ms(40000);
-    }
-    if !populate && !serve {
-        println!("Nothing to do!");
     }
 }

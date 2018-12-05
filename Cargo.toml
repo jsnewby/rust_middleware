@@ -20,7 +20,7 @@ curl = "0.4.19"
 hyper-tls = {version = "0.1.2", optional = true}
 regex = "1.0"
 lazy_static = "0.2"
-log = "0.3.0"
+log = "0.4.6"
 mime = "0.3.3"
 # multipart = {version = "0.13.3", optional = true}
 native-tls = {version = "0.2.2", optional = true}

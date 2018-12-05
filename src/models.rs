@@ -55,7 +55,7 @@ impl KeyBlock {
             .load::<KeyBlock>(conn) {
                 Ok(x) => x,
                 Err(y) => {
-                    println!("Error loading key block: {:?}", y);
+                    error!("Error loading key block: {:?}", y);
                     return None;
                 },
             };

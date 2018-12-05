@@ -65,15 +65,15 @@ impl BlockLoader {
         let top_block_chain = key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
         let top_block_db = KeyBlock::top_height(&connection.get().unwrap()).unwrap();
         if top_block_chain.height == top_block_db {
-            println!("Up-to-date");
+            trace!("Up-to-date");
             return;
         }
         if top_block_chain.height < top_block_db {
-            println!("Fork detected");
+            info!("Fork detected");
             //in_fork();
             return;
         }
-        println!(
+        debug!(
             "Reading blocks {} to {}",
             top_block_db+1, top_block_chain.height
         );
@@ -83,13 +83,13 @@ impl BlockLoader {
                 break;
             }
             if !KeyBlock::height_exists(&connection.get().unwrap(), height) {
-                println!("Fetching block {}", height);
+                debug!("Fetching block {}", height);
                 match _tx.send(height) {
-                    Ok(x) => println!("Success: {:?}", x),
-                    Err(e) => println!("Error: {:?}", e),
+                    Ok(x) => debug!("Success: {:?}", x),
+                    Err(e) => error!("Error fetching block at height {}: {:?}", height, e),
                 };
             } else {
-                println!("Block already in DB at height {}", height);
+                info!("Block already in DB at height {}", height);
             }
             height -= 1;
         }
@@ -108,7 +108,7 @@ impl BlockLoader {
             Some(x) => x,
             None => {
                 let err = format!("Didn't load key block at height {}", height-1);
-                println!("{}", err);
+                error!("{}", err);
                 return Ok(err);
             },
         };
@@ -116,7 +116,7 @@ impl BlockLoader {
             // loop until we run out of microblocks
             let mut mb = micro_block_from_json(self.epoch.get_micro_block_by_hash(&prev)?)?;
             mb.key_block_id = last_key_block.id;
-            println!("Inserting micro w. key_block_id={}", key_block_id);
+            info!("Inserting micro w. key_block_id={}", key_block_id);
             let _micro_block_id = mb.save(&connection).unwrap() as i32;
             let trans: JsonTransactionList =
                 serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&prev)?)?;
@@ -136,18 +136,18 @@ impl BlockLoader {
         Result<i32, Box<std::error::Error>>
     {
         let sql = format!("select * from transactions where hash = '{}' limit 1", &trans.hash);
-        println!("{}", sql);
+        debug!("{}", sql);
         let mut results: Vec<Transaction> = sql_query(sql).
             // bind::<diesel::sql_types::Text, _>(trans.hash.clone()).
             get_results(conn)?;
         match results.pop() {
             Some(x) => {
-                println!("Found {}", &trans.hash);
+                debug!("Found {}", &trans.hash);
                 diesel::update(&x).set(micro_block_id.eq(_micro_block_id));
                 Ok(x.id)
             },
             None => {
-                println!("Not found {}", &trans.hash);
+                debug!("Not found {}", &trans.hash);
                 let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
                 let _tx: InsertableTransaction =
                     InsertableTransaction::from_json_transaction(&trans, _tx_type, _micro_block_id)?;

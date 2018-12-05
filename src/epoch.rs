@@ -26,7 +26,7 @@ pub fn establish_sql_connection() -> postgres::Connection {
 
 pub fn get_missing_heights(height: i64) -> Vec<i32> {
     let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
-    println!("{}", &sql);
+    debug!("{}", &sql);
     let mut missing_heights = Vec::new();
     for row in &establish_sql_connection().query(&sql, &[]).unwrap() {
         missing_heights.push(row.get(0));
@@ -75,7 +75,7 @@ impl Epoch {
         operation: &String,
     ) -> Result<serde_json::Value, Box<std::error::Error>> {
         let uri = self.base_uri.clone() + prefix + operation;
-        println!("{}", uri);
+        debug!("get_naked() fetching {}", uri);
         let mut data = Vec::new();
         let mut handle = Easy::new();
         handle.url(&uri)?;
@@ -88,7 +88,7 @@ impl Epoch {
             transfer.perform()?;
         }
         let value: Value = serde_json::from_str(std::str::from_utf8(&data)?)?;
-        println!("{}", serde_json::to_string(&value).unwrap());
+        debug!("get_naked() received {}", serde_json::to_string(&value).unwrap());
 
         Ok(value)
     }
@@ -100,7 +100,7 @@ impl Epoch {
         body: String,
     ) -> Result<String, Box<std::error::Error>> {
         let uri = self.base_uri.clone() + prefix + operation;
-        println!("URL: {}, body: {}", uri, body);
+        debug!("post_naked posting to URL: {}, body: {}", uri, body);
         let mut data = body.as_bytes();
         let mut handle = Easy::new();
         handle.url(&uri)?;
@@ -120,7 +120,7 @@ impl Epoch {
             transfer.perform()?;
         }
         let resp = String::from(std::str::from_utf8(&response).unwrap());
-        println!("{}", resp);
+        debug!("get_naked() returning {}", resp);
         Ok(resp)
     }
 
@@ -182,7 +182,6 @@ pub fn from_json(val: &String) -> String {
     let re = Regex::new("^\"(.*)\"$").unwrap();
     match re.captures(val) {
         Some(matches) => {
-            println!("Match: {:?}", String::from(&matches[1]));
             String::from(&matches[1])
         }
         None => val.clone(),
