@@ -14,6 +14,7 @@ extern crate curl;
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
+extern crate env_logger;
 pub use bigdecimal::BigDecimal;
 extern crate hex;
 #[macro_use]
@@ -49,6 +50,7 @@ use server::MiddlewareServer;
 pub mod models;
 
 fn main() {
+    env_logger::init();
     let matches = App::new("æternity middleware")
         .version("0.1")
         .author("John Newby <john@newby.org>")
