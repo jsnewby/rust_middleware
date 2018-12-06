@@ -1,19 +1,19 @@
 table! {
     key_blocks (id) {
         id -> Int4,
-        hash -> Nullable<Varchar>,
-        height -> Nullable<Int8>,
-        miner -> Nullable<Varchar>,
-        beneficiary -> Nullable<Varchar>,
-        pow -> Nullable<Varchar>,
-        nonce -> Nullable<Numeric>,
-        prev_hash -> Nullable<Varchar>,
-        prev_key_hash -> Nullable<Varchar>,
-        state_hash -> Nullable<Varchar>,
-        target -> Nullable<Int8>,
+        hash -> Varchar,
+        height -> Int8,
+        miner -> Varchar,
+        beneficiary -> Varchar,
+        pow -> Varchar,
+        nonce -> Numeric,
+        prev_hash -> Varchar,
+        prev_key_hash -> Varchar,
+        state_hash -> Varchar,
+        target -> Int8,
         #[sql_name="time_"]
-        time -> Nullable<Int8>,
-        version -> Nullable<Int4>,
+        time -> Int8,
+        version -> Int4,
     }
 }
 

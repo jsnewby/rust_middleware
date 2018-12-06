@@ -16,27 +16,52 @@ extern crate serde_json;
 use serde_json::Number;
 
 use bigdecimal;
-
+use bigdecimal::ToPrimitive;
 use std;
+use std::str::FromStr;
 
 #[derive(Queryable)]
 pub struct KeyBlock {
     pub id: i32,
-    pub hash: Option<String>,
-    pub height: Option<i64>,
-    pub miner: Option<String>,
-    pub beneficiary: Option<String>,
-    pub pow: Option<String>,
-    pub nonce: Option<bigdecimal::BigDecimal>,
-    pub prev_hash: Option<String>,
-    pub prev_key_hash: Option<String>,
-    pub state_hash: Option<String>,
-    pub target: Option<i64>,
-    pub time: Option<i64>,
-    pub version: Option<i32>,
+    pub hash: String,
+    pub height: i64,
+    pub miner: String,
+    pub beneficiary: String,
+    pub pow: String,
+    pub nonce: bigdecimal::BigDecimal,
+    pub prev_hash: String,
+    pub prev_key_hash: String,
+    pub state_hash: String,
+    pub target: i64,
+    pub time: i64,
+    pub version: i32,
 }
 
 impl KeyBlock {
+    pub fn from_json_key_block(
+        jb: &JsonKeyBlock,
+    ) -> Result<KeyBlock, Box<std::error::Error>> {
+        let n: u64 = match jb.nonce.as_u64() {
+            Some(val) => val,
+            None => 0,
+        };
+        Ok(KeyBlock {
+            id: -1, // TODO
+            hash: jb.hash.clone(),
+            height: jb.height,
+            miner: jb.miner.clone(),
+            nonce: bigdecimal::BigDecimal::from(n),
+            beneficiary: jb.beneficiary.clone(),
+            pow: format!("{:?}", jb.pow),
+            prev_hash: jb.prev_hash.clone(),
+            prev_key_hash: jb.prev_key_hash.clone(),
+            state_hash: jb.state_hash.clone(),
+            target: jb.target.clone(),
+            time: jb.time,
+            version: jb.version,
+        })
+    }
+
     pub fn top_height(conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
         let b = key_blocks::table
             .order(key_blocks::height.desc())
@@ -45,7 +70,7 @@ impl KeyBlock {
             Some(x) => x,
             None => return Ok(0),
         };
-        Ok(h.height.unwrap())
+        Ok(h.height)
     }
 
     pub fn load_at_height(conn: &PgConnection, _height: i64) -> Option<KeyBlock> {
@@ -147,6 +172,30 @@ pub struct JsonKeyBlock {
     pub version: i32,
 }
 
+impl JsonKeyBlock {
+    pub fn from_key_block(kb: &KeyBlock) -> JsonKeyBlock {
+        let pows: Vec<serde_json::Value> = serde_json::from_str(&kb.pow).unwrap();
+        let mut pows2 = Vec::<i32>::new();
+        for val in pows {
+            pows2.push(i32::from_str(&serde_json::to_string(&val).unwrap()).unwrap());
+        }
+        JsonKeyBlock {
+            hash: kb.hash.clone(),
+            height: kb.height,
+            miner: kb.miner.clone(),
+            beneficiary: kb.beneficiary.clone(),
+            nonce: serde_json::Number::from_f64(kb.nonce.to_f64().unwrap()).unwrap(),
+            pow: pows2,
+            prev_hash: kb.prev_hash.clone(),
+            prev_key_hash: kb.prev_key_hash.clone(),
+            state_hash: kb.state_hash.clone(),
+            target: kb.target,
+            time: kb.time,
+            version: kb.version,
+        }
+    }
+}           
+
 fn zero() -> Number {
     serde_json::Number::from_f64(0.0).unwrap()
 }
@@ -156,10 +205,12 @@ fn zero_vec_i32() -> Vec<i32> {
 }
 
 #[derive(Queryable)]
+#[derive(Identifiable)]
+#[table_name = "micro_blocks"]
 pub struct MicroBlock {
     pub id: i32,
     #[serde(default = "option_i32")]
-    pub key_block: i32,
+    pub key_block: Option<KeyBlock>,
     pub hash: String,
     pub pof_hash: String,
     pub prev_hash: String,
@@ -194,7 +245,8 @@ impl InsertableMicroBlock {
         use diesel::dsl::{insert_into, select};
         use diesel::RunQueryDsl;
         use schema::micro_blocks::dsl::*;
-        let generated_ids: Vec<i32> = insert_into(micro_blocks).values(self).returning(id).get_results(&*conn)?;
+        let generated_ids: Vec<i32> =
+            insert_into(micro_blocks).values(self).returning(id).get_results(&*conn)?;
         Ok(generated_ids[0])
     }
 }

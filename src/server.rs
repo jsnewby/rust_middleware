@@ -1,7 +1,8 @@
 use diesel::sql_query;
 
+use epoch;
 use epoch::Epoch;
-use models::{JsonTransaction, JsonTransactionList, Transaction};
+use models::*;
 
 use diesel::pg::PgConnection;
 use diesel::RunQueryDsl;
@@ -34,8 +35,8 @@ fn sanitize(s: String) -> String {
 /*
  * GET handler for Epoch
  */
-#[get("/<path..>")]
-fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
+#[get("/<path..>", rank=6)]
+fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json {
     Json(
         state
             .epoch
@@ -75,7 +76,7 @@ fn epoch_post_handler(state: State<MiddlewareServer>, path: PathBuf, body: Strin
 /*
  * Epoch's only endpoint which lives outside of /v2/...
  */
-#[get("/")]
+#[get("/",)]
 fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> {
     Json(
         state
@@ -83,6 +84,31 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
             .get_naked(&String::from("/api"), &String::from(""))
             .unwrap(),
     )
+}
+
+#[get("/generations/height/<height>", rank=1)]
+fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
+    let conn = epoch::establish_connection().get().unwrap();
+    let key_block = match KeyBlock::load_at_height(&conn, height) {
+        Some(x) => x,
+        None => {
+            info!("Generation ot found at height {}", height);
+            let mut path = std::path::PathBuf::new();
+            path.push(format!("/generations/height/{}", height));
+            return epoch_get_handler(state, path);
+        }
+    };
+    info!("Serving generation {} from DB", height);
+    let sql = format!("SELECT hash FROM micro_blocks WHERE key_block_id={}", key_block.id);
+    debug!("{}", &sql);
+    let mut micro_block_hashes = Vec::new();
+    for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
+        micro_block_hashes.push(row.get(0));
+    }
+    Json(serde_json::from_str(&serde_json::to_string(&JsonGeneration {
+        key_block: JsonKeyBlock::from_key_block(&key_block),
+        micro_blocks: micro_block_hashes,
+    }).unwrap()).unwrap())
 }
 
 /*
@@ -164,6 +190,7 @@ impl MiddlewareServer {
             .mount("/v2", routes![epoch_get_handler])
             .mount("/v2", routes![epoch_post_handler])
             .mount("/api", routes![epoch_api_handler])
+            .mount("/v2", routes![generation_at_height])
             .attach(options)
             .manage(self)
             .launch();
