@@ -60,6 +60,12 @@ impl Epoch {
         self.get(&String::from("generations/current"))
     }
 
+    pub fn get_generation_at_height(&self, height: i32) ->
+        Result<serde_json::Value, Box<std::error::Error>> {
+            let path = format!("generations/height/{}", height);
+            self.get(&String::from(path))
+    }
+
     pub fn latest_key_block(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
         self.get(&String::from("key-blocks/current"))
     }

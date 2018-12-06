@@ -95,40 +95,39 @@ impl BlockLoader {
         }
     }
 
-    fn load_blocks(&self, height: i64) -> Result<String, Box<std::error::Error>> {
+    /*
+     * At this height, load the key block, using the generations call
+     * to grab the block and all of its microblocks.
+     */    
+    fn load_blocks(&self, height: i64) -> Result<i32, Box<std::error::Error>> {
+        let mut count = 0;
         let connection = self.connection.get()?;
-        let mut kb = self.epoch.get_key_block_by_height(height)?; 
-        let newblock = key_block_from_json(kb)?;
-        let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&newblock)?;
+        let mut generation: JsonGeneration = serde_json::from_value(
+            self.epoch.get_generation_at_height(height as i32)?)?;
+        let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
-        let mut prev = newblock.prev_hash;
-        // we're currently (naively) getting transactions working back from the latest mined keyblock
-        // so this is necessary in order to get the keyblock to which these microblocks relate
-        let last_key_block = match KeyBlock::load_at_height(&connection, height-1) {
-            Some(x) => x,
-            None => {
-                let err = format!("Didn't load key block at height {}", height-1);
-                error!("{}", err);
-                return Ok(err);
-            },
-        };
-        while str::eq(&prev[0..1], "m") {
-            // loop until we run out of microblocks
-            let mut mb = micro_block_from_json(self.epoch.get_micro_block_by_hash(&prev)?)?;
-            mb.key_block_id = last_key_block.id;
-            info!("Inserting micro w. key_block_id={}", key_block_id);
+        for mb_hash in &generation.micro_blocks {
+            let mut mb: InsertableMicroBlock = serde_json::from_value(
+                self.epoch.get_micro_block_by_hash(&mb_hash)?)?;
+            mb.key_block_id = Some(key_block_id);
             let _micro_block_id = mb.save(&connection).unwrap() as i32;
             let trans: JsonTransactionList =
-                serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&prev)?)?;
+                serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&mb_hash)?)?;
             for i in 0..trans.transactions.len() {
                 self.store_or_update_transaction(&connection, &trans.transactions[i],
                                                  Some(_micro_block_id)).unwrap();
             }
-            prev = mb.prev_hash;
+            count += 1;
         }
-        Ok(String::from("foo"))
+        Ok(count)
     }
 
+    /*
+     * transactions in the mempool won't have a micro_block_id, so as we scan the chain we may 
+     * need to insert them, or update them with the id of the micro block with which they're 
+     * now associated. We may also need to move them to a different micro block, in the event
+     * of a fork.
+     */
     pub fn store_or_update_transaction(&self, conn: &PgConnection,
                                        trans: &JsonTransaction,
                                        _micro_block_id: Option<i32>

@@ -158,6 +158,7 @@ fn zero_vec_i32() -> Vec<i32> {
 #[derive(Queryable)]
 pub struct MicroBlock {
     pub id: i32,
+    #[serde(default = "option_i32")]
     pub key_block: i32,
     pub hash: String,
     pub pof_hash: String,
@@ -169,21 +170,15 @@ pub struct MicroBlock {
     pub version: i32,
 }
 
-impl MicroBlock {
-    pub fn max_id(conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        let b = micro_blocks::table
-            .order(micro_blocks::id.desc())
-            .load::<MicroBlock>(conn)?;
-        Ok(b.first().unwrap().id)
-    }
+fn option_i32() -> Option<i32> {
+    None
 }
 
 #[derive(Insertable)]
 #[table_name = "micro_blocks"]
 #[derive(Serialize, Deserialize)]
 pub struct InsertableMicroBlock {
-    #[serde(default = "zero_i32")]
-    pub key_block_id: i32,
+    pub key_block_id: Option<i32>,
     pub hash: String,
     pub pof_hash: String,
     pub prev_hash: String,
@@ -192,10 +187,6 @@ pub struct InsertableMicroBlock {
     pub state_hash: String,
     pub txs_hash: String,
     pub version: i32,
-}
-
-fn zero_i32() -> i32 {
-    0
 }
 
 impl InsertableMicroBlock {
@@ -208,6 +199,12 @@ impl InsertableMicroBlock {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct JsonGeneration {
+    pub key_block: JsonKeyBlock,
+    pub micro_blocks: Vec<String>,
+}
+    
 #[derive(Queryable, QueryableByName)]
 #[derive(Identifiable)]
 #[derive(Serialize, Deserialize)]
