@@ -90,7 +90,6 @@ impl KeyBlock {
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<KeyBlock> {
         let mut blocks = match key_blocks::table
             .filter(hash.eq(_hash))
-            .limit(1)
             .load::<KeyBlock>(conn) {
                 Ok(x) => x,
                 Err(y) => {
@@ -286,6 +285,26 @@ pub struct Transaction {
     pub size: i32,
     pub tx: serde_json::Value,
 }
+
+impl Transaction {
+    pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
+        let sql = format!("select * from transactions where hash='{}'", _hash);
+        let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
+        /*
+        let mut _transactions = match transactions::table
+            .filter(hash.eq(_hash))
+            .limit(1)
+            .load::<Transaction>(conn) {
+                Ok(x) => x,
+                Err(y) => {
+                    error!("Error loading key block: {:?}", y);
+                    return None;
+                },
+            };
+         */
+        Some(_transactions.pop()?)
+    }
+}    
 
 #[derive(Serialize, Deserialize)]
 pub struct JsonTransaction {

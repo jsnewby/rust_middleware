@@ -128,14 +128,28 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
         &JsonKeyBlock::from_key_block(&key_block)).unwrap()).unwrap())
 }
 
-
+#[get("/transactions/<hash>")]
+fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
+    let conn = epoch::establish_connection().get().unwrap();
+    let tx: Transaction = match Transaction::load_at_hash(&conn, &hash) {
+        Some(x) => x,
+        None => {
+            info!("Transaction not found at hash {}", &hash);
+            let mut path = std::path::PathBuf::new();
+            path.push(format!("/transactions/hash/{}", hash));
+            return epoch_get_handler(state, path);
+        },
+    };
+    Json(serde_json::from_str(&serde_json::to_string(
+        &JsonTransaction::from_transaction(&tx)).unwrap()).unwrap())
+}
 
 #[get("/key-blocks/hash/<hash>", rank=1)]
 fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
     let conn = epoch::establish_connection().get().unwrap();
     let key_block = match KeyBlock::load_at_hash(&conn, &hash) {
         Some(x) => x,
-        None => {
+        None => {            
             info!("Key block not found at hash {}", &hash);
             let mut path = std::path::PathBuf::new();
             path.push(format!("/key-blocks/hash/{}", hash));
@@ -248,6 +262,7 @@ impl MiddlewareServer {
             .mount("/v2", routes![generation_at_height])
             .mount("/v2", routes![key_block_at_height])
             .mount("/v2", routes![key_block_at_hash])
+            .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
             .attach(options)
             .manage(self)
