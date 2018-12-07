@@ -8,11 +8,14 @@ use std::slice::SliceConcatExt;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
+use std::thread;
 
 use epoch;
 use epoch::*;
 use models::*;
 //use super::schema::transactions;
+use super::schema::key_blocks;
+use super::schema::key_blocks::dsl::*;
 use super::schema::transactions::dsl::*;
 
 use serde_json;
@@ -38,9 +41,58 @@ impl BlockLoader {
         }
     }
 
-    pub fn in_fork(height: i64) {
+    pub fn in_fork(_height: i64) {
         let connection = epoch::establish_sql_connection();
-        connection.execute("DELETE FROM key_blocks where height >= $1", &[&height]);
+        connection.execute("DELETE FROM key_blocks where height >= $1", &[&_height]);
+    }
+
+    /*
+     * We walk backward through the chain loading blocks from the DB,
+     * and requesting them from the chain. We pause 1 second between
+     * each check, and only check 500 blocks (~1 day) back. For each
+     * pair of blocks we check that their hashes and their
+     * beneficiaries match, if now we delete the block from the DB
+     * (which cascades to delete the microblocks and transactions),
+     * and put the height onto the load queue.
+     *
+     * TODO: disassociate the TXs from the micro-blocks and keep them
+     * for reporting purposes.
+     */
+
+    pub fn detect_forks(&self, epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
+        let conn = epoch::establish_connection().get().unwrap();
+        let mut _height = KeyBlock::top_height(&conn).unwrap();
+        let stop_height = _height - 500; // a day, more or less
+        loop {
+            if _height <= stop_height {
+                break;
+            }
+            let mut block_db = KeyBlock::load_at_height(&conn, _height).unwrap();
+            let mut block_chain = match epoch.get_key_block_by_height(_height)
+            {
+                Ok(x) => x,
+                Err(y) => {
+                    info!("Couldn't load block from chain at height {}", _height);
+                    self.invalidate_block_at_height(_height, &conn, &_tx);
+                    _height -= 1;
+                    continue;
+                }
+            }; // Block was found on chain.            
+            if block_db.hash != block_chain["hash"] &&
+                block_db.beneficiary != block_chain["beneficiary"] {
+                self.invalidate_block_at_height(_height, &conn, &_tx);
+            }
+//            debug!("Block checks out at height {}", _height);
+            _height -= 1;
+            thread::sleep(std::time::Duration::new(2,0));
+        }
+    }
+
+    fn invalidate_block_at_height(&self, _height: i64, conn: &PgConnection,
+                                  _tx: &std::sync::mpsc::Sender<i64>) {
+        debug!("Invalidating block at height {}", _height);
+        _tx.send(_height).unwrap();
+        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn).unwrap();
     }
 
     pub fn load_mempool(&self, epoch: &Epoch) {
@@ -77,21 +129,21 @@ impl BlockLoader {
             "Reading blocks {} to {}",
             top_block_db+1, top_block_chain.height
         );
-        let mut height = top_block_chain.height;
+        let mut _height = top_block_chain.height;
         loop {
-            if height <= top_block_db {
+            if _height <= top_block_db {
                 break;
             }
-            if !KeyBlock::height_exists(&connection.get().unwrap(), height) {
-                debug!("Fetching block {}", height);
-                match _tx.send(height) {
+            if !KeyBlock::height_exists(&connection.get().unwrap(), _height) {
+                debug!("Fetching block {}", _height);
+                match _tx.send(_height) {
                     Ok(x) => debug!("Success: {:?}", x),
-                    Err(e) => error!("Error fetching block at height {}: {:?}", height, e),
+                    Err(e) => error!("Error fetching block at height {}: {:?}", _height, e),
                 };
             } else {
-                info!("Block already in DB at height {}", height);
+                info!("Block already in DB at height {}", _height);
             }
-            height -= 1;
+            _height -= 1;
         }
     }
 
@@ -99,11 +151,11 @@ impl BlockLoader {
      * At this height, load the key block, using the generations call
      * to grab the block and all of its microblocks.
      */    
-    fn load_blocks(&self, height: i64) -> Result<i32, Box<std::error::Error>> {
+    fn load_blocks(&self, _height: i64) -> Result<i32, Box<std::error::Error>> {
         let mut count = 0;
         let connection = self.connection.get()?;
         let mut generation: JsonGeneration = serde_json::from_value(
-            self.epoch.get_generation_at_height(height as i32)?)?;
+            self.epoch.get_generation_at_height(_height as i32)?)?;
         let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
         for mb_hash in &generation.micro_blocks {

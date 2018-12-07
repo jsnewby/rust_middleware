@@ -18,6 +18,8 @@ extern crate env_logger;
 pub use bigdecimal::BigDecimal;
 extern crate hex;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
@@ -143,6 +145,21 @@ fn main() {
                 }
             });
             loader.start();
+        });
+        let u = String::from(url);
+        let u2 = u.clone();
+        thread::spawn(move || {
+            let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
+            let tx = loader.tx.clone();
+            thread::spawn(move || {
+                let epoch = epoch::Epoch::new(u2.clone());
+                loop {
+                    debug!("Going into fork detection");
+                    loader.detect_forks(&epoch, &tx);
+                    debug!("Sleeping.");
+                    thread::sleep_ms(40000);
+                }
+            });
         });
     }
 

@@ -87,6 +87,20 @@ impl KeyBlock {
         Some(blocks.pop()?)
     }
 
+    pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<KeyBlock> {
+        let mut blocks = match key_blocks::table
+            .filter(hash.eq(_hash))
+            .limit(1)
+            .load::<KeyBlock>(conn) {
+                Ok(x) => x,
+                Err(y) => {
+                    error!("Error loading key block: {:?}", y);
+                    return None;
+                },
+            };
+        Some(blocks.pop()?)
+    }
+            
     pub fn height_exists(conn: &PgConnection, h: i64) -> bool {
         match select(exists(key_blocks.filter(height.eq(h)))).get_result(conn) {
             Ok(result) => result,
