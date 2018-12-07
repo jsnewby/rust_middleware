@@ -111,6 +111,25 @@ fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
     }).unwrap()).unwrap())
 }
 
+#[get("/key-blocks/height/<height>", rank=1)]
+fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
+    let conn = epoch::establish_connection().get().unwrap();
+    let key_block = match KeyBlock::load_at_height(&conn, height) {
+        Some(x) => x,
+        None => {
+            info!("Generation not found at height {}", height);
+            let mut path = std::path::PathBuf::new();
+            path.push(format!("generations/height/{}", height));
+            return epoch_get_handler(state, path);
+        }
+    };
+    info!("Serving key block {} from DB", height);
+    Json(serde_json::from_str(&serde_json::to_string(
+        &JsonKeyBlock::from_key_block(&key_block)).unwrap()).unwrap())
+}
+
+
+
 #[get("/key-blocks/hash/<hash>", rank=1)]
 fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
     let conn = epoch::establish_connection().get().unwrap();
@@ -227,6 +246,7 @@ impl MiddlewareServer {
             .mount("/v2", routes![epoch_post_handler])
             .mount("/api", routes![epoch_api_handler])
             .mount("/v2", routes![generation_at_height])
+            .mount("/v2", routes![key_block_at_height])
             .mount("/v2", routes![key_block_at_hash])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
             .attach(options)
