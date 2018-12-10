@@ -89,26 +89,15 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
 #[get("/generations/height/<height>", rank=1)]
 fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
     let conn = epoch::establish_connection().get().unwrap();
-    let key_block = match KeyBlock::load_at_height(&conn, height) {
-        Some(x) => x,
+    match JsonGeneration::get_generation_at_height(&conn, height) {
+        Some(x) => Json(serde_json::from_str(&serde_json::to_string(&x).unwrap()).unwrap()),
         None => {
             info!("Generation not found at height {}", height);
             let mut path = std::path::PathBuf::new();
             path.push(format!("generations/height/{}", height));
             return epoch_get_handler(state, path);
         }
-    };
-    info!("Serving generation {} from DB", height);
-    let sql = format!("SELECT hash FROM micro_blocks WHERE key_block_id={}", key_block.id);
-    debug!("{}", &sql);
-    let mut micro_block_hashes = Vec::new();
-    for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
-        micro_block_hashes.push(row.get(0));
     }
-    Json(serde_json::from_str(&serde_json::to_string(&JsonGeneration {
-        key_block: JsonKeyBlock::from_key_block(&key_block),
-        micro_blocks: micro_block_hashes,
-    }).unwrap()).unwrap())
 }
 
 #[get("/key-blocks/height/<height>", rank=1)]
@@ -118,9 +107,7 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
         Some(x) => x,
         None => {
             info!("Generation not found at height {}", height);
-            let mut path = std::path::PathBuf::new();
-            path.push(format!("generations/height/{}", height));
-            return epoch_get_handler(state, path);
+            return Json(state.epoch.get_generation_at_height(height).unwrap());
         }
     };
     info!("Serving key block {} from DB", height);
@@ -165,7 +152,6 @@ fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
 fn transactions_in_micro_block_at_hash(state: State<MiddlewareServer>,
                                        hash: String) -> 
     Json<JsonTransactionList> {
-        info!("lkl;kl;");
         let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(hash));
         let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
         let mut trans: Vec<JsonTransaction> = vec!();

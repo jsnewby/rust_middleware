@@ -20,6 +20,8 @@ use bigdecimal::ToPrimitive;
 use std;
 use std::str::FromStr;
 
+use epoch;
+
 #[derive(Queryable)]
 pub struct KeyBlock {
     pub id: i32,
@@ -168,6 +170,7 @@ JSON.  If @newby gets smart enough he will write the implementations
 for these missing methods.
 */
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct JsonKeyBlock {
     pub hash: String,
     pub height: i64,
@@ -186,6 +189,24 @@ pub struct JsonKeyBlock {
 }
 
 impl JsonKeyBlock {
+
+    pub fn eq(&self, other: &JsonKeyBlock) -> bool {
+        (
+            self.hash.eq(&other.hash) &&
+                self.height == other.height &&
+                self.miner.eq(&other.miner) &&
+                self.beneficiary.eq(&other.beneficiary) &&
+//                self.nonce == other.nonce && // 
+                self.pow.len() == other.pow.len() && // TODO <-- fix
+                self.prev_hash.eq(&other.prev_hash) &&
+                self.prev_key_hash.eq(&other.prev_key_hash) &&
+                self.state_hash.eq(&other.state_hash) &&
+                self.target == other.target &&
+                self.time == other.time &&
+                self.version == other.version
+        )
+    }
+    
     pub fn from_key_block(kb: &KeyBlock) -> JsonKeyBlock {
         let pows: Vec<serde_json::Value> = serde_json::from_str(&kb.pow).unwrap();
         let mut pows2 = Vec::<i32>::new();
@@ -238,6 +259,22 @@ fn option_i32() -> Option<i32> {
     None
 }
 
+impl MicroBlock {
+    pub fn get_microblock_hashes_for_key_block_hash(conn: &PgConnection,
+                                                    kb_hash: &String) ->
+        Option<Vec<String>>
+    {
+        let sql = format!(
+            "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY hash",
+            kb_hash);
+        let mut micro_block_hashes = Vec::new();
+        for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
+            micro_block_hashes.push(row.get(0));
+        }
+        Some(micro_block_hashes)
+    }
+}
+
 #[derive(Insertable)]
 #[table_name = "micro_blocks"]
 #[derive(Serialize, Deserialize)]
@@ -265,9 +302,51 @@ impl InsertableMicroBlock {
 }
 
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct JsonGeneration {
     pub key_block: JsonKeyBlock,
     pub micro_blocks: Vec<String>,
+}
+
+impl JsonGeneration {
+    pub fn get_generation_at_height(conn: &PgConnection, _height: i64) ->
+        Option<JsonGeneration>
+    {
+        let key_block = match KeyBlock::load_at_height(conn, _height) {
+            Some(x) => x,
+            None => {
+                debug!("Didn't find key block at height {} in DB", _height);
+                return None;
+            },
+        };
+        info!("Serving generation {} from DB", _height);
+        let sql = format!(
+            "SELECT hash FROM micro_blocks WHERE key_block_id={}",
+            key_block.id);
+        let mut micro_block_hashes = Vec::new();
+        for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
+            micro_block_hashes.push(row.get(0));
+        }
+        Some(JsonGeneration {
+            key_block: JsonKeyBlock::from_key_block(&key_block),
+            micro_blocks: micro_block_hashes,
+        })
+    }
+
+    pub fn eq(&self, other: &JsonGeneration) -> bool {
+        debug!("\nComparing {:?} to \n{:?}\n", &self, &other);
+        if self.micro_blocks.len() != other.micro_blocks.len() {
+            debug!("Different lengths of microblocks array: {} vs {}",
+                   self.micro_blocks.len(), other.micro_blocks.len());
+            return false;
+        }
+        for i in 0 .. self.micro_blocks.len() {
+            if self.micro_blocks[i] != other.micro_blocks[i] {
+                return false;
+            }
+        }
+        self.key_block.eq(&other.key_block)
+    }
 }
     
 #[derive(Queryable, QueryableByName)]

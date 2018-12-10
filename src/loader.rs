@@ -41,25 +41,19 @@ impl BlockLoader {
         }
     }
 
-    pub fn in_fork(_height: i64) {
-        let connection = epoch::establish_sql_connection();
-        connection.execute("DELETE FROM key_blocks where height >= $1", &[&_height]);
-    }
-
     /*
-     * We walk backward through the chain loading blocks from the DB,
-     * and requesting them from the chain. We pause 1 second between
-     * each check, and only check 500 blocks (~1 day) back. For each
-     * pair of blocks we check that their hashes and their
-     * beneficiaries match, if now we delete the block from the DB
-     * (which cascades to delete the microblocks and transactions),
-     * and put the height onto the load queue.
+     * We walk backward through the chain loading generations from the
+     * DB, and requesting them from the chain. We pause 1 second
+     * between each check, and only check 500 blocks (~1 day)
+     * back. For each pair of blocks we compare them using their eq()
+     * mehods. If false we delete the block from the DB (which
+     * cascades to delete the microblocks and transactions), and put
+     * the height onto the load queue.
      *
      * TODO: disassociate the TXs from the micro-blocks and keep them
      * for reporting purposes.
      */
-
-    pub fn detect_forks(&self, epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
+    pub fn detect_forks(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
         let conn = epoch::establish_connection().get().unwrap();
         let mut _height = KeyBlock::top_height(&conn).unwrap();
         let stop_height = _height - 500; // a day, more or less
@@ -67,28 +61,31 @@ impl BlockLoader {
             if _height <= stop_height {
                 break;
             }
-            let mut block_db = KeyBlock::load_at_height(&conn, _height).unwrap();
-            let mut block_chain = match epoch.get_key_block_by_height(_height)
-            {
-                Ok(x) => x,
-                Err(y) => {
-                    info!("Couldn't load block from chain at height {}", _height);
-                    self.invalidate_block_at_height(_height, &conn, &_tx);
-                    _height -= 1;
-                    continue;
-                }
-            }; // Block was found on chain.            
-            if block_db.hash != block_chain["hash"] &&
-                block_db.beneficiary != block_chain["beneficiary"] {
-                self.invalidate_block_at_height(_height, &conn, &_tx);
-            }
-//            debug!("Block checks out at height {}", _height);
+            let jg: JsonGeneration = match
+                JsonGeneration::get_generation_at_height(&conn, _height)  {
+                    Some(x) => x,
+                    None => {
+                        info!("Couldn't load generation {} from DB", _height);
+                        _height -= 1;
+                        continue;
+                    }
+                };
+            let gen_from_server: JsonGeneration =
+                serde_json::from_value(epoch.get_generation_at_height(
+                    _height).unwrap()).unwrap();
+            if ! jg.eq(&gen_from_server) {
+                info!("Couldn't load block from chain at height {}", _height);
+                BlockLoader::invalidate_block_at_height(_height, &conn, &_tx);
+                _height -= 1;
+                continue;
+            }                
+            debug!("Block checks out at height {}", _height);
             _height -= 1;
             thread::sleep(std::time::Duration::new(2,0));
         }
     }
 
-    fn invalidate_block_at_height(&self, _height: i64, conn: &PgConnection,
+    pub fn invalidate_block_at_height(_height: i64, conn: &PgConnection,
                                   _tx: &std::sync::mpsc::Sender<i64>) {
         debug!("Invalidating block at height {}", _height);
         _tx.send(_height).unwrap();
@@ -118,11 +115,6 @@ impl BlockLoader {
         let top_block_db = KeyBlock::top_height(&connection.get().unwrap()).unwrap();
         if top_block_chain.height == top_block_db {
             trace!("Up-to-date");
-            return;
-        }
-        if top_block_chain.height < top_block_db {
-            info!("Fork detected");
-            //in_fork();
             return;
         }
         debug!(
@@ -155,7 +147,7 @@ impl BlockLoader {
         let mut count = 0;
         let connection = self.connection.get()?;
         let mut generation: JsonGeneration = serde_json::from_value(
-            self.epoch.get_generation_at_height(_height as i32)?)?;
+            self.epoch.get_generation_at_height(_height)?)?;
         let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
         for mb_hash in &generation.micro_blocks {

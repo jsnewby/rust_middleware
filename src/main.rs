@@ -51,6 +51,73 @@ use server::MiddlewareServer;
 
 pub mod models;
 
+fn start_blockloader(url: &String,  _tx: std::sync::mpsc::Sender<i64>) {
+    debug!("In start_blockloader()");
+    let u = url.clone();
+    let u2 = url.clone();
+    thread::spawn(move || {
+        thread::spawn(move || {
+            let epoch = epoch::Epoch::new(u2.clone());
+            loop {
+                debug!("Scanning for new blocks");
+                loader::BlockLoader::scan(&epoch, &_tx);
+                debug!("Sleeping.");
+                thread::sleep_ms(40000);
+            }
+        });
+    });
+}
+    
+fn load_mempool(url: &String) {
+    debug!("In load_mempool()");
+    let u = url.clone();
+    let u2 = u.clone();
+    let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
+    thread::spawn(move || {
+        let epoch = epoch::Epoch::new(u2.clone());
+        loop {
+            loader.load_mempool(&epoch);
+            thread::sleep(std::time::Duration::new(5,0));
+        }
+    });
+}
+
+fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> std::thread::JoinHandle<()> {
+    debug!("In fill_missing_heights()");
+    let u = url.clone();
+    let u2 = u.clone();
+    let handle = thread::spawn(move || {
+        let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
+        let epoch = epoch::Epoch::new(u2.clone());
+        let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
+        let missing_heights = epoch::get_missing_heights(top_block.height);
+        for height in missing_heights {
+            debug!("Adding {} to load queue", &height);
+            _tx.send(height as i64);
+        }
+        detect_forks(&url.clone(), _tx.clone());
+        loader.start();
+    });
+    handle
+}
+
+fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
+    debug!("In detect_forks()");
+    let u = url.clone();
+    let u2 = u.clone();
+    thread::spawn(move || {
+        thread::spawn(move || {
+            let epoch = epoch::Epoch::new(u2.clone());
+            loop {
+                debug!("Going into fork detection");
+                loader::BlockLoader::detect_forks(&epoch, &_tx);
+                debug!("Sleeping.");
+                thread::sleep_ms(40000);
+            }
+        });
+    });
+}
+
 fn main() {
     env_logger::init();
     let matches = App::new("æternity middleware")
@@ -106,67 +173,18 @@ fn main() {
      * another reads the mempool (if available).
      */
     if populate {
-        let u = String::from(url);
-        let u2 = u.clone();
-        thread::spawn(move || {
-            let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
-            let epoch = epoch::Epoch::new(u2.clone());
-            loop {
-                loader.load_mempool(&epoch);
-                thread::sleep(std::time::Duration::new(5,0));
-            }
-        });
-
-        let u = String::from(url);
-        let u2 = u.clone();
-        thread::spawn(move || {
-            let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
-            let epoch = epoch::Epoch::new(u2.clone());
-            let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-            let missing_heights = epoch::get_missing_heights(top_block.height);
-            for height in missing_heights {
-                debug!("Adding {} to load queue", &height);
-                loader.tx.send(height as i64);
-            }
-            loader.start();
-        });
-        let u = String::from(url);
-        let u2 = u.clone();
-        thread::spawn(move || {
-            let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
-            let tx = loader.tx.clone();
-            thread::spawn(move || {
-                let epoch = epoch::Epoch::new(u2.clone());
-                loop {
-                    debug!("Scanning for new blocks");
-                    loader::BlockLoader::scan(&epoch, &tx);
-                    debug!("Sleeping.");
-                    thread::sleep_ms(40000);
-                }
-            });
-            loader.start();
-        });
-        let u = String::from(url);
-        let u2 = u.clone();
-        thread::spawn(move || {
-            let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
-            let tx = loader.tx.clone();
-            thread::spawn(move || {
-                let epoch = epoch::Epoch::new(u2.clone());
-                loop {
-                    debug!("Going into fork detection");
-                    loader.detect_forks(&epoch, &tx);
-                    debug!("Sleeping.");
-                    thread::sleep_ms(40000);
-                }
-            });
-        });
+        let url = String::from(url);            
+        let loader = BlockLoader::new(epoch::establish_connection(), url.clone());
+        load_mempool(&url);
+        fill_missing_heights(url.clone(), loader.tx.clone());
+        start_blockloader(&url, loader.tx.clone());
+        loader.start();
     }
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
             epoch,
-            dest_url: String::from("https://sdk-testnet.aepps.com"),
+            dest_url: url.to_string(),
             port: 3013,
             connection,
         };
