@@ -82,7 +82,14 @@ fn load_mempool(url: &String) {
     });
 }
 
-fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> std::thread::JoinHandle<()> {
+/*
+ * This function does two things--initially it asks the DB for the
+* heights not present between 0 and the height returned by
+* /generations/current.  After it has quued all of them it spawns the
+* detect_forks thread, then it starts the blockloader, which does not
+* return.
+*/  
+fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In fill_missing_heights()");
     let u = url.clone();
     let u2 = u.clone();
@@ -98,9 +105,12 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> std::
         detect_forks(&url.clone(), _tx.clone());
         loader.start();
     });
-    handle
 }
 
+/*
+ * Detect forks iterates through the blocks in the DB asking for them and checking
+ * that they match what we have in the DB. 
+ */
 fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In detect_forks()");
     let u = url.clone();

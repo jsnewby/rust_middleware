@@ -88,7 +88,7 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
 
 #[get("/generations/height/<height>", rank=1)]
 fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
-    let conn = epoch::establish_connection().get().unwrap();
+    let conn = state.epoch.get_connection().unwrap();
     match JsonGeneration::get_generation_at_height(&conn, height) {
         Some(x) => Json(serde_json::from_str(&serde_json::to_string(&x).unwrap()).unwrap()),
         None => {
@@ -102,7 +102,7 @@ fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
 
 #[get("/key-blocks/height/<height>", rank=1)]
 fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
-    let conn = epoch::establish_connection().get().unwrap();
+    let conn = state.epoch.get_connection().unwrap();
     let key_block = match KeyBlock::load_at_height(&conn, height) {
         Some(x) => x,
         None => {
@@ -117,7 +117,7 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
 
 #[get("/transactions/<hash>")]
 fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
-    let conn = epoch::establish_connection().get().unwrap();
+    let conn = state.epoch.get_connection().unwrap();
     let tx: Transaction = match Transaction::load_at_hash(&conn, &hash) {
         Some(x) => x,
         None => {
@@ -133,7 +133,7 @@ fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
 
 #[get("/key-blocks/hash/<hash>", rank=1)]
 fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
-    let conn = epoch::establish_connection().get().unwrap();
+    let conn = state.epoch.get_connection().unwrap();
     let key_block = match KeyBlock::load_at_hash(&conn, &hash) {
         Some(x) => x,
         None => {            

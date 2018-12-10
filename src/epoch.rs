@@ -4,7 +4,7 @@ use diesel::pg::PgConnection;
 use diesel::sql_types::*;
 use dotenv::dotenv;
 use postgres::{Connection, TlsMode};
-use r2d2::Pool;
+use r2d2::{Pool, PooledConnection};
 use r2d2_diesel::ConnectionManager;
 use regex::Regex;
 use serde_json;
@@ -49,11 +49,17 @@ pub fn establish_connection() -> Arc<Pool<ConnectionManager<PgConnection>>> {
 
 pub struct Epoch {
     base_uri: String,
+    pool: Arc<Pool<ConnectionManager<PgConnection>>>,
 }
 
 impl Epoch {
     pub fn new(base_url: String) -> Epoch {
-        Epoch { base_uri: base_url }
+        let connection = establish_connection();
+        Epoch { base_uri: base_url, pool: connection }
+    }
+
+    pub fn get_connection(&self) -> Result<PooledConnection<ConnectionManager<PgConnection>>, r2d2::Error> {
+        return self.pool.get();
     }
 
     pub fn current_generation(&self) -> Result<serde_json::Value, Box<std::error::Error>> {

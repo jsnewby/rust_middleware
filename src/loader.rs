@@ -54,7 +54,7 @@ impl BlockLoader {
      * for reporting purposes.
      */
     pub fn detect_forks(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
-        let conn = epoch::establish_connection().get().unwrap();
+        let conn = epoch.get_connection().unwrap();
         let mut _height = KeyBlock::top_height(&conn).unwrap();
         let stop_height = _height - 500; // a day, more or less
         loop {
@@ -93,7 +93,7 @@ impl BlockLoader {
     }
 
     pub fn load_mempool(&self, epoch: &Epoch) {
-        let conn = epoch::establish_connection().get().unwrap();
+        let conn = epoch.get_connection().unwrap();
         let trans: JsonTransactionList =
             serde_json::from_value(self.epoch.get_pending_transaction_list().unwrap()).unwrap();
         let mut hashes_in_mempool = vec!();
@@ -110,9 +110,9 @@ impl BlockLoader {
     }        
 
     pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
-        let connection = epoch::establish_connection();
+        let connection = epoch.get_connection().unwrap();
         let top_block_chain = key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-        let top_block_db = KeyBlock::top_height(&connection.get().unwrap()).unwrap();
+        let top_block_db = KeyBlock::top_height(&connection).unwrap();
         if top_block_chain.height == top_block_db {
             trace!("Up-to-date");
             return;
@@ -126,7 +126,7 @@ impl BlockLoader {
             if _height <= top_block_db {
                 break;
             }
-            if !KeyBlock::height_exists(&connection.get().unwrap(), _height) {
+            if !KeyBlock::height_exists(&connection, _height) {
                 debug!("Fetching block {}", _height);
                 match _tx.send(_height) {
                     Ok(x) => debug!("Success: {:?}", x),
