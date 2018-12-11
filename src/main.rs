@@ -41,6 +41,9 @@ extern crate postgres;
 extern crate clap;
 use clap::{App, Arg};
 
+use dotenv::dotenv;
+use std::env;
+
 pub mod epoch;
 pub mod loader;
 pub mod schema;
@@ -57,7 +60,7 @@ fn start_blockloader(url: &String,  _tx: std::sync::mpsc::Sender<i64>) {
     let u2 = url.clone();
     thread::spawn(move || {
         thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone());
+            let epoch = epoch::Epoch::new(u2.clone(), 1);
             loop {
                 debug!("Scanning for new blocks");
                 loader::BlockLoader::scan(&epoch, &_tx);
@@ -72,9 +75,9 @@ fn load_mempool(url: &String) {
     debug!("In load_mempool()");
     let u = url.clone();
     let u2 = u.clone();
-    let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
+    let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
     thread::spawn(move || {
-        let epoch = epoch::Epoch::new(u2.clone());
+        let epoch = epoch::Epoch::new(u2.clone(), 1);
         loop {
             loader.load_mempool(&epoch);
             thread::sleep(std::time::Duration::new(5,0));
@@ -94,8 +97,8 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
     let u = url.clone();
     let u2 = u.clone();
     let handle = thread::spawn(move || {
-        let loader = BlockLoader::new(epoch::establish_connection(), String::from(u));
-        let epoch = epoch::Epoch::new(u2.clone());
+        let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
+        let epoch = epoch::Epoch::new(u2.clone(), 1);
         let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
         let missing_heights = epoch::get_missing_heights(top_block.height);
         for height in missing_heights {
@@ -117,7 +120,7 @@ fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     let u2 = u.clone();
     thread::spawn(move || {
         thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone());
+            let epoch = epoch::Epoch::new(u2.clone(), 1);
             loop {
                 debug!("Going into fork detection");
                 loader::BlockLoader::detect_forks(&epoch, &_tx);
@@ -166,12 +169,10 @@ fn main() {
         )
         .get_matches();
 
-    let url = match matches.value_of("url") {
-        Some(u) => u,
-        None => "https://sdk-testnet.aepps.com",
-    };
-    let connection = epoch::establish_connection();
-    let epoch = epoch::Epoch::new(String::from(url));
+    
+    let url = env::var("EPOCH_URL").expect("EPOCH_URL must be set").
+        to_string();;
+    let connection = epoch::establish_connection(1);
 
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
@@ -183,8 +184,8 @@ fn main() {
      * another reads the mempool (if available).
      */
     if populate {
-        let url = String::from(url);            
-        let loader = BlockLoader::new(epoch::establish_connection(), url.clone());
+        let url = url.clone();
+        let loader = BlockLoader::new(epoch::establish_connection(1), url.clone());
         load_mempool(&url);
         fill_missing_heights(url.clone(), loader.tx.clone());
         start_blockloader(&url, loader.tx.clone());
@@ -193,7 +194,7 @@ fn main() {
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
-            epoch,
+            epoch: epoch::Epoch::new(url.clone(), 20),
             dest_url: url.to_string(),
             port: 3013,
             connection,

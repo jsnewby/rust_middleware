@@ -34,8 +34,9 @@ pub fn get_missing_heights(height: i64) -> Vec<i32> {
     missing_heights
 }
 
-pub fn establish_connection() -> Arc<Pool<ConnectionManager<PgConnection>>> {
+pub fn establish_connection(size: u32) -> Arc<Pool<ConnectionManager<PgConnection>>> {
     dotenv().ok(); // Grabbing ENV vars
+    debug!("Making new pool size {}", size);
 
     // Pull DATABASE_URL env var
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -43,8 +44,11 @@ pub fn establish_connection() -> Arc<Pool<ConnectionManager<PgConnection>>> {
     // Create a connection pool manager for a Postgres connection at the `database_url`
     let manager = ConnectionManager::<PgConnection>::new(database_url);
 
+    let pool = r2d2::Pool::builder().max_size(size).build(manager).expect("Failed to create pool.");
+        
+
     // Create the pool with the default config and the r2d2_diesel connection manager
-    Arc::new(Pool::new(manager).expect("Failed to create pool."))
+    Arc::new(pool)
 }
 
 pub struct Epoch {
@@ -53,8 +57,8 @@ pub struct Epoch {
 }
 
 impl Epoch {
-    pub fn new(base_url: String) -> Epoch {
-        let connection = establish_connection();
+    pub fn new(base_url: String, pool_size: u32) -> Epoch {
+        let connection = establish_connection(pool_size);
         Epoch { base_uri: base_url, pool: connection }
     }
 

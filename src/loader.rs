@@ -30,12 +30,15 @@ pub struct BlockLoader {
 }
 
 impl BlockLoader {
+    /*
+     * Makes a new BlockLoader object, initializes its DB pool.
+     */
     pub fn new(
         connection: Arc<Pool<ConnectionManager<PgConnection>>>,
         epoch_url: String,
     ) -> BlockLoader {
         let (_tx, rx): (Sender<i64>, Receiver<i64>) = mpsc::channel();
-        let epoch = Epoch::new(epoch_url.clone());
+        let epoch = Epoch::new(epoch_url.clone(), 1);
         BlockLoader {
             epoch, connection, rx, tx: _tx,
         }
@@ -80,18 +83,28 @@ impl BlockLoader {
                 continue;
             }                
             debug!("Block checks out at height {}", _height);
-            _height -= 1;
+            _height -= 1; // only sleep if no fork found.
             thread::sleep(std::time::Duration::new(2,0));
         }
     }
 
+    /*
+     * Delete a key block at height (which causes the deletion of the
+     * associated micro blocks and transaactions, and then adds the
+     * height to the queue of heights to be loaded.
+     */   
     pub fn invalidate_block_at_height(_height: i64, conn: &PgConnection,
                                   _tx: &std::sync::mpsc::Sender<i64>) {
         debug!("Invalidating block at height {}", _height);
         _tx.send(_height).unwrap();
         diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn).unwrap();
     }
-
+    
+    /*
+     * Load the mempool from the node--this will only be possible if
+    * the debug endpoint is also available on the main URL. Otherwise
+    * it harmlessly explodes.
+     */
     pub fn load_mempool(&self, epoch: &Epoch) {
         let conn = epoch.get_connection().unwrap();
         let trans: JsonTransactionList =
@@ -109,6 +122,10 @@ impl BlockLoader {
         epoch::establish_sql_connection().execute(&sql, &[]);
     }        
 
+    /*
+     * this method scans the blocks from the heighest reported by the
+     * node to the highest in the DB, filling in the gaps.
+     */
     pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
         let connection = epoch.get_connection().unwrap();
         let top_block_chain = key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
@@ -199,6 +216,10 @@ impl BlockLoader {
         }
     }
 
+    /*
+     * The very simple function which pulls heights from the queue and
+     * loads them into the DB
+     */
     pub fn start(&self) {
         for b in &self.rx {
             self.load_blocks(b);
