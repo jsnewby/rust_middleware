@@ -19,7 +19,7 @@ clean:
 
 build:
 	@echo build release
-  cargo build 
+	cargo build 
 	@echo done
 
 docker-build:
@@ -39,5 +39,3 @@ deploy-k8s-testnet:
 	kubectl -n testnet set image deployment/$(DOCKER_IMAGE) $(DOCKER_IMAGE)=$(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
 	@echo deploy k8s done
 
-debug-start:
-	npm install && VUE_APP_EPOCH_URL='$(VUE_APP_EPOCH_URL)' npm run serve
