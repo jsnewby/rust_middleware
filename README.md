@@ -8,7 +8,7 @@ This is a first implementation of a caching layer for Epoch. It reads the chain 
 
 - Install a postgresql DB somewhere. Works with versions >= 9.5, at least.
 - as the admin user, execute `scripts/prepare-db.sql` which will create the DB and user
-- if you want to use a different DB name, edit `scripts/prepare-db.sql` and `.env`
+- if you want to use a different database name, edit `scripts/prepare-db.sql` and `.env`
 
 ## How to build
 
