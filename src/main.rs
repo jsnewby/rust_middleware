@@ -177,7 +177,7 @@ fn main() {
     let serve = matches.is_present("server");
 
     /*
-     * we start 3 populate processes--one queries for missing heights
+     * We start 3 populate processes--one queries for missing heights
      * and works through that list, then exits. Another polls for
      * new blocks to load, then sleeps and does it again, and yet 
      * another reads the mempool (if available).
