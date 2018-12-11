@@ -1,5 +1,5 @@
 [package]
-name = "aeternity_middleware"
+name = "aepp_middleware"
 version = "0.1.0"
 authors = ["John Newby <john@newby.org>"]
 
