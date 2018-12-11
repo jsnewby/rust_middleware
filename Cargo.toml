@@ -1,6 +1,6 @@
 [package]
-name = "aeternity_middleware"
-version = "0.1.0"
+name = "aepp-middleware"
+version = "0.1.1"
 authors = ["John Newby <john@newby.org>"]
 
 [features]
