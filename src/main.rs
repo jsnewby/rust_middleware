@@ -189,8 +189,10 @@ fn main() {
         load_mempool(&url);
         fill_missing_heights(url.clone(), loader.tx.clone());
         start_blockloader(&url, loader.tx.clone());
-        loader.start();
-    }
+        let handle = thread::spawn(move || {        
+            loader.start();
+        });
+        }
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {

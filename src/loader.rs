@@ -111,7 +111,10 @@ impl BlockLoader {
             serde_json::from_value(self.epoch.get_pending_transaction_list().unwrap()).unwrap();
         let mut hashes_in_mempool = vec!();
         for i in 0..trans.transactions.len() {
-            self.store_or_update_transaction(&conn, &trans.transactions[i], None).unwrap();
+            match self.store_or_update_transaction(&conn, &trans.transactions[i], None) {
+                Ok(x) => (),
+                Err(x) => error!("Failed to insert transaction {}", trans.transactions[i].hash),
+            }
             hashes_in_mempool.push(format!("'{}'", trans.transactions[i].hash));
         }
         let sql = format!(
