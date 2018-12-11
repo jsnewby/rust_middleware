@@ -196,7 +196,7 @@ impl JsonKeyBlock {
                 self.height == other.height &&
                 self.miner.eq(&other.miner) &&
                 self.beneficiary.eq(&other.beneficiary) &&
-//                self.nonce == other.nonce && // 
+//                self.nonce == other.nonce && // These don't compare well. TODO -- fix
                 self.pow.len() == other.pow.len() && // TODO <-- fix
                 self.prev_hash.eq(&other.prev_hash) &&
                 self.prev_key_hash.eq(&other.prev_key_hash) &&
