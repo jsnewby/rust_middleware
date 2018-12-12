@@ -157,12 +157,19 @@ impl BlockLoader {
             let mut mb: InsertableMicroBlock = serde_json::from_value(
                 self.epoch.get_micro_block_by_hash(&mb_hash)?)?;
             mb.key_block_id = Some(key_block_id);
-            let _micro_block_id = mb.save(&connection).unwrap() as i32;
+            let _micro_block_id = mb.save(&connection)?;                
             let trans: JsonTransactionList =
                 serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&mb_hash)?)?;
             for i in 0..trans.transactions.len() {
-                self.store_or_update_transaction(&connection, &trans.transactions[i],
-                                                 Some(_micro_block_id)).unwrap();
+                match self.store_or_update_transaction(&connection, &trans.transactions[i],
+                                                       Some(_micro_block_id)) {
+                    Ok(_) => (),
+                    Err(y) => {
+                        error!("Error inserting {:?}", y);
+                        ()
+                    },
+                };
+                       
             }
             count += 1;
         }
