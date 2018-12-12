@@ -7,3 +7,6 @@ migrations
 scripts
 src
 test
+target/debug/deps
+target/debug/build
+target/debug/incremental

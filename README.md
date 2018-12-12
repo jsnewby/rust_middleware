@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a first implementation of a caching layer for Epoch. It reads the chain and records key- and micro-blocks, and transactions in a PostgreSQL database. 
+This is a caching layer for Epoch. It reads the chain and records key- and micro-blocks, and transactions in a PostgreSQL database. 
 
 ## How to use
 
