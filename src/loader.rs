@@ -174,12 +174,12 @@ impl BlockLoader {
             let mut mb: InsertableMicroBlock = serde_json::from_value(
                 self.epoch.get_micro_block_by_hash(&mb_hash)?)?;
             mb.key_block_id = Some(key_block_id);
-            let _micro_block_id = mb.save(&connection).unwrap() as i32;
+            let _micro_block_id = mb.save(&connection)? as i32;
             let trans: JsonTransactionList =
                 serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&mb_hash)?)?;
             for i in 0..trans.transactions.len() {
                 self.store_or_update_transaction(&connection, &trans.transactions[i],
-                                                 Some(_micro_block_id)).unwrap();
+                                                 Some(_micro_block_id))?;
             }
             count += 1;
         }
@@ -205,12 +205,12 @@ impl BlockLoader {
             get_results(conn)?;
         match results.pop() {
             Some(x) => {
-                debug!("Found {}", &trans.hash);
+                debug!("Updating transaction with hash {}", &trans.hash);
                 diesel::update(&x).set(micro_block_id.eq(_micro_block_id));
                 Ok(x.id)
             },
             None => {
-                debug!("Not found {}", &trans.hash);
+                debug!("Inserting transaction with hash {}", &trans.hash);
                 let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
                 let _tx: InsertableTransaction =
                     InsertableTransaction::from_json_transaction(&trans, _tx_type, _micro_block_id)?;
