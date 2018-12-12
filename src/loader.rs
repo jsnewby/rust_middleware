@@ -225,6 +225,7 @@ impl BlockLoader {
      */
     pub fn start(&self) {
         for b in &self.rx {
+	    debug!("Pulling height {} from queue for storage", b);
             self.load_blocks(b);
         }
     }
