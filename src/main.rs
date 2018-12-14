@@ -88,7 +88,7 @@ fn load_mempool(url: &String) {
 /*
  * This function does two things--initially it asks the DB for the
 * heights not present between 0 and the height returned by
-* /generations/current.  After it has quued all of them it spawns the
+* /generations/current.  After it has queued all of them it spawns the
 * detect_forks thread, then it starts the blockloader, which does not
 * return.
 */  
@@ -138,22 +138,6 @@ fn main() {
         .author("John Newby <john@newby.org>")
         .about("----")
         .arg(
-            Arg::with_name("url")
-                .short("u")
-                .long("url")
-                .value_name("URL")
-                .help("URL of æternity node.")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("start_hash")
-                .short("h")
-                .long("start_hash")
-                .value_name("START_HASH")
-                .help("Hash to start from.")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("server")
                 .short("s")
                 .long("server")
@@ -167,11 +151,19 @@ fn main() {
                 .help("Populate DB")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("port")
+                .short("P")
+                .long("port")
+                .help("Port to listen on")
+                .takes_value(true),
+        )
         .get_matches();
 
     
     let url = env::var("EPOCH_URL").expect("EPOCH_URL must be set").
-        to_string();;
+        to_string();
+    let port = matches.value_of("port").unwrap_or("8000").parse::<i32>();
     let connection = epoch::establish_connection(1);
 
     let populate = matches.is_present("populate");

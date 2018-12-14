@@ -228,5 +228,8 @@ impl BlockLoader {
 	    debug!("Pulling height {} from queue for storage", b);
             self.load_blocks(b);
         }
+        // if we fall through here something has gone wrong. Let's quit!
+        error!("Failed to read from the queue, quitting.");
+        ::std::process::exit(-1);
     }
 }
