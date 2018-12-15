@@ -158,7 +158,7 @@ impl BlockLoader {
                     Ok(x) => debug!("Success: {:?}", x),
                     Err(e) => {
                         error!("Error queuing block at height {}: {:?}", _height, e);
-                        BlockLoader::recover_from_db_error()();
+                        BlockLoader::recover_from_db_error();
                     },
                 };
             } else {
