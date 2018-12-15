@@ -96,7 +96,13 @@ impl BlockLoader {
     pub fn invalidate_block_at_height(_height: i64, conn: &PgConnection,
                                   _tx: &std::sync::mpsc::Sender<i64>) {
         debug!("Invalidating block at height {}", _height);
-        _tx.send(_height).unwrap();
+        match _tx.send(_height) {
+            Ok(()) => (),
+            Err(e) => {
+                error!("Error queuing block at height {}: {:?}", _height, e);
+                BlockLoader::recover_from_db_error();
+            },
+        };
         diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn).unwrap();
     }
     
@@ -150,13 +156,24 @@ impl BlockLoader {
                 debug!("Fetching block {}", _height);
                 match _tx.send(_height) {
                     Ok(x) => debug!("Success: {:?}", x),
-                    Err(e) => error!("Error fetching block at height {}: {:?}", _height, e),
+                    Err(e) => {
+                        error!("Error queuing block at height {}: {:?}", _height, e);
+                        BlockLoader::recover_from_db_error()();
+                    },
                 };
             } else {
                 info!("Block already in DB at height {}", _height);
             }
             _height -= 1;
         }
+    }
+
+    /*
+     * In fact there is no recovery currently--we just exit, and someone else can restart
+     * the process.
+     */
+    fn recover_from_db_error() {
+        ::std::process::exit(-1);
     }
 
     /*
@@ -230,6 +247,6 @@ impl BlockLoader {
         }
         // if we fall through here something has gone wrong. Let's quit!
         error!("Failed to read from the queue, quitting.");
-        ::std::process::exit(-1);
+        BlockLoader::recover_from_db_error();
     }
 }
