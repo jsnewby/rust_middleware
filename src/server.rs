@@ -171,7 +171,10 @@ fn transactions_in_micro_block_at_hash(state: State<MiddlewareServer>,
 #[get("/transactions/account/<account>")]
 fn transactions_for_account(state: State<MiddlewareServer>, account: String) ->
     Json<JsonTransactionList> {
-    let sql = format!("select * from transactions where tx->>'sender_id'='{}' order by id asc", sanitize(account));
+        let s_acc = sanitize(account);
+        let sql = format!("select * from transactions where tx->>'sender_id'='{}' or tx->>'recipient_id'='{}' order by id asc",
+                          s_acc, s_acc);
+        info!("{}", sql);
     let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec!();
     for i in 0 .. transactions.len() {
