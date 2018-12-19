@@ -9,11 +9,11 @@ use diesel::RunQueryDsl;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use rocket;
-use rocket::response::Failure;
+//use rocket::response::Failure;
 use rocket::http::{Method, Status};
 use rocket::Outcome::{Success};
 use rocket::{Outcome, State};
-use rocket_contrib::Json;
+use rocket_contrib::json::*;
 use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use serde_json;
@@ -36,7 +36,7 @@ fn sanitize(s: String) -> String {
  * GET handler for Epoch
  */
 #[get("/<path..>", rank=6)]
-fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json {
+fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
     Json(
         state
             .epoch
@@ -59,7 +59,9 @@ fn epoch_test_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<ser
  * POST handler for Epoch
  */
 #[post("/<path..>", format = "application/json", data = "<body>")]
-fn epoch_post_handler(state: State<MiddlewareServer>, path: PathBuf, body: String) -> Json {
+fn epoch_post_handler(state: State<MiddlewareServer>, path: PathBuf, body: String) ->
+    Json<serde_json::Value>
+{
     debug!("{}", body);
     let response = state
         .epoch
@@ -87,7 +89,7 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
 }
 
 #[get("/generations/height/<height>", rank=1)]
-fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
+fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
     let conn = state.epoch.get_connection().unwrap();
     match JsonGeneration::get_generation_at_height(&conn, height) {
         Some(x) => Json(serde_json::from_str(&serde_json::to_string(&x).unwrap()).unwrap()),
@@ -101,7 +103,7 @@ fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
 }
 
 #[get("/key-blocks/height/<height>", rank=1)]
-fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
+fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
     let conn = state.epoch.get_connection().unwrap();
     let key_block = match KeyBlock::load_at_height(&conn, height) {
         Some(x) => x,
@@ -116,7 +118,7 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json {
 }
 
 #[get("/transactions/<hash>")]
-fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
+fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde_json::Value> {
     let conn = state.epoch.get_connection().unwrap();
     let tx: Transaction = match Transaction::load_at_hash(&conn, &hash) {
         Some(x) => x,
@@ -132,7 +134,7 @@ fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
 }
 
 #[get("/key-blocks/hash/<hash>", rank=1)]
-fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json {
+fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde_json::Value> {
     let conn = state.epoch.get_connection().unwrap();
     let key_block = match KeyBlock::load_at_hash(&conn, &hash) {
         Some(x) => x,

@@ -1,9 +1,6 @@
 #![feature(slice_concat_ext)]
-#![feature(proc_macro_hygiene, decl_macro)]
 #![feature(custom_attribute)]
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
-#![feature(custom_derive)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 extern crate rand;
 
@@ -24,7 +21,7 @@ extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate regex;
-extern crate rocket;
+#[macro_use] extern crate rocket;
 extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
