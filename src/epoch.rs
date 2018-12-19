@@ -43,8 +43,10 @@ pub fn establish_connection(size: u32) -> Arc<Pool<ConnectionManager<PgConnectio
     // Create a connection pool manager for a Postgres connection at the `database_url`
     let manager = ConnectionManager::<PgConnection>::new(database_url);
 
-    let pool = r2d2::Pool::builder().max_size(size).build(manager).expect("Failed to create pool.");
-        
+    let pool = r2d2::Pool::builder()
+        .max_size(size)
+        .build(manager)
+        .expect("Failed to create pool.");
 
     // Create the pool with the default config and the r2d2_diesel connection manager
     Arc::new(pool)
@@ -58,10 +60,15 @@ pub struct Epoch {
 impl Epoch {
     pub fn new(base_url: String, pool_size: u32) -> Epoch {
         let connection = establish_connection(pool_size);
-        Epoch { base_uri: base_url, pool: connection }
+        Epoch {
+            base_uri: base_url,
+            pool: connection,
+        }
     }
 
-    pub fn get_connection(&self) -> Result<PooledConnection<ConnectionManager<PgConnection>>, r2d2::Error> {
+    pub fn get_connection(
+        &self,
+    ) -> Result<PooledConnection<ConnectionManager<PgConnection>>, r2d2::Error> {
         return self.pool.get();
     }
 
@@ -69,10 +76,12 @@ impl Epoch {
         self.get(&String::from("generations/current"))
     }
 
-    pub fn get_generation_at_height(&self, height: i64) ->
-        Result<serde_json::Value, Box<std::error::Error>> {
-            let path = format!("generations/height/{}", height);
-            self.get(&String::from(path))
+    pub fn get_generation_at_height(
+        &self,
+        height: i64,
+    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+        let path = format!("generations/height/{}", height);
+        self.get(&String::from(path))
     }
 
     pub fn latest_key_block(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
@@ -103,7 +112,10 @@ impl Epoch {
             transfer.perform()?;
         }
         let value: Value = serde_json::from_str(std::str::from_utf8(&data)?)?;
-        debug!("get_naked() received {}", serde_json::to_string(&value).unwrap());
+        debug!(
+            "get_naked() received {}",
+            serde_json::to_string(&value).unwrap()
+        );
 
         Ok(value)
     }
@@ -196,9 +208,7 @@ impl Epoch {
 pub fn from_json(val: &String) -> String {
     let re = Regex::new("^\"(.*)\"$").unwrap();
     match re.captures(val) {
-        Some(matches) => {
-            String::from(&matches[1])
-        }
+        Some(matches) => String::from(&matches[1]),
         None => val.clone(),
     }
 }

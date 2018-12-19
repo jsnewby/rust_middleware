@@ -1,19 +1,19 @@
-use diesel::ExpressionMethods;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
-use diesel::RunQueryDsl;
 use diesel::sql_query;
+use diesel::ExpressionMethods;
+use diesel::RunQueryDsl;
 use std::slice::SliceConcatExt;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 
+use super::schema::key_blocks::dsl::*;
+use super::schema::transactions::dsl::*;
 use epoch;
 use epoch::*;
 use models::*;
-use super::schema::key_blocks::dsl::*;
-use super::schema::transactions::dsl::*;
 
 use serde_json;
 
@@ -37,7 +37,10 @@ impl BlockLoader {
         let (_tx, rx): (Sender<i64>, Receiver<i64>) = mpsc::channel();
         let epoch = Epoch::new(epoch_url.clone(), 1);
         BlockLoader {
-            epoch, connection, rx, tx: _tx,
+            epoch,
+            connection,
+            rx,
+            tx: _tx,
         }
     }
 
@@ -61,27 +64,26 @@ impl BlockLoader {
             if _height <= stop_height {
                 break;
             }
-            let jg: JsonGeneration = match
-                JsonGeneration::get_generation_at_height(&conn, _height)  {
-                    Some(x) => x,
-                    None => {
-                        info!("Couldn't load generation {} from DB", _height);
-                        _height -= 1;
-                        continue;
-                    }
-                };
+            let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(&conn, _height)
+            {
+                Some(x) => x,
+                None => {
+                    info!("Couldn't load generation {} from DB", _height);
+                    _height -= 1;
+                    continue;
+                }
+            };
             let gen_from_server: JsonGeneration =
-                serde_json::from_value(epoch.get_generation_at_height(
-                    _height).unwrap()).unwrap();
-            if ! jg.eq(&gen_from_server) {
+                serde_json::from_value(epoch.get_generation_at_height(_height).unwrap()).unwrap();
+            if !jg.eq(&gen_from_server) {
                 info!("Couldn't load block from chain at height {}", _height);
                 BlockLoader::invalidate_block_at_height(_height, &conn, &_tx);
                 _height -= 1;
                 continue;
-            }                
+            }
             debug!("Block checks out at height {}", _height);
             _height -= 1; // only sleep if no fork found.
-            thread::sleep(std::time::Duration::new(2,0));
+            thread::sleep(std::time::Duration::new(2, 0));
         }
     }
 
@@ -89,35 +91,43 @@ impl BlockLoader {
      * Delete a key block at height (which causes the deletion of the
      * associated micro blocks and transaactions, and then adds the
      * height to the queue of heights to be loaded.
-     */   
-    pub fn invalidate_block_at_height(_height: i64, conn: &PgConnection,
-                                  _tx: &std::sync::mpsc::Sender<i64>) {
+     */
+
+    pub fn invalidate_block_at_height(
+        _height: i64,
+        conn: &PgConnection,
+        _tx: &std::sync::mpsc::Sender<i64>,
+    ) {
         debug!("Invalidating block at height {}", _height);
         match _tx.send(_height) {
             Ok(()) => (),
             Err(e) => {
                 error!("Error queuing block at height {}: {:?}", _height, e);
                 BlockLoader::recover_from_db_error();
-            },
+            }
         };
-        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn).unwrap();
+        diesel::delete(key_blocks.filter(height.eq(&_height)))
+            .execute(conn)
+            .unwrap();
     }
-    
+
     /*
      * Load the mempool from the node--this will only be possible if
-    * the debug endpoint is also available on the main URL. Otherwise
-    * it harmlessly explodes.
+     * the debug endpoint is also available on the main URL. Otherwise
+     * it harmlessly explodes.
      */
     pub fn load_mempool(&self, epoch: &Epoch) {
         let conn = epoch.get_connection().unwrap();
         let trans: JsonTransactionList =
             serde_json::from_value(self.epoch.get_pending_transaction_list().unwrap()).unwrap();
-        let mut hashes_in_mempool = vec!();
+        let mut hashes_in_mempool = vec![];
         for i in 0..trans.transactions.len() {
             match self.store_or_update_transaction(&conn, &trans.transactions[i], None) {
                 Ok(_) => (),
-                Err(x) => error!("Failed to insert transaction {} with error {}",
-                                 trans.transactions[i].hash, x),
+                Err(x) => error!(
+                    "Failed to insert transaction {} with error {}",
+                    trans.transactions[i].hash, x
+                ),
             }
             hashes_in_mempool.push(format!("'{}'", trans.transactions[i].hash));
         }
@@ -125,9 +135,10 @@ impl BlockLoader {
             "UPDATE transactions SET VALID=FALSE WHERE \
              micro_block_id IS NULL AND \
              hash NOT IN ({})",
-            hashes_in_mempool.join(", "));
+            hashes_in_mempool.join(", ")
+        );
         epoch::establish_sql_connection().execute(&sql, &[]);
-    }        
+    }
 
     /*
      * this method scans the blocks from the heighest reported by the
@@ -143,7 +154,8 @@ impl BlockLoader {
         }
         debug!(
             "Reading blocks {} to {}",
-            top_block_db+1, top_block_chain.height
+            top_block_db + 1,
+            top_block_chain.height
         );
         let mut _height = top_block_chain.height;
         loop {
@@ -157,7 +169,7 @@ impl BlockLoader {
                     Err(e) => {
                         error!("Error queuing block at height {}: {:?}", _height, e);
                         BlockLoader::recover_from_db_error();
-                    },
+                    }
                 };
             } else {
                 info!("Block already in DB at height {}", _height);
@@ -177,24 +189,29 @@ impl BlockLoader {
     /*
      * At this height, load the key block, using the generations call
      * to grab the block and all of its microblocks.
-     */    
+     */
+
     fn load_blocks(&self, _height: i64) -> Result<i32, Box<std::error::Error>> {
         let mut count = 0;
         let connection = self.connection.get()?;
-        let generation: JsonGeneration = serde_json::from_value(
-            self.epoch.get_generation_at_height(_height)?)?;
-        let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
+        let generation: JsonGeneration =
+            serde_json::from_value(self.epoch.get_generation_at_height(_height)?)?;
+        let ib: InsertableKeyBlock =
+            InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
         for mb_hash in &generation.micro_blocks {
-            let mut mb: InsertableMicroBlock = serde_json::from_value(
-                self.epoch.get_micro_block_by_hash(&mb_hash)?)?;
+            let mut mb: InsertableMicroBlock =
+                serde_json::from_value(self.epoch.get_micro_block_by_hash(&mb_hash)?)?;
             mb.key_block_id = Some(key_block_id);
             let _micro_block_id = mb.save(&connection)? as i32;
             let trans: JsonTransactionList =
                 serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&mb_hash)?)?;
             for i in 0..trans.transactions.len() {
-                self.store_or_update_transaction(&connection, &trans.transactions[i],
-                                                 Some(_micro_block_id))?;
+                self.store_or_update_transaction(
+                    &connection,
+                    &trans.transactions[i],
+                    Some(_micro_block_id),
+                )?;
             }
             count += 1;
         }
@@ -202,18 +219,21 @@ impl BlockLoader {
     }
 
     /*
-     * transactions in the mempool won't have a micro_block_id, so as we scan the chain we may 
-     * need to insert them, or update them with the id of the micro block with which they're 
+     * transactions in the mempool won't have a micro_block_id, so as we scan the chain we may
+     * need to insert them, or update them with the id of the micro block with which they're
      * now associated. We may also need to move them to a different micro block, in the event
      * of a fork.
      */
-    pub fn store_or_update_transaction(&self, conn: &PgConnection,
-                                       trans: &JsonTransaction,
-                                       _micro_block_id: Option<i32>
-    ) ->
-        Result<i32, Box<std::error::Error>>
-    {
-        let sql = format!("select * from transactions where hash = '{}' limit 1", &trans.hash);
+    pub fn store_or_update_transaction(
+        &self,
+        conn: &PgConnection,
+        trans: &JsonTransaction,
+        _micro_block_id: Option<i32>,
+    ) -> Result<i32, Box<std::error::Error>> {
+        let sql = format!(
+            "select * from transactions where hash = '{}' limit 1",
+            &trans.hash
+        );
         debug!("{}", sql);
         let mut results: Vec<Transaction> = sql_query(sql).
             // bind::<diesel::sql_types::Text, _>(trans.hash.clone()).
@@ -223,14 +243,17 @@ impl BlockLoader {
                 debug!("Updating transaction with hash {}", &trans.hash);
                 diesel::update(&x).set(micro_block_id.eq(_micro_block_id));
                 Ok(x.id)
-            },
+            }
             None => {
                 debug!("Inserting transaction with hash {}", &trans.hash);
                 let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
-                let _tx: InsertableTransaction =
-                    InsertableTransaction::from_json_transaction(&trans, _tx_type, _micro_block_id)?;
+                let _tx: InsertableTransaction = InsertableTransaction::from_json_transaction(
+                    &trans,
+                    _tx_type,
+                    _micro_block_id,
+                )?;
                 _tx.save(conn)
-            },
+            }
         }
     }
 
@@ -240,7 +263,7 @@ impl BlockLoader {
      */
     pub fn start(&self) {
         for b in &self.rx {
-	    debug!("Pulling height {} from queue for storage", b);
+            debug!("Pulling height {} from queue for storage", b);
             match self.load_blocks(b) {
                 Ok(x) => info!("Loaded {} in total", x),
                 Err(x) => error!("Error loading blocks {}", x),

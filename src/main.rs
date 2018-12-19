@@ -20,7 +20,8 @@ extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate regex;
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
@@ -49,9 +50,9 @@ use server::MiddlewareServer;
 
 pub mod models;
 
-fn start_blockloader(url: &String,  _tx: std::sync::mpsc::Sender<i64>) {
+fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In start_blockloader()");
-//    let u = url.clone();
+    //    let u = url.clone();
     let u2 = url.clone();
     thread::spawn(move || {
         thread::spawn(move || {
@@ -60,12 +61,12 @@ fn start_blockloader(url: &String,  _tx: std::sync::mpsc::Sender<i64>) {
                 debug!("Scanning for new blocks");
                 loader::BlockLoader::scan(&epoch, &_tx);
                 debug!("Sleeping.");
-                thread::sleep(std::time::Duration::new(40,0));
+                thread::sleep(std::time::Duration::new(40, 0));
             }
         });
     });
 }
-    
+
 fn load_mempool(url: &String) {
     debug!("In load_mempool()");
     let u = url.clone();
@@ -75,7 +76,7 @@ fn load_mempool(url: &String) {
         let epoch = epoch::Epoch::new(u2.clone(), 1);
         loop {
             loader.load_mempool(&epoch);
-            thread::sleep(std::time::Duration::new(5,0));
+            thread::sleep(std::time::Duration::new(5, 0));
         }
     });
 }
@@ -86,7 +87,8 @@ fn load_mempool(url: &String) {
 * /generations/current.  After it has queued all of them it spawns the
 * detect_forks thread, then it starts the blockloader, which does not
 * return.
-*/  
+*/
+
 fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In fill_missing_heights()");
     let u = url.clone();
@@ -102,8 +104,8 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
                 Ok(_) => (),
                 Err(x) => {
                     error!("Error queuing block to send: {}", x);
-                        BlockLoader::recover_from_db_error();
-                },
+                    BlockLoader::recover_from_db_error();
+                }
             };
         }
         detect_forks(&url.clone(), _tx.clone());
@@ -113,7 +115,7 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
 
 /*
  * Detect forks iterates through the blocks in the DB asking for them and checking
- * that they match what we have in the DB. 
+ * that they match what we have in the DB.
  */
 fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In detect_forks()");
@@ -126,7 +128,7 @@ fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
                 debug!("Going into fork detection");
                 loader::BlockLoader::detect_forks(&epoch, &_tx);
                 debug!("Sleeping.");
-            thread::sleep(std::time::Duration::new(10,0));
+                thread::sleep(std::time::Duration::new(10, 0));
             }
         });
     });
@@ -154,9 +156,9 @@ fn main() {
         )
         .get_matches();
 
-    
-    let url = env::var("EPOCH_URL").expect("EPOCH_URL must be set").
-        to_string();
+    let url = env::var("EPOCH_URL")
+        .expect("EPOCH_URL must be set")
+        .to_string();
     let connection = epoch::establish_connection(1);
 
     let populate = matches.is_present("populate");
@@ -165,7 +167,7 @@ fn main() {
     /*
      * We start 3 populate processes--one queries for missing heights
      * and works through that list, then exits. Another polls for
-     * new blocks to load, then sleeps and does it again, and yet 
+     * new blocks to load, then sleeps and does it again, and yet
      * another reads the mempool (if available).
      */
     if populate {
@@ -174,10 +176,10 @@ fn main() {
         load_mempool(&url);
         fill_missing_heights(url.clone(), loader.tx.clone());
         start_blockloader(&url, loader.tx.clone());
-        thread::spawn(move || {        
+        thread::spawn(move || {
             loader.start();
         });
-        }
+    }
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
@@ -192,6 +194,6 @@ fn main() {
         warn!("Nothing to do!");
     }
     loop {
-            thread::sleep(std::time::Duration::new(40,0));
+        thread::sleep(std::time::Duration::new(40, 0));
     }
 }

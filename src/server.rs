@@ -33,7 +33,7 @@ fn sanitize(s: String) -> String {
 /*
  * GET handler for Epoch
  */
-#[get("/<path..>", rank=6)]
+#[get("/<path..>", rank = 6)]
 fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
     Json(
         state
@@ -57,9 +57,11 @@ fn epoch_test_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<ser
  * POST handler for Epoch
  */
 #[post("/<path..>", format = "application/json", data = "<body>")]
-fn epoch_post_handler(state: State<MiddlewareServer>, path: PathBuf, body: String) ->
-    Json<serde_json::Value>
-{
+fn epoch_post_handler(
+    state: State<MiddlewareServer>,
+    path: PathBuf,
+    body: String,
+) -> Json<serde_json::Value> {
     debug!("{}", body);
     let response = state
         .epoch
@@ -76,7 +78,7 @@ fn epoch_post_handler(state: State<MiddlewareServer>, path: PathBuf, body: Strin
 /*
  * Epoch's only endpoint which lives outside of /v2/...
  */
-#[get("/",)]
+#[get("/")]
 fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> {
     Json(
         state
@@ -86,7 +88,7 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
     )
 }
 
-#[get("/generations/height/<height>", rank=1)]
+#[get("/generations/height/<height>", rank = 1)]
 fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
     let conn = state.epoch.get_connection().unwrap();
     match JsonGeneration::get_generation_at_height(&conn, height) {
@@ -100,7 +102,7 @@ fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json<ser
     }
 }
 
-#[get("/key-blocks/height/<height>", rank=1)]
+#[get("/key-blocks/height/<height>", rank = 1)]
 fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
     let conn = state.epoch.get_connection().unwrap();
     let key_block = match KeyBlock::load_at_height(&conn, height) {
@@ -111,8 +113,12 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serd
         }
     };
     info!("Serving key block {} from DB", height);
-    Json(serde_json::from_str(&serde_json::to_string(
-        &JsonKeyBlock::from_key_block(&key_block)).unwrap()).unwrap())
+    Json(
+        serde_json::from_str(
+            &serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap(),
+        )
+        .unwrap(),
+    )
 }
 
 #[get("/transactions/<hash>")]
@@ -125,18 +131,22 @@ fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<ser
             let mut path = std::path::PathBuf::new();
             path.push(format!("/transactions/hash/{}", hash));
             return epoch_get_handler(state, path);
-        },
+        }
     };
-    Json(serde_json::from_str(&serde_json::to_string(
-        &JsonTransaction::from_transaction(&tx)).unwrap()).unwrap())
+    Json(
+        serde_json::from_str(
+            &serde_json::to_string(&JsonTransaction::from_transaction(&tx)).unwrap(),
+        )
+        .unwrap(),
+    )
 }
 
-#[get("/key-blocks/hash/<hash>", rank=1)]
+#[get("/key-blocks/hash/<hash>", rank = 1)]
 fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde_json::Value> {
     let conn = state.epoch.get_connection().unwrap();
     let key_block = match KeyBlock::load_at_hash(&conn, &hash) {
         Some(x) => x,
-        None => {            
+        None => {
             info!("Key block not found at hash {}", &hash);
             let mut path = std::path::PathBuf::new();
             path.push(format!("/key-blocks/hash/{}", hash));
@@ -144,40 +154,50 @@ fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde
         }
     };
     info!("Serving key block {} from DB", hash);
-    Json(serde_json::from_str(&serde_json::to_string(
-        &JsonKeyBlock::from_key_block(&key_block)).unwrap()).unwrap())
+    Json(
+        serde_json::from_str(
+            &serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap(),
+        )
+        .unwrap(),
+    )
 }
 
-#[get("/micro-blocks/hash/<hash>/transactions", rank=1)]
-fn transactions_in_micro_block_at_hash(state: State<MiddlewareServer>,
-                                       hash: String) -> 
-    Json<JsonTransactionList> {
-        let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(hash));
-        let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
-        let mut trans: Vec<JsonTransaction> = vec!();
-        for i in 0 .. transactions.len() {
-            trans.push(JsonTransaction::from_transaction(&transactions[i]));
-        }
-        let list = JsonTransactionList {
-            transactions: trans,
-        };
-        Json(list)
+#[get("/micro-blocks/hash/<hash>/transactions", rank = 1)]
+fn transactions_in_micro_block_at_hash(
+    state: State<MiddlewareServer>,
+    hash: String,
+) -> Json<JsonTransactionList> {
+    let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(hash));
+    let transactions: Vec<Transaction> = sql_query(sql)
+        .load(&*state.connection.get().unwrap())
+        .unwrap();
+    let mut trans: Vec<JsonTransaction> = vec![];
+    for i in 0..transactions.len() {
+        trans.push(JsonTransaction::from_transaction(&transactions[i]));
     }
-
+    let list = JsonTransactionList {
+        transactions: trans,
+    };
+    Json(list)
+}
 
 /*
  * Gets all transactions for an account
  */
 #[get("/transactions/account/<account>")]
-fn transactions_for_account(state: State<MiddlewareServer>, account: String) ->
-    Json<JsonTransactionList> {
-        let s_acc = sanitize(account);
-        let sql = format!("select * from transactions where tx->>'sender_id'='{}' or tx->>'recipient_id'='{}' order by id asc",
+fn transactions_for_account(
+    state: State<MiddlewareServer>,
+    account: String,
+) -> Json<JsonTransactionList> {
+    let s_acc = sanitize(account);
+    let sql = format!("select * from transactions where tx->>'sender_id'='{}' or tx->>'recipient_id'='{}' order by id asc",
                           s_acc, s_acc);
-        info!("{}", sql);
-    let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec!();
-    for i in 0 .. transactions.len() {
+    info!("{}", sql);
+    let transactions: Vec<Transaction> = sql_query(sql)
+        .load(&*state.connection.get().unwrap())
+        .unwrap();
+    let mut trans: Vec<JsonTransaction> = vec![];
+    for i in 0..transactions.len() {
         trans.push(JsonTransaction::from_transaction(&transactions[i]));
     }
     let list = JsonTransactionList {
@@ -190,12 +210,17 @@ fn transactions_for_account(state: State<MiddlewareServer>, account: String) ->
  * Gets transactions between blocks
  */
 #[get("/transactions/interval/<from>/<to>")]
-fn transactions_for_interval(state: State<MiddlewareServer>, from: i64, to: i64) ->
-    Json<JsonTransactionList> {
+fn transactions_for_interval(
+    state: State<MiddlewareServer>,
+    from: i64,
+    to: i64,
+) -> Json<JsonTransactionList> {
     let sql = format!("select t.* from transactions t, micro_blocks m, key_blocks k where t.micro_block_id=m.id and m.key_block_id=k.id and k.height >={} and k.height <= {} order by k.height asc", from, to);
-    let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec!();
-    for i in 0 .. transactions.len() {
+    let transactions: Vec<Transaction> = sql_query(sql)
+        .load(&*state.connection.get().unwrap())
+        .unwrap();
+    let mut trans: Vec<JsonTransaction> = vec![];
+    for i in 0..transactions.len() {
         trans.push(JsonTransaction::from_transaction(&transactions[i]));
     }
     let list = JsonTransactionList {
@@ -209,26 +234,30 @@ fn transactions_for_interval(state: State<MiddlewareServer>, from: i64, to: i64)
  */
 #[get("/key-blocks/height/<height>/gas-price")]
 fn key_block_gas_price(state: State<MiddlewareServer>, height: i64) -> Option<String> {
-    let sql = format!("\
-select t.* from transactions t, micro_blocks m, key_blocks k where \
-t.micro_block_id=m.id and \
-m.key_block_id=k.id and \
-k.height = {} and \
-t.tx_type in ('SpendTx')", height);
+    let sql = format!(
+        "\
+         select t.* from transactions t, micro_blocks m, key_blocks k where \
+         t.micro_block_id=m.id and \
+         m.key_block_id=k.id and \
+         k.height = {} and \
+         t.tx_type in ('SpendTx')",
+        height
+    );
     println!("{}", sql);
-    let transactions: Vec<Transaction> = sql_query(sql).load(&*state.connection.get().unwrap()).unwrap();
+    let transactions: Vec<Transaction> = sql_query(sql)
+        .load(&*state.connection.get().unwrap())
+        .unwrap();
     let mut fees: i64 = 0;
     let mut sizes: i64 = 0;
-    for i in 0 .. transactions.len() {
+    for i in 0..transactions.len() {
         fees += transactions[i].fee;
         sizes += transactions[i].size as i64;
     }
     if sizes == 0 {
         return None;
     }
-    Some(format!("{}", fees/sizes as i64))
+    Some(format!("{}", fees / sizes as i64))
 }
-
 
 impl MiddlewareServer {
     pub fn start(self) {
