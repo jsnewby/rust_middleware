@@ -1,6 +1,5 @@
 use diesel::ExpressionMethods;
 use diesel::pg::PgConnection;
-use diesel::query_builder::SqlQuery;
 use diesel::query_dsl::QueryDsl;
 use diesel::RunQueryDsl;
 use diesel::sql_query;
@@ -13,8 +12,6 @@ use std::thread;
 use epoch;
 use epoch::*;
 use models::*;
-//use super::schema::transactions;
-use super::schema::key_blocks;
 use super::schema::key_blocks::dsl::*;
 use super::schema::transactions::dsl::*;
 
@@ -118,8 +115,9 @@ impl BlockLoader {
         let mut hashes_in_mempool = vec!();
         for i in 0..trans.transactions.len() {
             match self.store_or_update_transaction(&conn, &trans.transactions[i], None) {
-                Ok(x) => (),
-                Err(x) => error!("Failed to insert transaction {}", trans.transactions[i].hash),
+                Ok(_) => (),
+                Err(x) => error!("Failed to insert transaction {} with error {}",
+                                 trans.transactions[i].hash, x),
             }
             hashes_in_mempool.push(format!("'{}'", trans.transactions[i].hash));
         }
@@ -172,7 +170,7 @@ impl BlockLoader {
      * In fact there is no recovery currently--we just exit, and someone else can restart
      * the process.
      */
-    fn recover_from_db_error() {
+    pub fn recover_from_db_error() {
         ::std::process::exit(-1);
     }
 
@@ -183,7 +181,7 @@ impl BlockLoader {
     fn load_blocks(&self, _height: i64) -> Result<i32, Box<std::error::Error>> {
         let mut count = 0;
         let connection = self.connection.get()?;
-        let mut generation: JsonGeneration = serde_json::from_value(
+        let generation: JsonGeneration = serde_json::from_value(
             self.epoch.get_generation_at_height(_height)?)?;
         let ib: InsertableKeyBlock = InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
@@ -243,7 +241,10 @@ impl BlockLoader {
     pub fn start(&self) {
         for b in &self.rx {
 	    debug!("Pulling height {} from queue for storage", b);
-            self.load_blocks(b);
+            match self.load_blocks(b) {
+                Ok(x) => info!("Loaded {} in total", x),
+                Err(x) => error!("Error loading blocks {}", x),
+            };
         }
         // if we fall through here something has gone wrong. Let's quit!
         error!("Failed to read from the queue, quitting.");

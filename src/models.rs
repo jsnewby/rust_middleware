@@ -10,7 +10,6 @@ use diesel::dsl::exists;
 use diesel::dsl::select;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::sql_types::*;
 
 extern crate serde_json;
 use serde_json::Number;
@@ -129,7 +128,7 @@ pub struct InsertableKeyBlock {
 
 impl InsertableKeyBlock {
     pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+        use diesel::dsl::{insert_into};
         use diesel::RunQueryDsl;
         use schema::key_blocks::dsl::*;
         let generated_ids: Vec<i32> = insert_into(key_blocks).values(self).returning(id).get_results(&*conn)?;
@@ -260,8 +259,7 @@ fn option_i32() -> Option<i32> {
 }
 
 impl MicroBlock {
-    pub fn get_microblock_hashes_for_key_block_hash(conn: &PgConnection,
-                                                    kb_hash: &String) ->
+    pub fn get_microblock_hashes_for_key_block_hash(kb_hash: &String) ->
         Option<Vec<String>>
     {
         let sql = format!(
@@ -292,7 +290,7 @@ pub struct InsertableMicroBlock {
 
 impl InsertableMicroBlock {
     pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+        use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::micro_blocks::dsl::*;
         let generated_ids: Vec<i32> =
@@ -432,7 +430,7 @@ pub struct InsertableTransaction {
 
 impl InsertableTransaction {
     pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+        use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::transactions::dsl::*;
         let generated_ids: Vec<i32> = insert_into(transactions).values(self).returning(id).get_results(&*conn)?;

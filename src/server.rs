@@ -1,6 +1,5 @@
 use diesel::sql_query;
 
-use epoch;
 use epoch::Epoch;
 use models::*;
 
@@ -10,9 +9,8 @@ use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use rocket;
 //use rocket::response::Failure;
-use rocket::http::{Method, Status};
-use rocket::Outcome::{Success};
-use rocket::{Outcome, State};
+use rocket::http::Method;
+use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};

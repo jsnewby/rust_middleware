@@ -1,7 +1,6 @@
 use curl::easy::{Easy, List};
 
 use diesel::pg::PgConnection;
-use diesel::sql_types::*;
 use dotenv::dotenv;
 use postgres::{Connection, TlsMode};
 use r2d2::{Pool, PooledConnection};
