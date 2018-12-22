@@ -26,6 +26,14 @@ pub struct BlockLoader {
     pub tx: std::sync::mpsc::Sender<i64>,
 }
 
+/*
+* You may notice the use of '_tx' as a variable name in this file,
+* rather than the more natural 'tx'. This is because the macros which
+* diesel generates from the code in models.rs cause every occurrence
+* of their field names to be replaced, which obviously causes
+* problems.
+*/
+
 impl BlockLoader {
     /*
      * Makes a new BlockLoader object, initializes its DB pool.
@@ -183,6 +191,7 @@ impl BlockLoader {
      * the process.
      */
     pub fn recover_from_db_error() {
+        error!("Quitting...");
         ::std::process::exit(-1);
     }
 

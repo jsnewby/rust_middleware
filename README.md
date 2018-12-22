@@ -27,6 +27,8 @@ cargo install diesel_cli
 diesel database reset
 ```
 
+NB: The diesel framework causes many many compiler warnings. It can be good to suppress them with
+`export RUSTFLAGS="-Aproc-macro-derive-resolution-fallback"`so that you can see what's actually going on.
 
 ## How to run
 
