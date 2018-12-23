@@ -5,12 +5,11 @@ use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
 use super::schema::transactions;
 
-use diesel::sql_query;
 use diesel::dsl::exists;
 use diesel::dsl::select;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::sql_types::*;
+use diesel::sql_query;
 
 extern crate serde_json;
 use serde_json::Number;
@@ -40,9 +39,7 @@ pub struct KeyBlock {
 }
 
 impl KeyBlock {
-    pub fn from_json_key_block(
-        jb: &JsonKeyBlock,
-    ) -> Result<KeyBlock, Box<std::error::Error>> {
+    pub fn from_json_key_block(jb: &JsonKeyBlock) -> Result<KeyBlock, Box<std::error::Error>> {
         let n: u64 = match jb.nonce.as_u64() {
             Some(val) => val,
             None => 0,
@@ -79,29 +76,31 @@ impl KeyBlock {
         let mut blocks = match key_blocks::table
             .filter(height.eq(_height))
             .limit(1)
-            .load::<KeyBlock>(conn) {
-                Ok(x) => x,
-                Err(y) => {
-                    error!("Error loading key block: {:?}", y);
-                    return None;
-                },
-            };
+            .load::<KeyBlock>(conn)
+        {
+            Ok(x) => x,
+            Err(y) => {
+                error!("Error loading key block: {:?}", y);
+                return None;
+            }
+        };
         Some(blocks.pop()?)
     }
 
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<KeyBlock> {
         let mut blocks = match key_blocks::table
             .filter(hash.eq(_hash))
-            .load::<KeyBlock>(conn) {
-                Ok(x) => x,
-                Err(y) => {
-                    error!("Error loading key block: {:?}", y);
-                    return None;
-                },
-            };
+            .load::<KeyBlock>(conn)
+        {
+            Ok(x) => x,
+            Err(y) => {
+                error!("Error loading key block: {:?}", y);
+                return None;
+            }
+        };
         Some(blocks.pop()?)
     }
-            
+
     pub fn height_exists(conn: &PgConnection, h: i64) -> bool {
         match select(exists(key_blocks.filter(height.eq(h)))).get_result(conn) {
             Ok(result) => result,
@@ -129,10 +128,13 @@ pub struct InsertableKeyBlock {
 
 impl InsertableKeyBlock {
     pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+        use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::key_blocks::dsl::*;
-        let generated_ids: Vec<i32> = insert_into(key_blocks).values(self).returning(id).get_results(&*conn)?;
+        let generated_ids: Vec<i32> = insert_into(key_blocks)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
         Ok(generated_ids[0])
     }
 
@@ -169,8 +171,7 @@ bigdecimal::BigDecimal. So this struct exists to be pulled from the
 JSON.  If @newby gets smart enough he will write the implementations
 for these missing methods.
 */
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct JsonKeyBlock {
     pub hash: String,
     pub height: i64,
@@ -189,10 +190,8 @@ pub struct JsonKeyBlock {
 }
 
 impl JsonKeyBlock {
-
     pub fn eq(&self, other: &JsonKeyBlock) -> bool {
-        (
-            self.hash.eq(&other.hash) &&
+        (self.hash.eq(&other.hash) &&
                 self.height == other.height &&
                 self.miner.eq(&other.miner) &&
                 self.beneficiary.eq(&other.beneficiary) &&
@@ -203,10 +202,9 @@ impl JsonKeyBlock {
                 self.state_hash.eq(&other.state_hash) &&
                 self.target == other.target &&
                 self.time == other.time &&
-                self.version == other.version
-        )
+                self.version == other.version)
     }
-    
+
     pub fn from_key_block(kb: &KeyBlock) -> JsonKeyBlock {
         let pows: Vec<serde_json::Value> = serde_json::from_str(&kb.pow).unwrap();
         let mut pows2 = Vec::<i32>::new();
@@ -228,7 +226,7 @@ impl JsonKeyBlock {
             version: kb.version,
         }
     }
-}           
+}
 
 fn zero() -> Number {
     serde_json::Number::from_f64(0.0).unwrap()
@@ -238,8 +236,7 @@ fn zero_vec_i32() -> Vec<i32> {
     vec![0]
 }
 
-#[derive(Queryable)]
-#[derive(Identifiable)]
+#[derive(Queryable, Identifiable)]
 #[table_name = "micro_blocks"]
 pub struct MicroBlock {
     pub id: i32,
@@ -260,13 +257,11 @@ fn option_i32() -> Option<i32> {
 }
 
 impl MicroBlock {
-    pub fn get_microblock_hashes_for_key_block_hash(conn: &PgConnection,
-                                                    kb_hash: &String) ->
-        Option<Vec<String>>
-    {
+    pub fn get_microblock_hashes_for_key_block_hash(kb_hash: &String) -> Option<Vec<String>> {
         let sql = format!(
             "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY hash",
-            kb_hash);
+            kb_hash
+        );
         let mut micro_block_hashes = Vec::new();
         for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
             micro_block_hashes.push(row.get(0));
@@ -292,37 +287,37 @@ pub struct InsertableMicroBlock {
 
 impl InsertableMicroBlock {
     pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+        use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::micro_blocks::dsl::*;
-        let generated_ids: Vec<i32> =
-            insert_into(micro_blocks).values(self).returning(id).get_results(&*conn)?;
+        let generated_ids: Vec<i32> = insert_into(micro_blocks)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
         Ok(generated_ids[0])
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct JsonGeneration {
     pub key_block: JsonKeyBlock,
     pub micro_blocks: Vec<String>,
 }
 
 impl JsonGeneration {
-    pub fn get_generation_at_height(conn: &PgConnection, _height: i64) ->
-        Option<JsonGeneration>
-    {
+    pub fn get_generation_at_height(conn: &PgConnection, _height: i64) -> Option<JsonGeneration> {
         let key_block = match KeyBlock::load_at_height(conn, _height) {
             Some(x) => x,
             None => {
                 debug!("Didn't find key block at height {} in DB", _height);
                 return None;
-            },
+            }
         };
         info!("Serving generation {} from DB", _height);
         let sql = format!(
             "SELECT hash FROM micro_blocks WHERE key_block_id={}",
-            key_block.id);
+            key_block.id
+        );
         let mut micro_block_hashes = Vec::new();
         for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
             micro_block_hashes.push(row.get(0));
@@ -336,11 +331,14 @@ impl JsonGeneration {
     pub fn eq(&self, other: &JsonGeneration) -> bool {
         debug!("\nComparing {:?} to \n{:?}\n", &self, &other);
         if self.micro_blocks.len() != other.micro_blocks.len() {
-            debug!("Different lengths of microblocks array: {} vs {}",
-                   self.micro_blocks.len(), other.micro_blocks.len());
+            debug!(
+                "Different lengths of microblocks array: {} vs {}",
+                self.micro_blocks.len(),
+                other.micro_blocks.len()
+            );
             return false;
         }
-        for i in 0 .. self.micro_blocks.len() {
+        for i in 0..self.micro_blocks.len() {
             if self.micro_blocks[i] != other.micro_blocks[i] {
                 return false;
             }
@@ -348,10 +346,8 @@ impl JsonGeneration {
         self.key_block.eq(&other.key_block)
     }
 }
-    
-#[derive(Queryable, QueryableByName)]
-#[derive(Identifiable)]
-#[derive(Serialize, Deserialize)]
+
+#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize)]
 #[table_name = "transactions"]
 pub struct Transaction {
     pub id: i32,
@@ -383,7 +379,7 @@ impl Transaction {
          */
         Some(_transactions.pop()?)
     }
-}    
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct JsonTransaction {
@@ -432,10 +428,13 @@ pub struct InsertableTransaction {
 
 impl InsertableTransaction {
     pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+        use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::transactions::dsl::*;
-        let generated_ids: Vec<i32> = insert_into(transactions).values(self).returning(id).get_results(&*conn)?;
+        let generated_ids: Vec<i32> = insert_into(transactions)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
         Ok(generated_ids[0])
     }
 

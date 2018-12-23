@@ -1,9 +1,6 @@
 #![feature(slice_concat_ext)]
-#![feature(proc_macro_hygiene, decl_macro)]
 #![feature(custom_attribute)]
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
-#![feature(custom_derive)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 extern crate rand;
 
@@ -17,13 +14,13 @@ extern crate dotenv;
 extern crate env_logger;
 pub use bigdecimal::BigDecimal;
 extern crate hex;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate regex;
+#[macro_use]
 extern crate rocket;
 extern crate rocket_contrib;
 extern crate rocket_cors;
@@ -41,7 +38,6 @@ extern crate postgres;
 extern crate clap;
 use clap::{App, Arg};
 
-use dotenv::dotenv;
 use std::env;
 
 pub mod epoch;
@@ -54,9 +50,9 @@ use server::MiddlewareServer;
 
 pub mod models;
 
-fn start_blockloader(url: &String,  _tx: std::sync::mpsc::Sender<i64>) {
+fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In start_blockloader()");
-    let u = url.clone();
+    //    let u = url.clone();
     let u2 = url.clone();
     thread::spawn(move || {
         thread::spawn(move || {
@@ -65,12 +61,12 @@ fn start_blockloader(url: &String,  _tx: std::sync::mpsc::Sender<i64>) {
                 debug!("Scanning for new blocks");
                 loader::BlockLoader::scan(&epoch, &_tx);
                 debug!("Sleeping.");
-                thread::sleep_ms(40000);
+                thread::sleep(std::time::Duration::new(40, 0));
             }
         });
     });
 }
-    
+
 fn load_mempool(url: &String) {
     debug!("In load_mempool()");
     let u = url.clone();
@@ -80,7 +76,7 @@ fn load_mempool(url: &String) {
         let epoch = epoch::Epoch::new(u2.clone(), 1);
         loop {
             loader.load_mempool(&epoch);
-            thread::sleep(std::time::Duration::new(5,0));
+            thread::sleep(std::time::Duration::new(5, 0));
         }
     });
 }
@@ -91,19 +87,26 @@ fn load_mempool(url: &String) {
 * /generations/current.  After it has queued all of them it spawns the
 * detect_forks thread, then it starts the blockloader, which does not
 * return.
-*/  
+*/
+
 fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In fill_missing_heights()");
     let u = url.clone();
     let u2 = u.clone();
-    let handle = thread::spawn(move || {
+    thread::spawn(move || {
         let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
         let epoch = epoch::Epoch::new(u2.clone(), 1);
         let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
         let missing_heights = epoch::get_missing_heights(top_block.height);
         for height in missing_heights {
             debug!("Adding {} to load queue", &height);
-            _tx.send(height as i64);
+            match _tx.send(height as i64) {
+                Ok(_) => (),
+                Err(x) => {
+                    error!("Error queuing block to send: {}", x);
+                    BlockLoader::recover_from_db_error();
+                }
+            };
         }
         detect_forks(&url.clone(), _tx.clone());
         loader.start();
@@ -112,7 +115,7 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
 
 /*
  * Detect forks iterates through the blocks in the DB asking for them and checking
- * that they match what we have in the DB. 
+ * that they match what we have in the DB.
  */
 fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In detect_forks()");
@@ -125,7 +128,7 @@ fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
                 debug!("Going into fork detection");
                 loader::BlockLoader::detect_forks(&epoch, &_tx);
                 debug!("Sleeping.");
-                thread::sleep_ms(40000);
+                thread::sleep(std::time::Duration::new(10, 0));
             }
         });
     });
@@ -151,19 +154,11 @@ fn main() {
                 .help("Populate DB")
                 .takes_value(false),
         )
-        .arg(
-            Arg::with_name("port")
-                .short("P")
-                .long("port")
-                .help("Port to listen on")
-                .takes_value(true),
-        )
         .get_matches();
 
-    
-    let url = env::var("EPOCH_URL").expect("EPOCH_URL must be set").
-        to_string();
-    let port = matches.value_of("port").unwrap_or("8000").parse::<i32>();
+    let url = env::var("EPOCH_URL")
+        .expect("EPOCH_URL must be set")
+        .to_string();
     let connection = epoch::establish_connection(1);
 
     let populate = matches.is_present("populate");
@@ -172,7 +167,7 @@ fn main() {
     /*
      * We start 3 populate processes--one queries for missing heights
      * and works through that list, then exits. Another polls for
-     * new blocks to load, then sleeps and does it again, and yet 
+     * new blocks to load, then sleeps and does it again, and yet
      * another reads the mempool (if available).
      */
     if populate {
@@ -181,10 +176,10 @@ fn main() {
         load_mempool(&url);
         fill_missing_heights(url.clone(), loader.tx.clone());
         start_blockloader(&url, loader.tx.clone());
-        let handle = thread::spawn(move || {        
+        thread::spawn(move || {
             loader.start();
         });
-        }
+    }
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
@@ -199,6 +194,6 @@ fn main() {
         warn!("Nothing to do!");
     }
     loop {
-        thread::sleep_ms(40000);
+        thread::sleep(std::time::Duration::new(40, 0));
     }
 }
