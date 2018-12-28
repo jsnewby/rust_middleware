@@ -274,31 +274,6 @@ impl MicroBlock {
 
 }
 
-#[derive(Identifiable, Associations, Queryable, QueryableByName)]
-#[belongs_to(KeyBlock)]
-#[table_name = "micro_blocks"]
-pub struct DumbMicroBlock {
-    pub id: i32,
-    pub key_block_id: Option<i32>,
-    pub hash: String,
-    pub pof_hash: String,
-    pub prev_hash: String,
-    pub prev_key_hash: String,
-    pub signature: String,
-    pub state_hash: String,
-    pub txs_hash: String,
-    pub version: i32,
-}
-
-impl DumbMicroBlock {
-        pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<DumbMicroBlock> {
-        let sql = format!("select * from micro_blocks where hash='{}'", _hash);
-        let mut _blocks: Vec<DumbMicroBlock> = sql_query(sql).load(conn).unwrap();
-        Some(_blocks.pop()?)
-    }
-}
-
-
 #[derive(Insertable)]
 #[table_name = "micro_blocks"]
 #[derive(Serialize, Deserialize)]

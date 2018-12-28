@@ -317,14 +317,14 @@ impl BlockLoader {
                         self.compare_key_blocks(conn, x, y);
                     },
                     None => {
-                        println!("-KB {}", _height);
+                        println!("{} missing from DB", _height);
                     },
                 };
             },
-            Err(x) => {
+            Err(_) => {
                 match block_db {
                     Some(_) => {
-                        println!("{} +KB", _height);
+                        println!("{} present in DB not in chain", _height);
                     },
                     None => {
                         println!("Not found at either, something weird happened");
@@ -370,8 +370,6 @@ impl BlockLoader {
                      _height, chain_mb_hash, db_mb_hash);
             return false;
         }
-        let db_micro_block = DumbMicroBlock::load_at_hash(conn, &db_mb_hash).unwrap();
-        let chain_micro_block = self.epoch.get_micro_block_by_hash(&chain_mb_hash);
         let mut db_transactions = Transaction::load_for_micro_block(conn, &db_mb_hash).unwrap();
         db_transactions.sort_by(|a,b| a.hash.cmp(&b.hash));
         let ct = self.epoch.get_transaction_list_by_micro_block(&chain_mb_hash).unwrap();
