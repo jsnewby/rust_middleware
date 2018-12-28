@@ -91,7 +91,8 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
 #[get("/generations/height/<height>", rank = 1)]
 fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
     let conn = state.epoch.get_connection().unwrap();
-    match JsonGeneration::get_generation_at_height(&conn, height) {
+    match JsonGeneration::get_generation_at_height(&state.epoch.get_sql_connection().unwrap(),
+                                                   &conn, height) {
         Some(x) => Json(serde_json::from_str(&serde_json::to_string(&x).unwrap()).unwrap()),
         None => {
             info!("Generation not found at height {}", height);

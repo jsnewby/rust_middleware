@@ -18,6 +18,7 @@ extern crate lazy_static;
 extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
+extern crate r2d2_postgres;
 extern crate regex;
 #[macro_use]
 extern crate rocket;
@@ -96,7 +97,7 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
         let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
         let epoch = epoch::Epoch::new(u2.clone(), 1);
         let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-        let missing_heights = epoch::get_missing_heights(top_block.height);
+        let missing_heights = epoch.get_missing_heights(top_block.height);
         for height in missing_heights {
             debug!("Adding {} to load queue", &height);
             match _tx.send(height as i64) {

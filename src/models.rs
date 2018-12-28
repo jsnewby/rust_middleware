@@ -260,13 +260,14 @@ fn option_i32() -> Option<i32> {
 }
 
 impl MicroBlock {
-    pub fn get_microblock_hashes_for_key_block_hash(kb_hash: &String) -> Option<Vec<String>> {
+    pub fn get_microblock_hashes_for_key_block_hash(sql_conn: &postgres::Connection,
+                                                    kb_hash: &String) -> Option<Vec<String>> {
         let sql = format!(
             "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE mb.key_block_id=kb.id and kb.hash='{}' ORDER BY mb.hash",
             kb_hash
         );
         let mut micro_block_hashes = Vec::new();
-        for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
+        for row in &sql_conn.query(&sql, &[]).unwrap() {
             micro_block_hashes.push(row.get(0));
         }
         Some(micro_block_hashes)
@@ -309,7 +310,8 @@ pub struct JsonGeneration {
 }
 
 impl JsonGeneration {
-    pub fn get_generation_at_height(conn: &PgConnection, _height: i64) -> Option<JsonGeneration> {
+    pub fn get_generation_at_height(sql_conn: &postgres::Connection,
+                                    conn: &PgConnection, _height: i64) -> Option<JsonGeneration> {
         let key_block = match KeyBlock::load_at_height(conn, _height) {
             Some(x) => x,
             None => {
@@ -323,7 +325,7 @@ impl JsonGeneration {
             key_block.id
         );
         let mut micro_block_hashes = Vec::new();
-        for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
+        for row in &sql_conn.query(&sql, &[]).unwrap() {
             micro_block_hashes.push(row.get(0));
         }
         Some(JsonGeneration {

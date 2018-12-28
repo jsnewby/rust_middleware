@@ -72,7 +72,8 @@ impl BlockLoader {
             if _height <= stop_height {
                 break;
             }
-            let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(&conn, _height)
+            let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(&epoch.get_sql_connection().unwrap(),
+                                                                                    &conn, _height)
             {
                 Some(x) => x,
                 None => {
@@ -145,7 +146,7 @@ impl BlockLoader {
              hash NOT IN ({})",
             hashes_in_mempool.join(", ")
         );
-        epoch::establish_sql_connection().execute(&sql, &[]);
+        epoch.get_sql_connection().unwrap().execute(&sql, &[]);
     }
 
     /*
@@ -343,6 +344,7 @@ impl BlockLoader {
             return;
         }
         let mut db_mb_hashes = MicroBlock::get_microblock_hashes_for_key_block_hash(
+            &self.epoch.get_sql_connection().unwrap(),
             &String::from(chain_hash)).unwrap();
         db_mb_hashes.sort_by(|a,b| a.cmp(b));
         let chain_gen = self.epoch.get_generation_at_height(block_db.height).unwrap();

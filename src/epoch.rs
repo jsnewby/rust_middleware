@@ -5,6 +5,7 @@ use dotenv::dotenv;
 use postgres::{Connection, TlsMode};
 use r2d2::{Pool, PooledConnection};
 use r2d2_diesel::ConnectionManager;
+use r2d2_postgres::{PostgresConnectionManager};
 use regex::Regex;
 use serde_json;
 use serde_json::Value;
@@ -16,22 +17,6 @@ use std::sync::Arc;
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
-
-pub fn establish_sql_connection() -> postgres::Connection {
-    dotenv().ok();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    Connection::connect(database_url, TlsMode::None).unwrap()
-}
-
-pub fn get_missing_heights(height: i64) -> Vec<i32> {
-    let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
-    debug!("{}", &sql);
-    let mut missing_heights = Vec::new();
-    for row in &establish_sql_connection().query(&sql, &[]).unwrap() {
-        missing_heights.push(row.get(0));
-    }
-    missing_heights
-}
 
 pub fn establish_connection(size: u32) -> Arc<Pool<ConnectionManager<PgConnection>>> {
     dotenv().ok(); // Grabbing ENV vars
@@ -55,22 +40,47 @@ pub fn establish_connection(size: u32) -> Arc<Pool<ConnectionManager<PgConnectio
 pub struct Epoch {
     base_uri: String,
     pool: Arc<Pool<ConnectionManager<PgConnection>>>,
+    sql_pool: Arc<Pool<PostgresConnectionManager>>
 }
 
 impl Epoch {
     pub fn new(base_url: String, pool_size: u32) -> Epoch {
         let connection = establish_connection(pool_size);
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+        let manager = PostgresConnectionManager::new
+            (database_url, r2d2_postgres::TlsMode::None).unwrap();
+        let pool = r2d2::Pool::builder()
+            .max_size(1)
+            .build(manager)
+            .expect("Failed to create pool.");
         Epoch {
             base_uri: base_url,
             pool: connection,
+            sql_pool: Arc::new(pool),
         }
     }
 
     pub fn get_connection(
         &self,
     ) -> Result<PooledConnection<ConnectionManager<PgConnection>>, r2d2::Error> {
-        return self.pool.get();
+        self.pool.get()
     }
+
+    pub fn get_sql_connection(&self) -> Result<PooledConnection<r2d2_postgres::PostgresConnectionManager>, r2d2::Error> {
+        self.sql_pool.get()
+    }
+
+    pub fn get_missing_heights(&self, height: i64) -> Vec<i32> {
+    let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
+    debug!("{}", &sql);
+    let mut missing_heights = Vec::new();
+    for row in &self.get_sql_connection().unwrap().query(&sql, &[]).unwrap() {
+        missing_heights.push(row.get(0));
+    }
+    missing_heights
+}
 
     pub fn current_generation(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
         self.get(&String::from("generations/current"))
