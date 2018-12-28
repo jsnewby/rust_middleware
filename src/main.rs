@@ -107,7 +107,9 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
                 }
             };
         }
-        detect_forks(&url.clone(), _tx.clone());
+        detect_forks(&url.clone(), 1, 10, _tx.clone());
+        detect_forks(&url.clone(), 11, 50, _tx.clone());
+        detect_forks(&url.clone(), 51, 500, _tx.clone());
         loader.start();
     });
 }
@@ -116,20 +118,18 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
  * Detect forks iterates through the blocks in the DB asking for them and checking
  * that they match what we have in the DB.
  */
-fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
+fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In detect_forks()");
     let u = url.clone();
     let u2 = u.clone();
     thread::spawn(move || {
-        thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone(), 1);
-            loop {
-                debug!("Going into fork detection");
-                loader::BlockLoader::detect_forks(&epoch, &_tx);
-                debug!("Sleeping.");
-                thread::sleep(std::time::Duration::new(10, 0));
-            }
-        });
+        let epoch = epoch::Epoch::new(u2.clone(), 1);
+        loop {
+            debug!("Going into fork detection");
+            loader::BlockLoader::detect_forks(&epoch, from, to, &_tx);
+            debug!("Sleeping.");
+            thread::sleep(std::time::Duration::new(2, 0));
+        }
     });
 }
 

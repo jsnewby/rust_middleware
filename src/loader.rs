@@ -64,10 +64,10 @@ impl BlockLoader {
      * TODO: disassociate the TXs from the micro-blocks and keep them
      * for reporting purposes.
      */
-    pub fn detect_forks(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) {
+    pub fn detect_forks(epoch: &Epoch, from: i64, to: i64, _tx: &std::sync::mpsc::Sender<i64>) {
         let conn = epoch.get_connection().unwrap();
-        let mut _height = KeyBlock::top_height(&conn).unwrap();
-        let stop_height = _height - 500; // a day, more or less
+        let mut _height = KeyBlock::top_height(&conn).unwrap() - from;
+        let stop_height = _height - to;
         loop {
             if _height <= stop_height {
                 break;
@@ -84,7 +84,7 @@ impl BlockLoader {
             let gen_from_server: JsonGeneration =
                 serde_json::from_value(epoch.get_generation_at_height(_height).unwrap()).unwrap();
             if !jg.eq(&gen_from_server) {
-                info!("Couldn't load block from chain at height {}", _height);
+                info!("Invalidating block at height {}", _height);
                 BlockLoader::invalidate_block_at_height(_height, &conn, &_tx);
                 _height -= 1;
                 continue;
