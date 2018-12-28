@@ -21,7 +21,8 @@ use std::str::FromStr;
 
 use epoch;
 
-#[derive(Queryable)]
+#[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
+#[table_name = "key_blocks"]
 pub struct KeyBlock {
     pub id: i32,
     pub hash: String,
@@ -236,11 +237,13 @@ fn zero_vec_i32() -> Vec<i32> {
     vec![0]
 }
 
-#[derive(Queryable, Identifiable)]
+#[derive(Identifiable, Associations, Queryable, QueryableByName)]
+#[belongs_to(KeyBlock)]
 #[table_name = "micro_blocks"]
 pub struct MicroBlock {
     pub id: i32,
-    #[serde(default = "option_i32")]
+    #[sql_type = "diesel::sql_types::Int4"]
+    #[column_name = "key_block_id"]
     pub key_block: Option<KeyBlock>,
     pub hash: String,
     pub pof_hash: String,
@@ -268,7 +271,33 @@ impl MicroBlock {
         }
         Some(micro_block_hashes)
     }
+
 }
+
+#[derive(Identifiable, Associations, Queryable, QueryableByName)]
+#[belongs_to(KeyBlock)]
+#[table_name = "micro_blocks"]
+pub struct DumbMicroBlock {
+    pub id: i32,
+    pub key_block_id: Option<i32>,
+    pub hash: String,
+    pub pof_hash: String,
+    pub prev_hash: String,
+    pub prev_key_hash: String,
+    pub signature: String,
+    pub state_hash: String,
+    pub txs_hash: String,
+    pub version: i32,
+}
+
+impl DumbMicroBlock {
+        pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<DumbMicroBlock> {
+        let sql = format!("select * from micro_blocks where hash='{}'", _hash);
+        let mut _blocks: Vec<DumbMicroBlock> = sql_query(sql).load(conn).unwrap();
+        Some(_blocks.pop()?)
+    }
+}
+
 
 #[derive(Insertable)]
 #[table_name = "micro_blocks"]
@@ -379,6 +408,14 @@ impl Transaction {
          */
         Some(_transactions.pop()?)
     }
+
+    pub fn load_for_micro_block(conn: &PgConnection, mb_hash: &String) -> Option<Vec<Transaction>> {
+        let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}'", mb_hash);
+        let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
+        Some(_transactions)
+    }
+        
+            
 }
 
 #[derive(Serialize, Deserialize)]

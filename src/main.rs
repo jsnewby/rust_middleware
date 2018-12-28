@@ -8,8 +8,7 @@ extern crate bigdecimal;
 extern crate blake2b;
 extern crate crypto;
 extern crate curl;
-#[macro_use]
-extern crate diesel;
+#[macro_use] extern crate diesel;
 extern crate dotenv;
 extern crate env_logger;
 pub use bigdecimal::BigDecimal;
