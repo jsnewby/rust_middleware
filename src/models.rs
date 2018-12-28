@@ -259,7 +259,7 @@ fn option_i32() -> Option<i32> {
 impl MicroBlock {
     pub fn get_microblock_hashes_for_key_block_hash(kb_hash: &String) -> Option<Vec<String>> {
         let sql = format!(
-            "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY hash",
+            "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE mb.key_block_id=kb.id and kb.hash='{}' ORDER BY mb.hash",
             kb_hash
         );
         let mut micro_block_hashes = Vec::new();

@@ -154,6 +154,13 @@ fn main() {
                 .help("Populate DB")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("verify")
+                .short("v")
+                .long("verify")
+                .help("Verify DB integrity against chain")
+                .takes_value(false),
+        )
         .get_matches();
 
     let url = env::var("EPOCH_URL")
@@ -163,6 +170,14 @@ fn main() {
 
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
+    let verify = matches.is_present("verify");
+
+    if verify {
+        println!("Verifying");
+        let loader = BlockLoader::new(epoch::establish_connection(1), url.clone());
+        loader.verify();
+        return;
+    }
 
     /*
      * We start 3 populate processes--one queries for missing heights

@@ -282,4 +282,79 @@ impl BlockLoader {
         error!("Failed to read from the queue, quitting.");
         BlockLoader::recover_from_db_error();
     }
+
+    /*
+     * Verify the DB, printing results to stdout.
+     *
+     * methodology: 
+     * pick the highest of DB height and height reported by node
+     * load blocks from DB and from node
+     * compare the microblocks and transactions in each
+     * for each, log with - if missing from DB, + if present in DB but not on chain
+     * - key block
+     * - micro blocks
+     * - transactions
+     */
+    pub fn verify(&self) {
+        let top_chain = self.epoch.latest_key_block().unwrap()["height"].as_i64().unwrap();
+        let conn = self.epoch.get_connection().unwrap();
+        let top_db = KeyBlock::top_height(&conn).unwrap();
+        let top_max = std::cmp::max(top_chain,top_db);
+        let mut i = top_max;
+        loop {
+            self.compare_chain_and_db(i, &conn);
+            i -= 1;
+        }
+    }
+
+    pub fn compare_chain_and_db(&self, _height: i64, conn: &PgConnection) {
+        let block_chain = self.epoch.get_key_block_by_height(_height);
+        let block_db = KeyBlock::load_at_height(conn, _height);
+        match(block_chain) {
+            Ok(x) => {
+                match(block_db) {
+                    Some(y) => {
+                        self.compare_key_blocks(conn, x, y);
+                    },
+                    None => {
+                        println!("-KB {}", _height);
+                    },
+                };
+            },
+            Err(x) => {
+                match(block_db) {
+                    Some(_) => {
+                        println!("{} +KB", _height);
+                    },
+                    None => {
+                        println!("Not found at either, something weird happened");
+                    },
+                };
+            },
+        };
+    }
+
+    pub fn compare_key_blocks(&self, conn: &PgConnection, block_chain: serde_json::Value,
+                              block_db: KeyBlock) {
+        let chain_hash = block_chain["hash"].as_str().unwrap();
+        if ! block_db.hash.eq(&chain_hash) {
+            println!("{} Hashes differ: {} chain vs {} block",
+                     block_db.height, chain_hash, block_db.hash);
+            return;
+        }
+        let db_mb_hashes = MicroBlock::get_microblock_hashes_for_key_block_hash(
+            &String::from(chain_hash)).unwrap();
+        let chain_gen = self.epoch.get_generation_at_height(block_db.height).unwrap();
+        let chain_mb_hashes = chain_gen["micro_blocks"].as_array().unwrap();
+        if db_mb_hashes.len() != chain_mb_hashes.len() {
+            println!("{} Microblock array size differs: {} chain vs {} db",
+                     block_db.height, chain_mb_hashes.len(), block_db.hash.len());
+            return;
+        }
+        for i in 0 .. db_mb_hashes.len() {
+            let chain_mb_hash = String::from(chain_mb_hashes[i].as_str().unwrap());
+            //compare_micro_blocks(&conn, db_mb_hashes[i], chain_mb_hashes
+        }
+        println!("{} OK", block_db.height);
+    }
 }
