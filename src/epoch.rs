@@ -52,7 +52,7 @@ impl Epoch {
         let manager = PostgresConnectionManager::new
             (database_url, r2d2_postgres::TlsMode::None).unwrap();
         let pool = r2d2::Pool::builder()
-            .max_size(1)
+            .max_size(1) // only used for emergencies...
             .build(manager)
             .expect("Failed to create pool.");
         Epoch {

@@ -64,7 +64,8 @@ impl BlockLoader {
      * TODO: disassociate the TXs from the micro-blocks and keep them
      * for reporting purposes.
      */
-    pub fn detect_forks(epoch: &Epoch, from: i64, to: i64, _tx: &std::sync::mpsc::Sender<i64>) {
+    pub fn detect_forks(epoch: &Epoch, from: i64, to: i64,
+                        _tx: &std::sync::mpsc::Sender<i64>) {
         let conn = epoch.get_connection().unwrap();
         let mut _height = KeyBlock::top_height(&conn).unwrap() - from;
         let stop_height = _height - to;
@@ -89,6 +90,16 @@ impl BlockLoader {
                 BlockLoader::invalidate_block_at_height(_height, &conn, &_tx);
                 _height -= 1;
                 continue;
+            }
+            for i in 0 .. jg.micro_blocks.len() {
+                if ! BlockLoader::compare_micro_blocks(&epoch, &conn, _height,
+                                                       jg.micro_blocks[i].clone(),
+                                                       jg.micro_blocks[i].clone()) {
+                    info!("Microblocks differ");
+                    BlockLoader::invalidate_block_at_height(_height, &conn, &_tx);
+                    _height -= 1;
+                    continue;
+                }
             }
             debug!("Block checks out at height {}", _height);
             _height -= 1; // only sleep if no fork found.
@@ -352,21 +363,24 @@ impl BlockLoader {
         chain_mb_hashes.sort_by(|a,b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
         if db_mb_hashes.len() != chain_mb_hashes.len() {
             println!("{} Microblock array size differs: {} chain vs {} db",
-                     block_db.height, chain_mb_hashes.len(), block_db.hash.len());
+                    block_db.height, chain_mb_hashes.len(), block_db.hash.len());
             return;
         }
         let mut all_good = true;
         for i in 0 .. db_mb_hashes.len() {
             let chain_mb_hash = String::from(chain_mb_hashes[i].as_str().unwrap());
             let db_mb_hash = db_mb_hashes[i].clone();
-            all_good = all_good && self.compare_micro_blocks(&conn, block_db.height, db_mb_hash, chain_mb_hash);
+            all_good = all_good &&
+                BlockLoader::compare_micro_blocks(&self.epoch, &conn,
+                                                  block_db.height,
+                                                  db_mb_hash, chain_mb_hash);
         }
         if all_good {
             println!("{} OK", block_db.height);
         }
     }
 
-    pub fn compare_micro_blocks(&self, conn: &PgConnection, _height: i64, db_mb_hash: String, chain_mb_hash: String) -> bool {
+    pub fn compare_micro_blocks(epoch: &Epoch, conn: &PgConnection, _height: i64, db_mb_hash: String, chain_mb_hash: String) -> bool {
         if db_mb_hash != chain_mb_hash {
             println!("{} micro block hashes don't match: {} chain vs {} db",
                      _height, chain_mb_hash, db_mb_hash);
@@ -374,7 +388,7 @@ impl BlockLoader {
         }
         let mut db_transactions = Transaction::load_for_micro_block(conn, &db_mb_hash).unwrap();
         db_transactions.sort_by(|a,b| a.hash.cmp(&b.hash));
-        let ct = self.epoch.get_transaction_list_by_micro_block(&chain_mb_hash).unwrap();
+        let ct = epoch.get_transaction_list_by_micro_block(&chain_mb_hash).unwrap();
         let mut chain_transactions = ct["transactions"].as_array().unwrap().clone();
         chain_transactions.sort_by(|a,b| a["hash"].as_str().unwrap().cmp(b["hash"].as_str().unwrap()));
         if db_transactions.len() != chain_transactions.len() {

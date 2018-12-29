@@ -346,6 +346,9 @@ impl JsonGeneration {
         }
         for i in 0..self.micro_blocks.len() {
             if self.micro_blocks[i] != other.micro_blocks[i] {
+                debug!("Microblock hashes don't match: {} vs {}",
+                       self.micro_blocks[i],
+                       other.micro_blocks[i]);
                 return false;
             }
         }
