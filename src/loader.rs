@@ -92,10 +92,12 @@ impl BlockLoader {
                 continue;
             }
             for i in 0 .. jg.micro_blocks.len() {
-                if ! BlockLoader::compare_micro_blocks(&epoch, &conn, _height,
-                                                       jg.micro_blocks[i].clone(),
-                                                       jg.micro_blocks[i].clone()) {
-                    info!("Microblocks differ");
+                let differences =
+                    BlockLoader::compare_micro_blocks(&epoch, &conn, _height,
+                                                      jg.micro_blocks[i].clone(),
+                                                      jg.micro_blocks[i].clone());
+                if differences.len() != 0 {
+                    info!("Microblocks differ: {:?}", differences);
                     BlockLoader::invalidate_block_at_height(_height, &conn, &_tx);
                     _height -= 1;
                     continue;
@@ -370,31 +372,41 @@ impl BlockLoader {
         for i in 0 .. db_mb_hashes.len() {
             let chain_mb_hash = String::from(chain_mb_hashes[i].as_str().unwrap());
             let db_mb_hash = db_mb_hashes[i].clone();
-            all_good = all_good &&
-                BlockLoader::compare_micro_blocks(&self.epoch, &conn,
-                                                  block_db.height,
-                                                  db_mb_hash, chain_mb_hash);
+            let differences = BlockLoader::compare_micro_blocks(&self.epoch, &conn,
+                                                                block_db.height,
+                                                                db_mb_hash, chain_mb_hash);
+            if differences.len() != 0 {
+                println!("Transactions differ: {:?}", differences);
+                all_good = false;
+            }
         }
         if all_good {
             println!("{} OK", block_db.height);
         }
     }
 
-    pub fn compare_micro_blocks(epoch: &Epoch, conn: &PgConnection, _height: i64, db_mb_hash: String, chain_mb_hash: String) -> bool {
+    pub fn compare_micro_blocks(epoch: &Epoch, conn: &PgConnection, _height: i64, db_mb_hash: String, chain_mb_hash: String) -> Vec<String> {
+        let mut differences: Vec<String> = vec!();
         if db_mb_hash != chain_mb_hash {
-            println!("{} micro block hashes don't match: {} chain vs {} db",
-                     _height, chain_mb_hash, db_mb_hash);
-            return false;
+            differences.push(
+                format!("{} micro block hashes don't match: {} chain vs {} db",
+                        _height, chain_mb_hash, db_mb_hash));          
         }
-        let mut db_transactions = Transaction::load_for_micro_block(conn, &db_mb_hash).unwrap();
+        let mut db_transactions = match Transaction::load_for_micro_block(conn, &db_mb_hash) {
+            Some(x) => x,
+            None => {
+                error!("Couldn't load transaction list for hash {}", db_mb_hash);
+                return differences;
+            },
+        };
         db_transactions.sort_by(|a,b| a.hash.cmp(&b.hash));
         let ct = epoch.get_transaction_list_by_micro_block(&chain_mb_hash).unwrap();
         let mut chain_transactions = ct["transactions"].as_array().unwrap().clone();
         chain_transactions.sort_by(|a,b| a["hash"].as_str().unwrap().cmp(b["hash"].as_str().unwrap()));
         if db_transactions.len() != chain_transactions.len() {
-            println!("{} micro block {} transaction count differs: {} chain vs {} DB",
-                     _height, db_mb_hash, chain_transactions.len(), db_transactions.len());
-            return false;
+            differences.push(
+            format!("{} micro block {} transaction count differs: {} chain vs {} DB",
+                     _height, db_mb_hash, chain_transactions.len(), db_transactions.len()));
         }
         let mut diffs: Vec<(usize, String,String)> = vec!();
         for i in 0 .. db_transactions.len() {
@@ -406,13 +418,13 @@ impl BlockLoader {
         if diffs.len() != 0 {
             loop {
                 match diffs.iter().next() {
-                    Some(x) => println!("{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
-                                        _height, db_mb_hash, x.0, diffs.len(), x.2, x.1),
+                    Some(x) => differences.push(
+                        format!("{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
+                                        _height, db_mb_hash, x.0, diffs.len(), x.2, x.1)),
                     None => break,
                 }
             }
-            return false;
         }
-        true
+        differences
     }
 }
