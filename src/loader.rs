@@ -400,7 +400,13 @@ impl BlockLoader {
             },
         };
         db_transactions.sort_by(|a,b| a.hash.cmp(&b.hash));
-        let ct = epoch.get_transaction_list_by_micro_block(&chain_mb_hash).unwrap();
+        let ct = match epoch.get_transaction_list_by_micro_block(&chain_mb_hash) {
+            Ok(x) => x,
+            Err(y) => {
+                error!("Couldn't load transaction list from Epoch {}", y);
+                return differences;
+            },
+        };
         let mut chain_transactions = ct["transactions"].as_array().unwrap().clone();
         chain_transactions.sort_by(|a,b| a["hash"].as_str().unwrap().cmp(b["hash"].as_str().unwrap()));
         if db_transactions.len() != chain_transactions.len() {
