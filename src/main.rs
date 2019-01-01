@@ -12,7 +12,7 @@ extern crate curl;
 extern crate dotenv;
 extern crate env_logger;
 extern crate hex;
-extern crate lazy_static;
+#[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
@@ -46,6 +46,26 @@ use server::MiddlewareServer;
 pub use bigdecimal::BigDecimal;
 
 pub mod models;
+
+use dotenv::dotenv;
+use diesel::PgConnection;
+use r2d2::{Pool, PooledConnection};
+use r2d2_diesel::ConnectionManager;
+use r2d2_postgres::{PostgresConnectionManager};
+use std::sync::Arc;
+
+lazy_static! {
+    static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = ConnectionManager::<PgConnection>::new(database_url);
+        let pool = r2d2::Pool::builder()
+            .max_size(20) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
+}        
 
 fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In start_blockloader()");

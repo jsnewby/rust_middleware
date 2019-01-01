@@ -16,7 +16,7 @@ use super::schema::transactions::dsl::*;
 use epoch;
 use epoch::*;
 use models::*;
-
+use PGCONNECTION;
 use serde_json;
 
 use r2d2::Pool;
@@ -126,7 +126,7 @@ impl BlockLoader {
     pub fn detect_forks(epoch: &Epoch, from: i64, to: i64,
                         _tx: &std::sync::mpsc::Sender<i64>) ->
     Result<bool, LoaderError> {
-        let conn = epoch.get_connection()?;
+        let conn = PGCONNECTION.get()?;
         let mut forked = false;
         let mut _height = KeyBlock::top_height(&conn)? - from;
         let stop_height = _height - to;
@@ -204,7 +204,7 @@ impl BlockLoader {
      * it harmlessly explodes.
      */
     pub fn load_mempool(&self, epoch: &Epoch) {
-        let conn = epoch.get_connection().unwrap();
+        let conn = PGCONNECTION.get().unwrap();
         let trans: JsonTransactionList =
             serde_json::from_value(self.epoch.get_pending_transaction_list().unwrap()).unwrap();
         let mut hashes_in_mempool = vec![];
@@ -232,7 +232,7 @@ impl BlockLoader {
      * node to the highest in the DB, filling in the gaps.
      */
     pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) -> Result<i32, LoaderError> {
-        let connection = epoch.get_connection()?;
+        let connection = PGCONNECTION.get()?;
         let top_block_chain = key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
         let top_block_db = KeyBlock::top_height(&connection).unwrap();
         let mut blocks_changed = 0;
@@ -383,7 +383,7 @@ impl BlockLoader {
      */
     pub fn verify(&self) {
         let top_chain = self.epoch.latest_key_block().unwrap()["height"].as_i64().unwrap();
-        let conn = self.epoch.get_connection().unwrap();
+        let conn = PGCONNECTION.get().unwrap();
         let top_db = KeyBlock::top_height(&conn).unwrap();
         let top_max = std::cmp::max(top_chain,top_db);
         let mut i = top_max;
