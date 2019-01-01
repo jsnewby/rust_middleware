@@ -19,8 +19,6 @@ use bigdecimal::ToPrimitive;
 use std;
 use std::str::FromStr;
 
-use epoch;
-
 #[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
 #[table_name = "key_blocks"]
 pub struct KeyBlock {
@@ -255,13 +253,11 @@ pub struct MicroBlock {
     pub version: i32,
 }
 
-fn option_i32() -> Option<i32> {
-    None
-}
-
 impl MicroBlock {
-    pub fn get_microblock_hashes_for_key_block_hash(sql_conn: &postgres::Connection,
-                                                    kb_hash: &String) -> Option<Vec<String>> {
+    pub fn get_microblock_hashes_for_key_block_hash(
+        sql_conn: &postgres::Connection,
+        kb_hash: &String,
+    ) -> Option<Vec<String>> {
         let sql = format!(
             "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE mb.key_block_id=kb.id and kb.hash='{}' ORDER BY mb.hash",
             kb_hash
@@ -272,7 +268,6 @@ impl MicroBlock {
         }
         Some(micro_block_hashes)
     }
-
 }
 
 #[derive(Insertable)]
@@ -310,8 +305,11 @@ pub struct JsonGeneration {
 }
 
 impl JsonGeneration {
-    pub fn get_generation_at_height(sql_conn: &postgres::Connection,
-                                    conn: &PgConnection, _height: i64) -> Option<JsonGeneration> {
+    pub fn get_generation_at_height(
+        sql_conn: &postgres::Connection,
+        conn: &PgConnection,
+        _height: i64,
+    ) -> Option<JsonGeneration> {
         let key_block = match KeyBlock::load_at_height(conn, _height) {
             Some(x) => x,
             None => {
@@ -346,9 +344,10 @@ impl JsonGeneration {
         }
         for i in 0..self.micro_blocks.len() {
             if self.micro_blocks[i] != other.micro_blocks[i] {
-                debug!("Microblock hashes don't match: {} vs {}",
-                       self.micro_blocks[i],
-                       other.micro_blocks[i]);
+                debug!(
+                    "Microblock hashes don't match: {} vs {}",
+                    self.micro_blocks[i], other.micro_blocks[i]
+                );
                 return false;
             }
         }
@@ -394,8 +393,6 @@ impl Transaction {
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
         Some(_transactions)
     }
-        
-            
 }
 
 #[derive(Serialize, Deserialize)]

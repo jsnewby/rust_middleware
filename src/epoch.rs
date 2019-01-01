@@ -1,59 +1,36 @@
 use curl::easy::{Easy, List};
-
-use diesel::pg::PgConnection;
-use dotenv::dotenv;
-use postgres::{Connection, TlsMode};
-use r2d2::{Pool, PooledConnection};
-use r2d2_diesel::ConnectionManager;
-use r2d2_postgres::{PostgresConnectionManager};
 use regex::Regex;
 use serde_json;
 use serde_json::Value;
 use std;
-use std::env;
 use std::io::Read;
-use std::sync::Arc;
 
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
 
+use SQLCONNECTION;
 
 pub struct Epoch {
     base_uri: String,
-    sql_pool: Arc<Pool<PostgresConnectionManager>>
 }
 
 impl Epoch {
-    pub fn new(base_url: String, pool_size: u32) -> Epoch {
-        dotenv().ok(); // Grabbing ENV vars
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-        let manager = PostgresConnectionManager::new
-            (database_url, r2d2_postgres::TlsMode::None).unwrap();
-        let pool = r2d2::Pool::builder()
-            .max_size(1) // only used for emergencies...
-            .build(manager)
-            .expect("Failed to create pool.");
+    pub fn new(base_url: String) -> Epoch {
         Epoch {
             base_uri: base_url,
-            sql_pool: Arc::new(pool),
         }
-    }
-
-    pub fn get_sql_connection(&self) -> Result<PooledConnection<r2d2_postgres::PostgresConnectionManager>, r2d2::Error> {
-        self.sql_pool.get()
     }
 
     pub fn get_missing_heights(&self, height: i64) -> Result<Vec<i32>, Box<std::error::Error>> {
         let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
         debug!("{}", &sql);
         let mut missing_heights = Vec::new();
-        for row in &self.get_sql_connection().unwrap().query(&sql, &[]).unwrap() {
+        for row in SQLCONNECTION.get()?.query(&sql, &[])?.iter() {
             missing_heights.push(row.get(0));
         }
         Ok(missing_heights)
-}
+    }
 
     pub fn current_generation(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
         self.get(&String::from("generations/current"))
@@ -95,10 +72,7 @@ impl Epoch {
             transfer.perform()?;
         }
         let value: Value = serde_json::from_str(std::str::from_utf8(&data)?)?;
-        debug!(
-            "get_naked() received {}",
-            serde_json::to_string(&value)?
-        );
+        debug!("get_naked() received {}", serde_json::to_string(&value)?);
 
         Ok(value)
     }

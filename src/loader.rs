@@ -1,26 +1,22 @@
+use super::schema::key_blocks::dsl::*;
+use super::schema::transactions::dsl::*;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
 use diesel::sql_query;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
+use epoch::*;
+use models::*;
+use serde_json;
 use std::error::Error;
 use std::fmt;
 use std::option::NoneError;
 use std::slice::SliceConcatExt;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
 use std::thread;
-use super::schema::key_blocks::dsl::*;
-use super::schema::transactions::dsl::*;
-use epoch;
-use epoch::*;
-use models::*;
 use PGCONNECTION;
-use serde_json;
-
-use r2d2::Pool;
-use r2d2_diesel::ConnectionManager;
+use SQLCONNECTION;
 pub struct BlockLoader {
     epoch: Epoch,
     rx: std::sync::mpsc::Receiver<i64>,
@@ -29,18 +25,20 @@ pub struct BlockLoader {
 
 #[derive(Debug)]
 pub struct LoaderError {
-    details: String
+    details: String,
 }
 
 impl LoaderError {
     fn new(msg: &str) -> LoaderError {
-        LoaderError{details: msg.to_string()}
+        LoaderError {
+            details: msg.to_string(),
+        }
     }
 }
 
 impl fmt::Display for LoaderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}",self.details)
+        write!(f, "{}", self.details)
     }
 }
 
@@ -55,7 +53,7 @@ impl std::error::Error for LoaderError {
 }
 
 impl From<NoneError> for LoaderError {
-    fn from(none: std::option::NoneError) -> Self {
+    fn from(_none: std::option::NoneError) -> Self {
         LoaderError::new("None")
     }
 }
@@ -76,13 +74,19 @@ impl std::convert::From<serde_json::Error> for LoaderError {
     fn from(err: serde_json::Error) -> Self {
         LoaderError::new(&err.to_string())
     }
-}    
+}
+
 impl std::convert::From<diesel::result::Error> for LoaderError {
     fn from(err: diesel::result::Error) -> Self {
         LoaderError::new(&err.to_string())
     }
 }
 
+impl std::convert::From<postgres::Error> for LoaderError {
+    fn from(err: postgres::Error) -> Self {
+        LoaderError::new(&err.to_string())
+    }
+}
 
 /*
 * You may notice the use of '_tx' as a variable name in this file,
@@ -96,16 +100,10 @@ impl BlockLoader {
     /*
      * Makes a new BlockLoader object, initializes its DB pool.
      */
-    pub fn new(
-        epoch_url: String,
-    ) -> BlockLoader {
+    pub fn new(epoch_url: String) -> BlockLoader {
         let (_tx, rx): (Sender<i64>, Receiver<i64>) = mpsc::channel();
-        let epoch = Epoch::new(epoch_url.clone(), 1);
-        BlockLoader {
-            epoch,
-            rx,
-            tx: _tx,
-        }
+        let epoch = Epoch::new(epoch_url.clone());
+        BlockLoader { epoch, rx, tx: _tx }
     }
 
     /*
@@ -120,9 +118,12 @@ impl BlockLoader {
      * TODO: disassociate the TXs from the micro-blocks and keep them
      * for reporting purposes.
      */
-    pub fn detect_forks(epoch: &Epoch, from: i64, to: i64,
-                        _tx: &std::sync::mpsc::Sender<i64>) ->
-    Result<bool, LoaderError> {
+    pub fn detect_forks(
+        epoch: &Epoch,
+        from: i64,
+        to: i64,
+        _tx: &std::sync::mpsc::Sender<i64>,
+    ) -> Result<bool, LoaderError> {
         let conn = PGCONNECTION.get()?;
         let mut forked = false;
         let mut _height = KeyBlock::top_height(&conn)? - from;
@@ -131,10 +132,11 @@ impl BlockLoader {
             if _height <= stop_height {
                 break;
             }
-            // want to remove unwrap() below but gives a type error
-            let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(&epoch.get_sql_connection().unwrap(),
-                                                                                    &conn, _height)
-            {
+            let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(
+                &*SQLCONNECTION.get()?,
+                &conn,
+                _height,
+            ) {
                 Some(x) => x,
                 None => {
                     info!("Couldn't load generation {} from DB", _height);
@@ -146,19 +148,22 @@ impl BlockLoader {
                 serde_json::from_value(epoch.get_generation_at_height(_height)?)?;
             if !jg.eq(&gen_from_server) {
                 info!("Invalidating block at height {}", _height);
-                BlockLoader::invalidate_block_at_height(_height, &conn, &_tx);
+                BlockLoader::invalidate_block_at_height(_height, &conn, &_tx)?;
                 _height -= 1;
                 forked = true;
                 continue;
             }
-            for i in 0 .. jg.micro_blocks.len() {
-                let differences =
-                    BlockLoader::compare_micro_blocks(&epoch, &conn, _height,
-                                                      jg.micro_blocks[i].clone(),
-                                                      jg.micro_blocks[i].clone())?;
+            for i in 0..jg.micro_blocks.len() {
+                let differences = BlockLoader::compare_micro_blocks(
+                    &epoch,
+                    &conn,
+                    _height,
+                    jg.micro_blocks[i].clone(),
+                    jg.micro_blocks[i].clone(),
+                )?;
                 if differences.len() != 0 {
                     info!("Microblocks differ: {:?}", differences);
-                    BlockLoader::invalidate_block_at_height(_height, &conn, &_tx);
+                    BlockLoader::invalidate_block_at_height(_height, &conn, &_tx)?;
                     forked = true;
                     _height -= 1;
                     continue;
@@ -190,8 +195,7 @@ impl BlockLoader {
                 BlockLoader::recover_from_db_error();
             }
         };
-        diesel::delete(key_blocks.filter(height.eq(&_height)))
-            .execute(conn)?;
+        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
         Ok(true)
     }
 
@@ -200,10 +204,10 @@ impl BlockLoader {
      * the debug endpoint is also available on the main URL. Otherwise
      * it harmlessly explodes.
      */
-    pub fn load_mempool(&self, epoch: &Epoch) {
-        let conn = PGCONNECTION.get().unwrap();
+    pub fn load_mempool(&self, _epoch: &Epoch) -> Result<u64, LoaderError> {
+        let conn = PGCONNECTION.get()?;
         let trans: JsonTransactionList =
-            serde_json::from_value(self.epoch.get_pending_transaction_list().unwrap()).unwrap();
+            serde_json::from_value(self.epoch.get_pending_transaction_list()?)?;
         let mut hashes_in_mempool = vec![];
         for i in 0..trans.transactions.len() {
             match self.store_or_update_transaction(&conn, &trans.transactions[i], None) {
@@ -221,7 +225,7 @@ impl BlockLoader {
              hash NOT IN ({})",
             hashes_in_mempool.join(", ")
         );
-        epoch.get_sql_connection().unwrap().execute(&sql, &[]);
+        Ok(SQLCONNECTION.get()?.execute(&sql, &[])?)
     }
 
     /*
@@ -230,8 +234,8 @@ impl BlockLoader {
      */
     pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) -> Result<i32, LoaderError> {
         let connection = PGCONNECTION.get()?;
-        let top_block_chain = key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-        let top_block_db = KeyBlock::top_height(&connection).unwrap();
+        let top_block_chain = key_block_from_json(epoch.latest_key_block()?)?;
+        let top_block_db = KeyBlock::top_height(&connection)?;
         let mut blocks_changed = 0;
         if top_block_chain.height == top_block_db {
             trace!("Up-to-date");
@@ -253,7 +257,7 @@ impl BlockLoader {
                     Ok(x) => {
                         debug!("Success: {:?}", x);
                         blocks_changed += 1;
-                    },
+                    }
                     Err(e) => {
                         error!("Error queuing block at height {}: {:?}", _height, e);
                         BlockLoader::recover_from_db_error();
@@ -357,7 +361,8 @@ impl BlockLoader {
             match self.load_blocks(b) {
                 Ok(x) => info!(
                     "Saved {} micro blocks in total at height {}, key block id is {} ",
-                               x.0, b, x.1),
+                    x.0, b, x.1
+                ),
                 Err(x) => error!("Error loading blocks {}", x),
             };
         }
@@ -369,7 +374,7 @@ impl BlockLoader {
     /*
      * Verify the DB, printing results to stdout.
      *
-     * methodology: 
+     * methodology:
      * pick the highest of DB height and height reported by node
      * load blocks from DB and from node
      * compare the microblocks and transactions in each
@@ -378,72 +383,97 @@ impl BlockLoader {
      * - micro blocks
      * - transactions
      */
-    pub fn verify(&self) {
-        let top_chain = self.epoch.latest_key_block().unwrap()["height"].as_i64().unwrap();
-        let conn = PGCONNECTION.get().unwrap();
-        let top_db = KeyBlock::top_height(&conn).unwrap();
-        let top_max = std::cmp::max(top_chain,top_db);
+    pub fn verify(&self) -> Result<i64, LoaderError> {
+        let top_chain = self.epoch.latest_key_block()?["height"]
+            .as_i64()?;
+        let mut _verified: i64 = 0;
+        let conn = PGCONNECTION.get()?;
+        let top_db = KeyBlock::top_height(&conn)?;
+        let top_max = std::cmp::max(top_chain, top_db);
         let mut i = top_max;
         loop {
-            self.compare_chain_and_db(i, &conn);
+            self.compare_chain_and_db(i, &conn)?;
             i -= 1;
+            _verified += 1;
         }
     }
 
-    pub fn compare_chain_and_db(&self, _height: i64, conn: &PgConnection) {
+    pub fn compare_chain_and_db(&self, _height: i64, conn: &PgConnection) ->
+        Result<bool, LoaderError>
+    {
         let block_chain = self.epoch.get_key_block_by_height(_height);
         let block_db = KeyBlock::load_at_height(conn, _height);
         match block_chain {
             Ok(x) => {
                 match block_db {
                     Some(y) => {
-                        self.compare_key_blocks(conn, x, y);
-                    },
+                        return Ok(self.compare_key_blocks(conn, x, y)? == 0);
+                    }
                     None => {
                         println!("{} missing from DB", _height);
-                    },
+                        return Ok(false);
+                    }
                 };
-            },
+            }
             Err(_) => {
                 match block_db {
                     Some(_) => {
                         println!("{} present in DB not in chain", _height);
-                    },
+                        return Ok(false);
+                    }
                     None => {
                         println!("Not found at either, something weird happened");
-                    },
+                        return Ok(false);
+                    }
                 };
-            },
+            }
         };
     }
 
-    pub fn compare_key_blocks(&self, conn: &PgConnection, block_chain: serde_json::Value,
-                              block_db: KeyBlock) -> Result<i64, Box<LoaderError>> {
-        let chain_hash = block_chain["hash"].as_str().unwrap();
-        if ! block_db.hash.eq(&chain_hash) {
-            let err = format!("{} Hashes differ: {} chain vs {} block",
-                               block_db.height, chain_hash, block_db.hash);
-            return Err(Box::new(LoaderError::new(&err)));
+    pub fn compare_key_blocks(
+        &self,
+        conn: &PgConnection,
+        block_chain: serde_json::Value,
+        block_db: KeyBlock,
+    ) -> Result<i64, LoaderError> {
+        let chain_hash = block_chain["hash"].as_str()?;
+        if !block_db.hash.eq(&chain_hash) {
+            let err = format!(
+                "{} Hashes differ: {} chain vs {} block",
+                block_db.height, chain_hash, block_db.hash
+            );
+            return Err(LoaderError::new(&err));
         }
         let mut db_mb_hashes = MicroBlock::get_microblock_hashes_for_key_block_hash(
-            &self.epoch.get_sql_connection().unwrap(),
-            &String::from(chain_hash)).unwrap();
-        db_mb_hashes.sort_by(|a,b| a.cmp(b));
-        let chain_gen = self.epoch.get_generation_at_height(block_db.height).unwrap();
-        let mut chain_mb_hashes = chain_gen["micro_blocks"].as_array().unwrap().clone();
-        chain_mb_hashes.sort_by(|a,b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
+            &*SQLCONNECTION.get()?,
+            &String::from(chain_hash),
+        )?;
+        db_mb_hashes.sort_by(|a, b| a.cmp(b));
+        let chain_gen = self
+            .epoch
+            .get_generation_at_height(block_db.height)?;
+        let mut chain_mb_hashes = chain_gen["micro_blocks"].as_array()?.clone();
+        chain_mb_hashes.sort_by(|a, b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
         if db_mb_hashes.len() != chain_mb_hashes.len() {
-            let err = format!("{} Microblock array size differs: {} chain vs {} db",
-                              block_db.height, chain_mb_hashes.len(), block_db.hash.len());
-            return Err(Box::new(LoaderError::new(&err)))
+            let err = format!(
+                "{} Microblock array size differs: {} chain vs {} db",
+                block_db.height,
+                chain_mb_hashes.len(),
+                block_db.hash.len()
+            );
+            return Err(LoaderError::new(&err));
         }
         let mut all_good = true;
-        for i in 0 .. db_mb_hashes.len() {
-            let chain_mb_hash = String::from(chain_mb_hashes[i].as_str().unwrap());
+        for i in 0..db_mb_hashes.len() {
+            let chain_mb_hash = String::from(chain_mb_hashes[i].as_str()?);
             let db_mb_hash = db_mb_hashes[i].clone();
-            let differences = BlockLoader::compare_micro_blocks(&self.epoch, &conn,
-                                                                block_db.height,
-                                                                db_mb_hash, chain_mb_hash)?;
+            let differences = BlockLoader::compare_micro_blocks(
+                &self.epoch,
+                &conn,
+                block_db.height,
+                db_mb_hash,
+                chain_mb_hash,
+            )?;
             if differences.len() != 0 {
                 println!("Transactions differ: {:?}", differences);
                 all_good = false;
@@ -455,53 +485,71 @@ impl BlockLoader {
         Ok(block_db.height)
     }
 
-    pub fn compare_micro_blocks(epoch: &Epoch, conn: &PgConnection, _height: i64,
-                                db_mb_hash: String, chain_mb_hash: String)
-                                -> Result<Vec<String>, LoaderError> {
-        let mut differences: Vec<String> = vec!();
+    pub fn compare_micro_blocks(
+        epoch: &Epoch,
+        conn: &PgConnection,
+        _height: i64,
+        db_mb_hash: String,
+        chain_mb_hash: String,
+    ) -> Result<Vec<String>, LoaderError> {
+        let mut differences: Vec<String> = vec![];
         if db_mb_hash != chain_mb_hash {
-            differences.push(
-                format!("{} micro block hashes don't match: {} chain vs {} db",
-                        _height, chain_mb_hash, db_mb_hash));          
+            differences.push(format!(
+                "{} micro block hashes don't match: {} chain vs {} db",
+                _height, chain_mb_hash, db_mb_hash
+            ));
         }
         let mut db_transactions = match Transaction::load_for_micro_block(conn, &db_mb_hash) {
             Some(x) => x,
             None => {
                 error!("Couldn't load transaction list from DB {}", db_mb_hash);
                 return Ok(differences);
-            },
+            }
         };
-        db_transactions.sort_by(|a,b| a.hash.cmp(&b.hash));
+        db_transactions.sort_by(|a, b| a.hash.cmp(&b.hash));
         // well this fails when Epoch barfs on us.
         let ct = match epoch.get_transaction_list_by_micro_block(&chain_mb_hash) {
             Ok(x) => x,
             Err(y) => {
                 error!("Couldn't load transaction list from Epoch {}", y);
                 return Ok(differences);
-            },
+            }
         };
         let mut chain_transactions = ct["transactions"].as_array()?.clone();
-        chain_transactions.sort_by(|a,b| a["hash"].as_str()
-                                   .unwrap()
-                                   .cmp(b["hash"].as_str().unwrap()));
+        chain_transactions
+            .sort_by(|a, b| a["hash"].as_str().unwrap().cmp(b["hash"].as_str().unwrap()));
         if db_transactions.len() != chain_transactions.len() {
-            differences.push(
-            format!("{} micro block {} transaction count differs: {} chain vs {} DB",
-                     _height, db_mb_hash, chain_transactions.len(), db_transactions.len()));
+            differences.push(format!(
+                "{} micro block {} transaction count differs: {} chain vs {} DB",
+                _height,
+                db_mb_hash,
+                chain_transactions.len(),
+                db_transactions.len()
+            ));
         }
-        let mut diffs: Vec<(usize, String,String)> = vec!();
-        for i in 0 .. db_transactions.len() {
-            let chain_tx_hash = chain_transactions[i]["hash"].as_str().unwrap();
+        let mut diffs: Vec<(usize, String, String)> = vec![];
+        for i in 0..db_transactions.len() {
+            let chain_tx_hash = chain_transactions[i]["hash"].as_str()?;
             if db_transactions[i].hash != chain_tx_hash {
-                diffs.push((i, db_transactions[i].hash.clone(), chain_tx_hash.to_string()));
+                diffs.push((
+                    i,
+                    db_transactions[i].hash.clone(),
+                    chain_tx_hash.to_string(),
+                ));
             }
         }
         if diffs.len() != 0 {
             loop {
                 match diffs.iter().next() {
-                    Some(x) => differences.push(
-                        format!("{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
-                                        _height, db_mb_hash, x.0, diffs.len(), x.2, x.1)),
+                    Some(x) => differences.push(format!(
+                        "{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
+                        _height,
+                        db_mb_hash,
+                        x.0,
+                        diffs.len(),
+                        x.2,
+                        x.1
+                    )),
                     None => break,
                 }
             }

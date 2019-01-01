@@ -1,28 +1,34 @@
 #![feature(slice_concat_ext)]
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
-#![feature(try_trait)] 
+#![feature(try_trait)]
 extern crate rand;
 
 extern crate bigdecimal;
 extern crate blake2b;
 extern crate crypto;
 extern crate curl;
-#[macro_use] extern crate diesel;
+#[macro_use]
+extern crate diesel;
 extern crate dotenv;
 extern crate env_logger;
 extern crate hex;
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
 extern crate regex;
-#[macro_use] extern crate rocket;
-#[macro_use] extern crate rocket_contrib;
+#[macro_use]
+extern crate rocket;
+#[macro_use]
+extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
 
 use std::thread;
@@ -41,17 +47,17 @@ pub mod loader;
 pub mod schema;
 pub mod server;
 
+pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
 use server::MiddlewareServer;
-pub use bigdecimal::BigDecimal;
 
 pub mod models;
 
-use dotenv::dotenv;
 use diesel::PgConnection;
-use r2d2::{Pool, PooledConnection};
+use dotenv::dotenv;
+use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
-use r2d2_postgres::{PostgresConnectionManager};
+use r2d2_postgres::PostgresConnectionManager;
 use std::sync::Arc;
 
 lazy_static! {
@@ -65,7 +71,23 @@ lazy_static! {
             .expect("Failed to create pool.");
         Arc::new(pool)
     };
-}        
+}
+
+lazy_static! {
+    static ref SQLCONNECTION: Arc<Pool<PostgresConnectionManager>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+        let manager = PostgresConnectionManager::new
+            (database_url, r2d2_postgres::TlsMode::None).unwrap();
+        let pool = r2d2::Pool::builder()
+            .max_size(3) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
+}
+        
 
 fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In start_blockloader()");
@@ -73,10 +95,13 @@ fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     let u2 = url.clone();
     thread::spawn(move || {
         thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone(), 1);
+            let epoch = epoch::Epoch::new(u2.clone());
             loop {
                 debug!("Scanning for new blocks");
-                loader::BlockLoader::scan(&epoch, &_tx);
+                match loader::BlockLoader::scan(&epoch, &_tx) {
+                    Ok(x) => debug!("Scanned {} blocks", x),
+                    Err(x) => error!("Error in BlockLoader::scan: {}", x),
+                };
                 debug!("Sleeping.");
                 thread::sleep(std::time::Duration::new(40, 0));
             }
@@ -84,18 +109,22 @@ fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     });
 }
 
-fn load_mempool(url: &String) {
+fn load_mempool(url: &String) -> Result<bool, Box<std::error::Error>> {
     debug!("In load_mempool()");
     let u = url.clone();
     let u2 = u.clone();
     let loader = BlockLoader::new(String::from(u));
     thread::spawn(move || {
-        let epoch = epoch::Epoch::new(u2.clone(), 1);
+        let epoch = epoch::Epoch::new(u2.clone());
         loop {
-            loader.load_mempool(&epoch);
+            match loader.load_mempool(&epoch) {
+                Ok(_) => (),
+                Err(x) => error!("Couldn't load mempool: {}", x),
+            };
             thread::sleep(std::time::Duration::new(5, 0));
         }
     });
+    Ok(true)
 }
 
 /*
@@ -106,9 +135,10 @@ fn load_mempool(url: &String) {
 * return.
 */
 
-fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) ->
-    Result<bool, Box<std::error::Error>>
-{
+fn fill_missing_heights(
+    url: String,
+    _tx: std::sync::mpsc::Sender<i64>,
+) -> Result<bool, Box<std::error::Error>> {
     debug!("In fill_missing_heights()");
     let u = url.clone();
     let u2 = u.clone();
@@ -116,14 +146,14 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) ->
     //TODO refactor this into a function for better error handling
     thread::spawn(move || {
         let loader = BlockLoader::new(String::from(u));
-        let epoch = epoch::Epoch::new(u2.clone(), 1);
+        let epoch = epoch::Epoch::new(u2.clone());
         let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
         let missing_heights = match epoch.get_missing_heights(top_block.height) {
             Ok(x) => x,
             Err(x) => {
                 error!("Error finding missing blocks {}", x);
                 return;
-            },
+            }
         };
         for height in missing_heights {
             debug!("Adding {} to load queue", &height);
@@ -152,7 +182,7 @@ fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i
     let u = url.clone();
     let u2 = u.clone();
     thread::spawn(move || {
-        let epoch = epoch::Epoch::new(u2.clone(), 1);
+        let epoch = epoch::Epoch::new(u2.clone());
         loop {
             debug!("Going into fork detection");
             loader::BlockLoader::detect_forks(&epoch, from, to, &_tx);
@@ -224,7 +254,7 @@ fn main() {
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
-            epoch: epoch::Epoch::new(url.clone(), 20),
+            epoch: epoch::Epoch::new(url.clone()),
             dest_url: url.to_string(),
             port: 3013,
         };
