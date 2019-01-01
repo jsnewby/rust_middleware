@@ -1,7 +1,7 @@
 #![feature(slice_concat_ext)]
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
-
+#![feature(try_trait)] 
 extern crate rand;
 
 extern crate bigdecimal;
@@ -11,22 +11,18 @@ extern crate curl;
 #[macro_use] extern crate diesel;
 extern crate dotenv;
 extern crate env_logger;
-pub use bigdecimal::BigDecimal;
 extern crate hex;
 extern crate lazy_static;
-#[macro_use]
-extern crate log;
+#[macro_use] extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
 extern crate regex;
-#[macro_use]
-extern crate rocket;
-extern crate rocket_contrib;
+#[macro_use] extern crate rocket;
+#[macro_use] extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate serde_derive;
 extern crate serde_json;
 
 use std::thread;
@@ -47,6 +43,7 @@ pub mod server;
 
 use loader::BlockLoader;
 use server::MiddlewareServer;
+pub use bigdecimal::BigDecimal;
 
 pub mod models;
 
@@ -89,15 +86,25 @@ fn load_mempool(url: &String) {
 * return.
 */
 
-fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
+fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) ->
+    Result<bool, Box<std::error::Error>>
+{
     debug!("In fill_missing_heights()");
     let u = url.clone();
     let u2 = u.clone();
+
+    //TODO refactor this into a function for better error handling
     thread::spawn(move || {
         let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
         let epoch = epoch::Epoch::new(u2.clone(), 1);
         let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-        let missing_heights = epoch.get_missing_heights(top_block.height);
+        let missing_heights = match epoch.get_missing_heights(top_block.height) {
+            Ok(x) => x,
+            Err(x) => {
+                error!("Error finding missing blocks {}", x);
+                return;
+            },
+        };
         for height in missing_heights {
             debug!("Adding {} to load queue", &height);
             match _tx.send(height as i64) {
@@ -113,6 +120,7 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
         detect_forks(&url.clone(), 51, 500, _tx.clone());
         loader.start();
     });
+    Ok(true)
 }
 
 /*

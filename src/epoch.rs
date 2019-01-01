@@ -72,14 +72,14 @@ impl Epoch {
         self.sql_pool.get()
     }
 
-    pub fn get_missing_heights(&self, height: i64) -> Vec<i32> {
-    let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
-    debug!("{}", &sql);
-    let mut missing_heights = Vec::new();
-    for row in &self.get_sql_connection().unwrap().query(&sql, &[]).unwrap() {
-        missing_heights.push(row.get(0));
-    }
-    missing_heights
+    pub fn get_missing_heights(&self, height: i64) -> Result<Vec<i32>, Box<std::error::Error>> {
+        let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
+        debug!("{}", &sql);
+        let mut missing_heights = Vec::new();
+        for row in &self.get_sql_connection().unwrap().query(&sql, &[]).unwrap() {
+            missing_heights.push(row.get(0));
+        }
+        Ok(missing_heights)
 }
 
     pub fn current_generation(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
@@ -124,7 +124,7 @@ impl Epoch {
         let value: Value = serde_json::from_str(std::str::from_utf8(&data)?)?;
         debug!(
             "get_naked() received {}",
-            serde_json::to_string(&value).unwrap()
+            serde_json::to_string(&value)?
         );
 
         Ok(value)
@@ -142,8 +142,8 @@ impl Epoch {
         let mut handle = Easy::new();
         handle.url(&uri)?;
         let mut list = List::new();
-        list.append("content-type: application/json").unwrap();
-        handle.http_headers(list).unwrap();
+        list.append("content-type: application/json")?;
+        handle.http_headers(list)?;
         handle.post(true)?;
         handle.post_field_size(data.len() as u64)?;
         let mut response = Vec::new();
@@ -156,7 +156,7 @@ impl Epoch {
             })?;
             transfer.perform()?;
         }
-        let resp = String::from(std::str::from_utf8(&response).unwrap());
+        let resp = String::from(std::str::from_utf8(&response)?);
         debug!("get_naked() returning {}", resp);
         Ok(resp)
     }

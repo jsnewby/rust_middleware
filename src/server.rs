@@ -8,15 +8,19 @@ use diesel::RunQueryDsl;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use rocket;
-//use rocket::response::Failure;
 use rocket::http::Method;
 use rocket::State;
 use rocket_contrib::json::*;
+use rocket_contrib::databases::diesel;
 use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use serde_json;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+// DB
+#[database("middleware")]
+struct MiddlewareDbConn(diesel::PgConnection);
 
 pub struct MiddlewareServer {
     pub epoch: Epoch,
@@ -89,8 +93,10 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
 }
 
 #[get("/generations/height/<height>", rank = 1)]
-fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
-    let conn = state.epoch.get_connection().unwrap();
+fn generation_at_height(conn: MiddlewareDbConn,
+                        state: State<MiddlewareServer>,
+                        height: i64) -> Json<serde_json::Value>
+{
     match JsonGeneration::get_generation_at_height(&state.epoch.get_sql_connection().unwrap(),
                                                    &conn, height) {
         Some(x) => Json(serde_json::from_str(&serde_json::to_string(&x).unwrap()).unwrap()),
@@ -104,8 +110,9 @@ fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json<ser
 }
 
 #[get("/key-blocks/height/<height>", rank = 1)]
-fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
-    let conn = state.epoch.get_connection().unwrap();
+fn key_block_at_height(
+    conn: MiddlewareDbConn,
+    state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
     let key_block = match KeyBlock::load_at_height(&conn, height) {
         Some(x) => x,
         None => {
@@ -123,8 +130,11 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serd
 }
 
 #[get("/transactions/<hash>")]
-fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde_json::Value> {
-    let conn = state.epoch.get_connection().unwrap();
+fn transaction_at_hash(
+    conn: MiddlewareDbConn,
+    state: State<MiddlewareServer>,
+    hash: String) -> Json<serde_json::Value>
+{
     let tx: Transaction = match Transaction::load_at_hash(&conn, &hash) {
         Some(x) => x,
         None => {
@@ -143,8 +153,11 @@ fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<ser
 }
 
 #[get("/key-blocks/hash/<hash>", rank = 1)]
-fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde_json::Value> {
-    let conn = state.epoch.get_connection().unwrap();
+fn key_block_at_hash(
+    conn: MiddlewareDbConn,
+    state: State<MiddlewareServer>,
+    hash: String) -> Json<serde_json::Value>
+{
     let key_block = match KeyBlock::load_at_hash(&conn, &hash) {
         Some(x) => x,
         None => {
@@ -187,6 +200,7 @@ fn transactions_in_micro_block_at_hash(
  */
 #[get("/transactions/account/<account>")]
 fn transactions_for_account(
+    conn: MiddlewareDbConn,    
     state: State<MiddlewareServer>,
     account: String,
 ) -> Json<JsonTransactionList> {
@@ -195,7 +209,7 @@ fn transactions_for_account(
                           s_acc, s_acc);
     info!("{}", sql);
     let transactions: Vec<Transaction> = sql_query(sql)
-        .load(&*state.connection.get().unwrap())
+        .load(&*conn)
         .unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
@@ -284,6 +298,7 @@ impl MiddlewareServer {
             .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
             .attach(options)
+            .attach(MiddlewareDbConn::fairing())
             .manage(self)
             .launch();
     }
