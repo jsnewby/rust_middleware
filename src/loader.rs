@@ -23,7 +23,6 @@ use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 pub struct BlockLoader {
     epoch: Epoch,
-    pub connection: Arc<Pool<ConnectionManager<PgConnection>>>, // DB connection
     rx: std::sync::mpsc::Receiver<i64>,
     pub tx: std::sync::mpsc::Sender<i64>,
 }
@@ -98,14 +97,12 @@ impl BlockLoader {
      * Makes a new BlockLoader object, initializes its DB pool.
      */
     pub fn new(
-        connection: Arc<Pool<ConnectionManager<PgConnection>>>,
         epoch_url: String,
     ) -> BlockLoader {
         let (_tx, rx): (Sender<i64>, Receiver<i64>) = mpsc::channel();
         let epoch = Epoch::new(epoch_url.clone(), 1);
         BlockLoader {
             epoch,
-            connection,
             rx,
             tx: _tx,
         }
@@ -286,7 +283,7 @@ impl BlockLoader {
 
     fn load_blocks(&self, _height: i64) -> Result<(i32, i32), Box<std::error::Error>> {
         let mut count = 0;
-        let connection = self.connection.get()?;
+        let connection = PGCONNECTION.get()?;
         let generation: JsonGeneration =
             serde_json::from_value(self.epoch.get_generation_at_height(_height)?)?;
         let ib: InsertableKeyBlock =
@@ -421,7 +418,7 @@ impl BlockLoader {
     }
 
     pub fn compare_key_blocks(&self, conn: &PgConnection, block_chain: serde_json::Value,
-                              block_db: KeyBlock) -> Result<i64, Box<std::error::Error>> {
+                              block_db: KeyBlock) -> Result<i64, Box<LoaderError>> {
         let chain_hash = block_chain["hash"].as_str().unwrap();
         if ! block_db.hash.eq(&chain_hash) {
             let err = format!("{} Hashes differ: {} chain vs {} block",

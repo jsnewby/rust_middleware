@@ -26,7 +26,6 @@ pub struct MiddlewareServer {
     pub epoch: Epoch,
     pub dest_url: String, // address to forward to
     pub port: u16,        // port to listen on
-    pub connection: Arc<Pool<ConnectionManager<PgConnection>>>, // DB connection
 }
 
 // SQL santitizing method to prevent injection attacks.
@@ -178,12 +177,13 @@ fn key_block_at_hash(
 
 #[get("/micro-blocks/hash/<hash>/transactions", rank = 1)]
 fn transactions_in_micro_block_at_hash(
+    conn: MiddlewareDbConn,
     state: State<MiddlewareServer>,
     hash: String,
 ) -> Json<JsonTransactionList> {
     let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(hash));
     let transactions: Vec<Transaction> = sql_query(sql)
-        .load(&*state.connection.get().unwrap())
+        .load(&*conn)
         .unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
@@ -226,13 +226,14 @@ fn transactions_for_account(
  */
 #[get("/transactions/interval/<from>/<to>")]
 fn transactions_for_interval(
+    conn: MiddlewareDbConn,
     state: State<MiddlewareServer>,
     from: i64,
     to: i64,
 ) -> Json<JsonTransactionList> {
     let sql = format!("select t.* from transactions t, micro_blocks m, key_blocks k where t.micro_block_id=m.id and m.key_block_id=k.id and k.height >={} and k.height <= {} order by k.height asc", from, to);
     let transactions: Vec<Transaction> = sql_query(sql)
-        .load(&*state.connection.get().unwrap())
+        .load(&*conn)
         .unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
@@ -248,7 +249,11 @@ fn transactions_for_interval(
  * Gets average gas price for a block
  */
 #[get("/key-blocks/height/<height>/gas-price")]
-fn key_block_gas_price(state: State<MiddlewareServer>, height: i64) -> Option<String> {
+fn key_block_gas_price(
+    conn: MiddlewareDbConn,
+    state: State<MiddlewareServer>,
+    height: i64) -> Option<String>
+{
     let sql = format!(
         "\
          select t.* from transactions t, micro_blocks m, key_blocks k where \
@@ -260,7 +265,7 @@ fn key_block_gas_price(state: State<MiddlewareServer>, height: i64) -> Option<St
     );
     println!("{}", sql);
     let transactions: Vec<Transaction> = sql_query(sql)
-        .load(&*state.connection.get().unwrap())
+        .load(&*conn)
         .unwrap();
     let mut fees: i64 = 0;
     let mut sizes: i64 = 0;

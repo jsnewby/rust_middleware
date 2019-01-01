@@ -88,7 +88,7 @@ fn load_mempool(url: &String) {
     debug!("In load_mempool()");
     let u = url.clone();
     let u2 = u.clone();
-    let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
+    let loader = BlockLoader::new(String::from(u));
     thread::spawn(move || {
         let epoch = epoch::Epoch::new(u2.clone(), 1);
         loop {
@@ -115,7 +115,7 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) ->
 
     //TODO refactor this into a function for better error handling
     thread::spawn(move || {
-        let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
+        let loader = BlockLoader::new(String::from(u));
         let epoch = epoch::Epoch::new(u2.clone(), 1);
         let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
         let missing_heights = match epoch.get_missing_heights(top_block.height) {
@@ -194,15 +194,13 @@ fn main() {
     let url = env::var("EPOCH_URL")
         .expect("EPOCH_URL must be set")
         .to_string();
-    let connection = epoch::establish_connection(1);
-
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
     let verify = matches.is_present("verify");
 
     if verify {
         println!("Verifying");
-        let loader = BlockLoader::new(epoch::establish_connection(1), url.clone());
+        let loader = BlockLoader::new(url.clone());
         loader.verify();
         return;
     }
@@ -215,7 +213,7 @@ fn main() {
      */
     if populate {
         let url = url.clone();
-        let loader = BlockLoader::new(epoch::establish_connection(1), url.clone());
+        let loader = BlockLoader::new(url.clone());
         load_mempool(&url);
         fill_missing_heights(url.clone(), loader.tx.clone());
         start_blockloader(&url, loader.tx.clone());
@@ -229,7 +227,6 @@ fn main() {
             epoch: epoch::Epoch::new(url.clone(), 20),
             dest_url: url.to_string(),
             port: 3013,
-            connection,
         };
         ms.start();
     }

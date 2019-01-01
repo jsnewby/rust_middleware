@@ -18,34 +18,14 @@ use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
 
-pub fn establish_connection(size: u32) -> Arc<Pool<ConnectionManager<PgConnection>>> {
-    dotenv().ok(); // Grabbing ENV vars
-    debug!("Making new pool size {}", size);
-
-    // Pull DATABASE_URL env var
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-    // Create a connection pool manager for a Postgres connection at the `database_url`
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-
-    let pool = r2d2::Pool::builder()
-        .max_size(size)
-        .build(manager)
-        .expect("Failed to create pool.");
-
-    // Create the pool with the default config and the r2d2_diesel connection manager
-    Arc::new(pool)
-}
 
 pub struct Epoch {
     base_uri: String,
-    pool: Arc<Pool<ConnectionManager<PgConnection>>>,
     sql_pool: Arc<Pool<PostgresConnectionManager>>
 }
 
 impl Epoch {
     pub fn new(base_url: String, pool_size: u32) -> Epoch {
-        let connection = establish_connection(pool_size);
         dotenv().ok(); // Grabbing ENV vars
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
@@ -57,15 +37,8 @@ impl Epoch {
             .expect("Failed to create pool.");
         Epoch {
             base_uri: base_url,
-            pool: connection,
             sql_pool: Arc::new(pool),
         }
-    }
-
-    pub fn get_connection(
-        &self,
-    ) -> Result<PooledConnection<ConnectionManager<PgConnection>>, r2d2::Error> {
-        self.pool.get()
     }
 
     pub fn get_sql_connection(&self) -> Result<PooledConnection<r2d2_postgres::PostgresConnectionManager>, r2d2::Error> {
