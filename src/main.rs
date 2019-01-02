@@ -77,7 +77,6 @@ lazy_static! {
     static ref SQLCONNECTION: Arc<Pool<PostgresConnectionManager>> = {
         dotenv().ok(); // Grabbing ENV vars
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
         let manager = PostgresConnectionManager::new
             (database_url, r2d2_postgres::TlsMode::None).unwrap();
         let pool = r2d2::Pool::builder()

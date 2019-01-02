@@ -388,7 +388,10 @@ impl Transaction {
         Some(_transactions.pop()?)
     }
 
-    pub fn load_for_micro_block(conn: &PgConnection, mb_hash: &String) -> Option<Vec<Transaction>> {
+    pub fn load_for_micro_block(
+        conn: &PgConnection,
+        mb_hash: &String) -> Option<Vec<Transaction>>
+    {
         let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}'", mb_hash);
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
         Some(_transactions)
