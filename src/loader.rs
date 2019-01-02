@@ -479,19 +479,16 @@ impl BlockLoader {
             }
         }
         if diffs.len() != 0 {
-            loop {
-                match diffs.iter().next() {
-                    Some(x) => differences.push(format!(
+            for i in 0 .. diffs.len() {
+                differences.push(format!(
                         "{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
                         _height,
                         db_mb_hash,
-                        x.0,
+                        diffs[i].0,
                         diffs.len(),
-                        x.2,
-                        x.1
-                    )),
-                    None => break,
-                }
+                        diffs[i].2,
+                        diffs[1].1
+                ));
             }
         }
         Ok(differences)
