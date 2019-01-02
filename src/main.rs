@@ -46,12 +46,12 @@ pub mod epoch;
 pub mod loader;
 pub mod schema;
 pub mod server;
-pub mod middleware_error;
+pub mod middleware_result;
 
 pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
 use server::MiddlewareServer;
-
+use middleware_result::MiddlewareResult;
 pub mod models;
 
 use diesel::PgConnection;
@@ -109,7 +109,7 @@ fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     });
 }
 
-fn load_mempool(url: &String) -> Result<bool, Box<std::error::Error>> {
+fn load_mempool(url: &String) -> MiddlewareResult<bool> {
     debug!("In load_mempool()");
     let u = url.clone();
     let u2 = u.clone();
@@ -138,7 +138,7 @@ fn load_mempool(url: &String) -> Result<bool, Box<std::error::Error>> {
 fn fill_missing_heights(
     url: String,
     _tx: std::sync::mpsc::Sender<i64>,
-) -> Result<bool, Box<std::error::Error>> {
+) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
     let u = url.clone();
     let u2 = u.clone();

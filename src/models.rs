@@ -16,10 +16,9 @@ use serde_json::Number;
 
 use bigdecimal;
 use bigdecimal::ToPrimitive;
-use std;
 use std::str::FromStr;
 
-use middleware_error::MiddlewareResult;
+use middleware_result::MiddlewareResult;
 
 #[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
 #[table_name = "key_blocks"]
@@ -40,7 +39,7 @@ pub struct KeyBlock {
 }
 
 impl KeyBlock {
-    pub fn from_json_key_block(jb: &JsonKeyBlock) -> Result<KeyBlock, Box<std::error::Error>> {
+    pub fn from_json_key_block(jb: &JsonKeyBlock) -> MiddlewareResult<KeyBlock> {
         let n: u64 = match jb.nonce.as_u64() {
             Some(val) => val,
             None => 0,
@@ -62,7 +61,7 @@ impl KeyBlock {
         })
     }
 
-    pub fn top_height(conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
+    pub fn top_height(conn: &PgConnection) -> MiddlewareResult<i64> {
         let b = key_blocks::table
             .order(key_blocks::height.desc())
             .load::<KeyBlock>(conn)?;
@@ -141,7 +140,7 @@ impl InsertableKeyBlock {
 
     pub fn from_json_key_block(
         jb: &JsonKeyBlock,
-    ) -> Result<InsertableKeyBlock, Box<std::error::Error>> {
+    ) -> MiddlewareResult<InsertableKeyBlock> {
         //TODO: fix this.
         let n: u64 = match jb.nonce.as_u64() {
             Some(val) => val,
@@ -288,7 +287,7 @@ pub struct InsertableMicroBlock {
 }
 
 impl InsertableMicroBlock {
-    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::micro_blocks::dsl::*;

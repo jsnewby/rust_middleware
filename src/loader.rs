@@ -8,8 +8,8 @@ use diesel::RunQueryDsl;
 use epoch::*;
 use models::*;
 use serde_json;
-use middleware_error::*;
-use middleware_error::MiddlewareResult;
+use middleware_result::*;
+use middleware_result::MiddlewareResult;
 
 use std::slice::SliceConcatExt;
 use std::sync::mpsc;

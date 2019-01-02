@@ -8,7 +8,7 @@ use std::io::Read;
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
-use middleware_error::MiddlewareResult;
+use middleware_result::MiddlewareResult;
 
 use SQLCONNECTION;
 
