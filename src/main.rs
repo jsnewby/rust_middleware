@@ -46,6 +46,7 @@ pub mod epoch;
 pub mod loader;
 pub mod schema;
 pub mod server;
+pub mod middleware_error;
 
 pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
@@ -184,7 +185,10 @@ fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i
         let epoch = epoch::Epoch::new(u2.clone());
         loop {
             debug!("Going into fork detection");
-            loader::BlockLoader::detect_forks(&epoch, from, to, &_tx);
+            match loader::BlockLoader::detect_forks(&epoch, from, to, &_tx) {
+                Ok(_) => (),
+                Err(x) => error!("Error in detect_forks(): {}", x),
+            };
             debug!("Sleeping.");
             thread::sleep(std::time::Duration::new(2, 0));
         }
@@ -230,7 +234,10 @@ fn main() {
     if verify {
         println!("Verifying");
         let loader = BlockLoader::new(url.clone());
-        loader.verify();
+        match loader.verify() {
+            Ok(_) => (),
+            Err(x) => error!("Blockloader::verify() returned an error: {}", x),
+        };
         return;
     }
 
@@ -243,8 +250,14 @@ fn main() {
     if populate {
         let url = url.clone();
         let loader = BlockLoader::new(url.clone());
-        load_mempool(&url);
-        fill_missing_heights(url.clone(), loader.tx.clone());
+        match load_mempool(&url) {
+            Ok(_) => (),
+            Err(x) => error!("BlockLoader::load_mempool() returned an error: {}", x),
+        };
+        match fill_missing_heights(url.clone(), loader.tx.clone()) {
+            Ok(_) => (),
+            Err(x) => error!("fill_missing_heights() returned an error: {}", x),
+        };
         start_blockloader(&url, loader.tx.clone());
         thread::spawn(move || {
             loader.start();

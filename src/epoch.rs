@@ -8,6 +8,7 @@ use std::io::Read;
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
+use middleware_error::MiddlewareResult;
 
 use SQLCONNECTION;
 
@@ -22,7 +23,8 @@ impl Epoch {
         }
     }
 
-    pub fn get_missing_heights(&self, height: i64) -> Result<Vec<i32>, Box<std::error::Error>> {
+    pub fn get_missing_heights(&self, height: i64) ->
+        MiddlewareResult<Vec<i32>> {
         let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
         debug!("{}", &sql);
         let mut missing_heights = Vec::new();
@@ -32,23 +34,23 @@ impl Epoch {
         Ok(missing_heights)
     }
 
-    pub fn current_generation(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
+    pub fn current_generation(&self) -> MiddlewareResult<serde_json::Value> {        
         self.get(&String::from("generations/current"))
     }
 
     pub fn get_generation_at_height(
         &self,
         height: i64,
-    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+    ) -> MiddlewareResult<serde_json::Value> {
         let path = format!("generations/height/{}", height);
         self.get(&String::from(path))
     }
 
-    pub fn latest_key_block(&self) -> Result<serde_json::Value, Box<std::error::Error>> {
+    pub fn latest_key_block(&self) -> MiddlewareResult<serde_json::Value> {
         self.get(&String::from("key-blocks/current"))
     }
 
-    pub fn get(&self, operation: &String) -> Result<serde_json::Value, Box<std::error::Error>> {
+    pub fn get(&self, operation: &String) -> MiddlewareResult<serde_json::Value> {
         self.get_naked(&String::from("/v2/"), operation)
     }
 
@@ -57,7 +59,7 @@ impl Epoch {
         &self,
         prefix: &String,
         operation: &String,
-    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+    ) -> MiddlewareResult<serde_json::Value> {
         let uri = self.base_uri.clone() + prefix + operation;
         debug!("get_naked() fetching {}", uri);
         let mut data = Vec::new();
@@ -82,7 +84,7 @@ impl Epoch {
         prefix: &String,
         operation: &String,
         body: String,
-    ) -> Result<String, Box<std::error::Error>> {
+    ) -> MiddlewareResult<String> {
         let uri = self.base_uri.clone() + prefix + operation;
         debug!("post_naked posting to URL: {}, body: {}", uri, body);
         let mut data = body.as_bytes();
@@ -111,7 +113,7 @@ impl Epoch {
     pub fn get_key_block_by_hash(
         &self,
         hash: &String,
-    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+    ) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&format!("{}{}", String::from("key-blocks/hash/"), &hash))?;
         Ok(result)
     }
@@ -119,7 +121,7 @@ impl Epoch {
     pub fn get_key_block_by_height(
         &self,
         height: i64,
-    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+    ) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&format!(
             "{}{}",
             String::from("key-blocks/height/"),
@@ -131,7 +133,7 @@ impl Epoch {
     pub fn get_micro_block_by_hash(
         &self,
         hash: &String,
-    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+    ) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&format!(
             "{}{}{}",
             String::from("micro-blocks/hash/"),
@@ -144,7 +146,7 @@ impl Epoch {
     pub fn get_transaction_list_by_micro_block(
         &self,
         hash: &String,
-    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+    ) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&format!(
             "{}{}{}",
             String::from("micro-blocks/hash/"),
@@ -156,7 +158,7 @@ impl Epoch {
 
     pub fn get_pending_transaction_list(
         &self,
-    ) -> Result<serde_json::Value, Box<std::error::Error>> {
+    ) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&String::from("debug/transactions/pending"))?;
         Ok(result)
     }
@@ -170,17 +172,17 @@ pub fn from_json(val: &String) -> String {
     }
 }
 
-pub fn key_block_from_json(json: Value) -> Result<JsonKeyBlock, Box<std::error::Error>> {
+pub fn key_block_from_json(json: Value) -> MiddlewareResult<JsonKeyBlock> {
     let block: JsonKeyBlock = serde_json::from_value(json)?;
     Ok(block)
 }
 
-pub fn micro_block_from_json(json: Value) -> Result<InsertableMicroBlock, Box<std::error::Error>> {
+pub fn micro_block_from_json(json: Value) -> MiddlewareResult<InsertableMicroBlock> {
     let block: InsertableMicroBlock = serde_json::from_value(json)?;
     Ok(block)
 }
 
-pub fn transaction_from_json(json: Value) -> Result<JsonTransaction, Box<std::error::Error>> {
+pub fn transaction_from_json(json: Value) -> MiddlewareResult<JsonTransaction> {
     let transaction: JsonTransaction = serde_json::from_value(json)?;
     Ok(transaction)
 }

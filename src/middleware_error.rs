@@ -68,4 +68,23 @@ impl std::convert::From<postgres::Error> for MiddlewareError {
     }
 }
 
+impl std::convert::From<curl::Error> for MiddlewareError {
+    fn from(err: curl::Error) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}    
+
+
+impl std::convert::From<std::str::Utf8Error> for MiddlewareError {
+    fn from(err: std::str::Utf8Error) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}    
+/*
+impl std::convert::From<std::str::Utf8Error> for MiddlewareError {
+    fn from(err: std::str::Utf8Error) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}    
+*/
 pub type MiddlewareResult<T> = Result<T, MiddlewareError>;

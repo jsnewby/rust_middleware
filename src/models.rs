@@ -19,6 +19,8 @@ use bigdecimal::ToPrimitive;
 use std;
 use std::str::FromStr;
 
+use middleware_error::MiddlewareResult;
+
 #[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
 #[table_name = "key_blocks"]
 pub struct KeyBlock {
@@ -126,7 +128,7 @@ pub struct InsertableKeyBlock {
 }
 
 impl InsertableKeyBlock {
-    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::key_blocks::dsl::*;
@@ -444,7 +446,7 @@ pub struct InsertableTransaction {
 }
 
 impl InsertableTransaction {
-    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::transactions::dsl::*;
@@ -459,7 +461,7 @@ impl InsertableTransaction {
         jt: &JsonTransaction,
         tx_type: String,
         micro_block_id: Option<i32>,
-    ) -> Result<InsertableTransaction, Box<std::error::Error>> {
+    ) -> MiddlewareResult<InsertableTransaction> {
         let mut signatures = String::new();
         for i in 0..jt.signatures.len() {
             if i > 0 {

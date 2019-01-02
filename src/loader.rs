@@ -8,9 +8,9 @@ use diesel::RunQueryDsl;
 use epoch::*;
 use models::*;
 use serde_json;
-use std::error::Error;
-use std::fmt;
-use std::option::NoneError;
+use middleware_error::*;
+use middleware_error::MiddlewareResult;
+
 use std::slice::SliceConcatExt;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -23,70 +23,6 @@ pub struct BlockLoader {
     pub tx: std::sync::mpsc::Sender<i64>,
 }
 
-#[derive(Debug)]
-pub struct LoaderError {
-    details: String,
-}
-
-impl LoaderError {
-    fn new(msg: &str) -> LoaderError {
-        LoaderError {
-            details: msg.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for LoaderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.details)
-    }
-}
-
-impl std::error::Error for LoaderError {
-    fn description(&self) -> &str {
-        &self.details
-    }
-    fn cause(&self) -> Option<&Error> {
-        // Generic error, underlying cause isn't tracked.
-        None
-    }
-}
-
-impl From<NoneError> for LoaderError {
-    fn from(_none: std::option::NoneError) -> Self {
-        LoaderError::new("None")
-    }
-}
-
-impl From<r2d2::Error> for LoaderError {
-    fn from(err: r2d2::Error) -> Self {
-        LoaderError::new(&err.to_string())
-    }
-}
-
-impl From<Box<std::error::Error>> for LoaderError {
-    fn from(err: Box<std::error::Error>) -> Self {
-        LoaderError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<serde_json::Error> for LoaderError {
-    fn from(err: serde_json::Error) -> Self {
-        LoaderError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<diesel::result::Error> for LoaderError {
-    fn from(err: diesel::result::Error) -> Self {
-        LoaderError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<postgres::Error> for LoaderError {
-    fn from(err: postgres::Error) -> Self {
-        LoaderError::new(&err.to_string())
-    }
-}
 
 /*
 * You may notice the use of '_tx' as a variable name in this file,
@@ -123,7 +59,7 @@ impl BlockLoader {
         from: i64,
         to: i64,
         _tx: &std::sync::mpsc::Sender<i64>,
-    ) -> Result<bool, LoaderError> {
+    ) -> MiddlewareResult<bool> {
         let conn = PGCONNECTION.get()?;
         let mut forked = false;
         let mut _height = KeyBlock::top_height(&conn)? - from;
@@ -186,7 +122,7 @@ impl BlockLoader {
         _height: i64,
         conn: &PgConnection,
         _tx: &std::sync::mpsc::Sender<i64>,
-    ) -> Result<bool, LoaderError> {
+    ) -> MiddlewareResult<bool> {
         debug!("Invalidating block at height {}", _height);
         match _tx.send(_height) {
             Ok(()) => (),
@@ -204,7 +140,7 @@ impl BlockLoader {
      * the debug endpoint is also available on the main URL. Otherwise
      * it harmlessly explodes.
      */
-    pub fn load_mempool(&self, _epoch: &Epoch) -> Result<u64, LoaderError> {
+    pub fn load_mempool(&self, _epoch: &Epoch) -> MiddlewareResult<u64> {
         let conn = PGCONNECTION.get()?;
         let trans: JsonTransactionList =
             serde_json::from_value(self.epoch.get_pending_transaction_list()?)?;
@@ -232,7 +168,9 @@ impl BlockLoader {
      * this method scans the blocks from the heighest reported by the
      * node to the highest in the DB, filling in the gaps.
      */
-    pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) -> Result<i32, LoaderError> {
+    pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) ->
+        MiddlewareResult<i32>
+    {
         let connection = PGCONNECTION.get()?;
         let top_block_chain = key_block_from_json(epoch.latest_key_block()?)?;
         let top_block_db = KeyBlock::top_height(&connection)?;
@@ -285,7 +223,7 @@ impl BlockLoader {
      * to grab the block and all of its microblocks.
      */
 
-    fn load_blocks(&self, _height: i64) -> Result<(i32, i32), Box<std::error::Error>> {
+    fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
         let mut count = 0;
         let connection = PGCONNECTION.get()?;
         let generation: JsonGeneration =
@@ -323,7 +261,7 @@ impl BlockLoader {
         conn: &PgConnection,
         trans: &JsonTransaction,
         _micro_block_id: Option<i32>,
-    ) -> Result<i32, Box<std::error::Error>> {
+    ) -> MiddlewareResult<i32> {
         let sql = format!(
             "select * from transactions where hash = '{}' limit 1",
             &trans.hash
@@ -331,6 +269,7 @@ impl BlockLoader {
         debug!("{}", sql);
         let mut results: Vec<Transaction> = sql_query(sql).
             // bind::<diesel::sql_types::Text, _>(trans.hash.clone()).
+            // TODO: fix ^^^^^^^^^^^^^^
             get_results(conn)?;
         match results.pop() {
             Some(x) => {
@@ -383,7 +322,8 @@ impl BlockLoader {
      * - micro blocks
      * - transactions
      */
-    pub fn verify(&self) -> Result<i64, LoaderError> {
+    pub fn verify(&self) -> MiddlewareResult<i64>
+    {
         let top_chain = self.epoch.latest_key_block()?["height"]
             .as_i64()?;
         let mut _verified: i64 = 0;
@@ -399,7 +339,7 @@ impl BlockLoader {
     }
 
     pub fn compare_chain_and_db(&self, _height: i64, conn: &PgConnection) ->
-        Result<bool, LoaderError>
+        MiddlewareResult<bool>
     {
         let block_chain = self.epoch.get_key_block_by_height(_height);
         let block_db = KeyBlock::load_at_height(conn, _height);
@@ -435,14 +375,14 @@ impl BlockLoader {
         conn: &PgConnection,
         block_chain: serde_json::Value,
         block_db: KeyBlock,
-    ) -> Result<i64, LoaderError> {
+    ) -> MiddlewareResult<i64> {
         let chain_hash = block_chain["hash"].as_str()?;
         if !block_db.hash.eq(&chain_hash) {
             let err = format!(
                 "{} Hashes differ: {} chain vs {} block",
                 block_db.height, chain_hash, block_db.hash
             );
-            return Err(LoaderError::new(&err));
+            return Err(MiddlewareError::new(&err));
         }
         let mut db_mb_hashes = MicroBlock::get_microblock_hashes_for_key_block_hash(
             &*SQLCONNECTION.get()?,
@@ -461,7 +401,7 @@ impl BlockLoader {
                 chain_mb_hashes.len(),
                 block_db.hash.len()
             );
-            return Err(LoaderError::new(&err));
+            return Err(MiddlewareError::new(&err));
         }
         let mut all_good = true;
         for i in 0..db_mb_hashes.len() {
@@ -491,7 +431,7 @@ impl BlockLoader {
         _height: i64,
         db_mb_hash: String,
         chain_mb_hash: String,
-    ) -> Result<Vec<String>, LoaderError> {
+    ) -> MiddlewareResult<Vec<String>> {
         let mut differences: Vec<String> = vec![];
         if db_mb_hash != chain_mb_hash {
             differences.push(format!(
