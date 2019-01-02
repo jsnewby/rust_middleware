@@ -23,6 +23,7 @@ pub struct BlockLoader {
     pub tx: std::sync::mpsc::Sender<i64>,
 }
 
+pub static BACKLOG_CLEARED: i64 = -1;
 
 /*
 * You may notice the use of '_tx' as a variable name in this file,
@@ -297,13 +298,20 @@ impl BlockLoader {
     pub fn start(&self) {
         for b in &self.rx {
             debug!("Pulling height {} from queue for storage", b);
-            match self.load_blocks(b) {
-                Ok(x) => info!(
-                    "Saved {} micro blocks in total at height {}, key block id is {} ",
-                    x.0, b, x.1
-                ),
-                Err(x) => error!("Error loading blocks {}", x),
-            };
+            if b == BACKLOG_CLEARED {
+                BlockLoader::detect_forks(&self.epoch, 1, 10, &self.tx.clone());
+                BlockLoader::detect_forks(&self.epoch, 11, 50, &self.tx.clone());
+                BlockLoader::detect_forks(&self.epoch, 51, 500, &self.tx.clone());
+                BlockLoader::scan(&self.epoch, &self.tx.clone());  
+            } else {
+                match self.load_blocks(b) {
+                    Ok(x) => info!(
+                        "Saved {} micro blocks in total at height {}, key block id is {} ",
+                        x.1, b, x.0
+                    ),
+                    Err(x) => error!("Error loading blocks {}", x),
+                };
+            }
         }
         // if we fall through here something has gone wrong. Let's quit!
         error!("Failed to read from the queue, quitting.");

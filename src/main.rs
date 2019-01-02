@@ -87,7 +87,6 @@ lazy_static! {
         Arc::new(pool)
     };
 }
-        
 
 fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In start_blockloader()");
@@ -143,33 +142,21 @@ fn fill_missing_heights(
     let u = url.clone();
     let u2 = u.clone();
 
-    //TODO refactor this into a function for better error handling
-    thread::spawn(move || {
-        let loader = BlockLoader::new(String::from(u));
-        let epoch = epoch::Epoch::new(u2.clone());
-        let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-        let missing_heights = match epoch.get_missing_heights(top_block.height) {
-            Ok(x) => x,
+    let loader = BlockLoader::new(String::from(u));
+    let epoch = epoch::Epoch::new(u2.clone());
+    let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
+    let missing_heights = epoch.get_missing_heights(top_block.height)?;
+    for height in missing_heights {
+        debug!("Adding {} to load queue", &height);
+        match _tx.send(height as i64) {
+            Ok(_) => (),
             Err(x) => {
-                error!("Error finding missing blocks {}", x);
-                return;
+                error!("Error queuing block to send: {}", x);
+                BlockLoader::recover_from_db_error();
             }
         };
-        for height in missing_heights {
-            debug!("Adding {} to load queue", &height);
-            match _tx.send(height as i64) {
-                Ok(_) => (),
-                Err(x) => {
-                    error!("Error queuing block to send: {}", x);
-                    BlockLoader::recover_from_db_error();
-                }
-            };
-        }
-        detect_forks(&url.clone(), 1, 10, _tx.clone());
-        detect_forks(&url.clone(), 11, 50, _tx.clone());
-        detect_forks(&url.clone(), 51, 500, _tx.clone());
-        loader.start();
-    });
+    }
+    _tx.send(loader::BACKLOG_CLEARED)?;
     Ok(true)
 }
 
