@@ -66,7 +66,7 @@ impl BlockLoader {
             });
         }
     }
-    
+
     /*
      * We walk backward through the chain loading generations from the
      * DB, and requesting them from the chain. We pause 1 second
@@ -204,7 +204,7 @@ impl BlockLoader {
             }
         });
     }
-                      
+
 
     /*
      * this method scans the blocks from the heighest reported by the
@@ -444,32 +444,32 @@ impl BlockLoader {
         let mut chain_mb_hashes = chain_gen["micro_blocks"].as_array()?.clone();
         chain_mb_hashes.sort_by(|a, b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
         if db_mb_hashes.len() != chain_mb_hashes.len() {
-            let err = format!(
+            println!(
                 "{} Microblock array size differs: {} chain vs {} db",
                 block_db.height,
                 chain_mb_hashes.len(),
                 block_db.hash.len()
             );
-            return Err(MiddlewareError::new(&err));
-        }
-        let mut all_good = true;
-        for i in 0..db_mb_hashes.len() {
-            let chain_mb_hash = String::from(chain_mb_hashes[i].as_str()?);
-            let db_mb_hash = db_mb_hashes[i].clone();
-            let differences = BlockLoader::compare_micro_blocks(
-                &self.epoch,
-                &conn,
-                block_db.height,
-                db_mb_hash,
-                chain_mb_hash,
-            )?;
-            if differences.len() != 0 {
-                println!("Transactions differ: {:?}", differences);
-                all_good = false;
+        } else {
+            let mut all_good = true;
+            for i in 0..db_mb_hashes.len() {
+                let chain_mb_hash = String::from(chain_mb_hashes[i].as_str()?);
+                let db_mb_hash = db_mb_hashes[i].clone();
+                let differences = BlockLoader::compare_micro_blocks(
+                    &self.epoch,
+                    &conn,
+                    block_db.height,
+                    db_mb_hash,
+                    chain_mb_hash,
+                )?;
+                if differences.len() != 0 {
+                    println!("Transactions differ: {:?}", differences);
+                    all_good = false;
+                }
             }
-        }
-        if all_good {
-            println!("{} OK", block_db.height);
+            if all_good {
+                println!("{} OK", block_db.height);
+            }
         }
         Ok(block_db.height)
     }
