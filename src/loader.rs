@@ -536,7 +536,7 @@ impl BlockLoader {
                         diffs[i].0,
                         diffs.len(),
                         diffs[i].2,
-                        diffs[1].1
+                        diffs[i].1
                 ));
             }
         }
