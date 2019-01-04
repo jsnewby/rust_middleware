@@ -119,11 +119,7 @@ fn fill_missing_heights(
     _tx: std::sync::mpsc::Sender<i64>,
 ) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
-    let u = url.clone();
-    let u2 = u.clone();
-
-    let loader = BlockLoader::new(String::from(u));
-    let epoch = epoch::Epoch::new(u2.clone());
+    let epoch = epoch::Epoch::new(url.clone());
     let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
     let missing_heights = epoch.get_missing_heights(top_block.height)?;
     for height in missing_heights {
