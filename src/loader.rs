@@ -43,6 +43,30 @@ impl BlockLoader {
         BlockLoader { epoch, rx, tx: _tx }
     }
 
+    pub fn start_fork_detection(
+        epoch: &Epoch,
+        _tx: &std::sync::mpsc::Sender<i64>)
+    {
+        let settings = [(1,10),(11,50),(51,500)];
+        for setting in settings.iter() {
+            let _tx = _tx.clone();
+            let epoch = epoch.clone();
+            let start = setting.0;
+            let end = setting.1;
+            thread::spawn(move || {
+                match BlockLoader::detect_forks(&epoch, start, end, &_tx) {
+                    Ok(x) => {
+                        if x {
+                            info!("Fork detected");
+                        }
+                    },
+                    Err(x) => error!("Error in fork detection {}", x),
+                };
+                thread::sleep(std::time::Duration::new(5, 0));
+            });
+        }
+    }
+    
     /*
      * We walk backward through the chain loading generations from the
      * DB, and requesting them from the chain. We pause 1 second
@@ -165,9 +189,26 @@ impl BlockLoader {
         Ok(SQLCONNECTION.get()?.execute(&sql, &[])?)
     }
 
+    pub fn start_scan_thread(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>)
+    {
+        let _tx = _tx.clone();
+        let epoch = epoch.clone();
+        thread::spawn(move || {
+            loop {
+                match BlockLoader::scan(&epoch, &_tx) {
+                    Ok(count) => debug!("BlockLoader::scan() added {} blocks to loading queue",
+                                        count),
+                    Err(x) => debug!("BlockLoader::scan() returned an error: {}", x),
+                };
+                thread::sleep(std::time::Duration::new(5, 0));
+            }
+        });
+    }
+                      
+
     /*
      * this method scans the blocks from the heighest reported by the
-     * node to the highest in the DB, filling in the gaps.
+     * node to the highest iairport n the DB, filling in the gaps.
      */
     pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) ->
         MiddlewareResult<i32>
@@ -299,10 +340,9 @@ impl BlockLoader {
         for b in &self.rx {
             debug!("Pulling height {} from queue for storage", b);
             if b == BACKLOG_CLEARED {
-                BlockLoader::detect_forks(&self.epoch, 1, 10, &self.tx.clone());
-                BlockLoader::detect_forks(&self.epoch, 11, 50, &self.tx.clone());
-                BlockLoader::detect_forks(&self.epoch, 51, 500, &self.tx.clone());
-                BlockLoader::scan(&self.epoch, &self.tx.clone());  
+                info!("Backlog cleared, now launching fork detection & scanning threads");
+                BlockLoader::start_fork_detection(&self.epoch, &self.tx);
+                BlockLoader::start_scan_thread(&self.epoch, &self.tx);
             } else {
                 match self.load_blocks(b) {
                     Ok(x) => info!(

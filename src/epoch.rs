@@ -23,6 +23,10 @@ impl Epoch {
         }
     }
 
+    pub fn clone(&self) -> Epoch {
+        Epoch::new(self.base_uri.clone())
+    }
+
     pub fn get_missing_heights(&self, height: i64) ->
         MiddlewareResult<Vec<i32>> {
         let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
