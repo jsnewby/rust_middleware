@@ -91,7 +91,7 @@ impl BlockLoader {
         let stop_height = _height - to;
         loop {
             if _height <= stop_height {
-                break;
+                _height = KeyBlock::top_height(&conn)?;
             }
             let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(
                 &*SQLCONNECTION.get()?,
