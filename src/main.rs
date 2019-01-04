@@ -88,24 +88,6 @@ lazy_static! {
     };
 }
 
-fn load_mempool(url: &String) -> MiddlewareResult<bool> {
-    debug!("In load_mempool()");
-    let u = url.clone();
-    let u2 = u.clone();
-    let loader = BlockLoader::new(String::from(u));
-    thread::spawn(move || {
-        let epoch = epoch::Epoch::new(u2.clone());
-        loop {
-            match loader.load_mempool(&epoch) {
-                Ok(_) => (),
-                Err(x) => error!("Couldn't load mempool: {}", x),
-            };
-            thread::sleep(std::time::Duration::new(5, 0));
-        }
-    });
-    Ok(true)
-}
-
 /*
  * This function does two things--initially it asks the DB for the
 * heights not present between 0 and the height returned by
@@ -213,10 +195,6 @@ fn main() {
     if populate {
         let url = url.clone();
         let loader = BlockLoader::new(url.clone());
-        match load_mempool(&url) {
-            Ok(_) => (),
-            Err(x) => error!("BlockLoader::load_mempool() returned an error: {}", x),
-        };
         match fill_missing_heights(url.clone(), loader.tx.clone()) {
             Ok(_) => (),
             Err(x) => error!("fill_missing_heights() returned an error: {}", x),
