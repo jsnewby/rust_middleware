@@ -340,10 +340,11 @@ impl BlockLoader {
         for b in &self.rx {
             debug!("Pulling height {} from queue for storage", b);
             if b == BACKLOG_CLEARED {
-                info!("Backlog cleared, now launching fork detection & scanning threads");
+                debug!("Backlog cleared, now launching fork detection & scanning threads");
                 BlockLoader::start_fork_detection(&self.epoch, &self.tx);
                 BlockLoader::start_scan_thread(&self.epoch, &self.tx);
             } else {
+                debug!("Loading block at height {} into DB", b);
                 match self.load_blocks(b) {
                     Ok(x) => info!(
                         "Saved {} micro blocks in total at height {}, key block id is {} ",
