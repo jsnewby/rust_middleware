@@ -468,6 +468,16 @@ impl InsertableTransaction {
             }
             signatures.push_str(&jt.signatures[i].clone());
         }
+        // TODO (urgent): make this handle big numbers.
+        let fee = match jt.tx["fee"].as_i64() {
+            Some(x) => x,
+            None => {
+                error!(
+                    "Fee too high for i64, setting to i64::MAX, hash is {}",
+                    jt.hash);
+                    std::i64::MAX
+                },
+            };
         Ok(InsertableTransaction {
             micro_block_id,
             block_height: jt.block_height,
@@ -475,9 +485,9 @@ impl InsertableTransaction {
             hash: jt.hash.clone(),
             signatures,
             tx_type,
-            fee: jt.tx["fee"].as_i64().unwrap(),
+            fee,
             size: jt.tx.to_string().len() as i32,
-            tx: serde_json::from_str(&jt.tx.to_string()).unwrap(),
+            tx: serde_json::from_str(&jt.tx.to_string())?,
         })
     }
 }
