@@ -88,26 +88,6 @@ lazy_static! {
     };
 }
 
-fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
-    debug!("In start_blockloader()");
-    //    let u = url.clone();
-    let u2 = url.clone();
-    thread::spawn(move || {
-        thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone());
-            loop {
-                debug!("Scanning for new blocks");
-                match loader::BlockLoader::scan(&epoch, &_tx) {
-                    Ok(x) => debug!("Scanned {} blocks", x),
-                    Err(x) => error!("Error in BlockLoader::scan: {}", x),
-                };
-                debug!("Sleeping.");
-                thread::sleep(std::time::Duration::new(40, 0));
-            }
-        });
-    });
-}
-
 fn load_mempool(url: &String) -> MiddlewareResult<bool> {
     debug!("In load_mempool()");
     let u = url.clone();
@@ -245,7 +225,6 @@ fn main() {
             Ok(_) => (),
             Err(x) => error!("fill_missing_heights() returned an error: {}", x),
         };
-        start_blockloader(&url, loader.tx.clone());
         thread::spawn(move || {
             loader.start();
         });
