@@ -62,21 +62,14 @@ impl KeyBlock {
     }
 
     pub fn top_height(conn: &PgConnection) -> MiddlewareResult<i64> {
-        let b = key_blocks::table
-            .order(key_blocks::height.desc())
-            .load::<KeyBlock>(conn)?;
-        let h = match b.first() {
-            Some(x) => x,
-            None => return Ok(0),
-        };
-        Ok(h.height)
+        let _height: Option<i64> = key_blocks.select(diesel::dsl::max(height)).first(conn)?;
+        Ok(_height?)
     }
 
     pub fn load_at_height(conn: &PgConnection, _height: i64) -> Option<KeyBlock> {
-        let mut blocks = match key_blocks::table
+        let mut block = match key_blocks::table
             .filter(height.eq(_height))
-            .limit(1)
-            .load::<KeyBlock>(conn)
+            .first::<KeyBlock>(conn)
         {
             Ok(x) => x,
             Err(y) => {
@@ -84,7 +77,7 @@ impl KeyBlock {
                 return None;
             }
         };
-        Some(blocks.pop()?)
+        Some(block)
     }
 
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<KeyBlock> {
@@ -423,6 +416,7 @@ impl JsonTransaction {
             tx: t.tx.clone(),
         }
     }
+
 }
 
 #[derive(Serialize, Deserialize)]
