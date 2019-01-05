@@ -62,7 +62,6 @@ impl BlockLoader {
                     },
                     Err(x) => error!("Error in fork detection {}", x),
                 };
-                thread::sleep(std::time::Duration::new(5, 0));
             });
         }
     }
@@ -86,13 +85,31 @@ impl BlockLoader {
         _tx: &std::sync::mpsc::Sender<i64>,
     ) -> MiddlewareResult<bool> {
         let conn = PGCONNECTION.get()?;
-        let mut forked = false;
+        let mut fork_detected = false;
         let mut _height = KeyBlock::top_height(&conn)? - from;
-        let stop_height = _height - to;
+        let mut stop_height = _height - to;
         loop {
+            // first time through fork_detected will be false, on subsequent trips it will have the value
+            // of the last iteration. Putting it here so we can just continue when we find a fork, to save
+            // time.
+            if fork_detected {
+                info!("In fork: invalidating block at height {}", _height);
+                BlockLoader::invalidate_block_at_height(_height, &conn, &_tx)?;
+                fork_detected = false;
+            } else {
+                debug!("Block checks out at height {}", _height);
+                thread::sleep(std::time::Duration::new(2, 0));
+            }
+
+            _height -= 1;
+
             if _height <= stop_height {
                 _height = KeyBlock::top_height(&conn)?;
+                stop_height = _height - to;
+                debug!("Resetting fork detection loop: now from {} to {}",
+                       _height, stop_height);
             }
+
             let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(
                 &*SQLCONNECTION.get()?,
                 &conn,
@@ -100,20 +117,18 @@ impl BlockLoader {
             ) {
                 Some(x) => x,
                 None => {
-                    info!("Couldn't load generation {} from DB", _height);
-                    _height -= 1;
+                    error!("Couldn't load generation {} from DB", _height);
+                    fork_detected = true;
                     continue;
                 }
             };
+
             let gen_from_server: JsonGeneration =
                 serde_json::from_value(epoch.get_generation_at_height(_height)?)?;
             if !jg.eq(&gen_from_server) {
-                info!("Invalidating block at height {}", _height);
-                BlockLoader::invalidate_block_at_height(_height, &conn, &_tx)?;
-                _height -= 1;
-                forked = true;
-                continue;
+                fork_detected = true;
             }
+
             for i in 0..jg.micro_blocks.len() {
                 let differences = BlockLoader::compare_micro_blocks(
                     &epoch,
@@ -124,17 +139,11 @@ impl BlockLoader {
                 )?;
                 if differences.len() != 0 {
                     info!("Microblocks differ: {:?}", differences);
-                    BlockLoader::invalidate_block_at_height(_height, &conn, &_tx)?;
-                    forked = true;
-                    _height -= 1;
-                    continue;
+                    fork_detected = true;
                 }
             }
-            debug!("Block checks out at height {}", _height);
-            _height -= 1; // only sleep if no fork found.
-            thread::sleep(std::time::Duration::new(2, 0));
         }
-        Ok(forked)
+        Ok(fork_detected)
     }
 
     /*
@@ -501,7 +510,7 @@ impl BlockLoader {
             Ok(x) => x,
             Err(y) => {
                 error!("Couldn't load transaction list from Epoch {}", y);
-                return Ok(differences);
+                return Ok(differences); // TODO should force reload?
             }
         };
         let mut chain_transactions = ct["transactions"].as_array()?.clone();
@@ -536,7 +545,7 @@ impl BlockLoader {
                         diffs[i].0,
                         diffs.len(),
                         diffs[i].2,
-                        diffs[1].1
+                        diffs[i].1
                 ));
             }
         }

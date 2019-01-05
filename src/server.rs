@@ -36,6 +36,7 @@ fn sanitize(s: String) -> String {
  */
 #[get("/<path..>", rank = 6)]
 fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
+    debug!("Fetching from node: {}", path.to_str().unwrap());
     Json(
         state
             .epoch
