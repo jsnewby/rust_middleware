@@ -158,6 +158,7 @@ impl BlockLoader {
         _tx: &std::sync::mpsc::Sender<i64>,
     ) -> MiddlewareResult<bool> {
         debug!("Invalidating block at height {}", _height);
+        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
         match _tx.send(_height) {
             Ok(()) => (),
             Err(e) => {
@@ -165,7 +166,6 @@ impl BlockLoader {
                 BlockLoader::recover_from_db_error();
             }
         };
-        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
         Ok(true)
     }
 
