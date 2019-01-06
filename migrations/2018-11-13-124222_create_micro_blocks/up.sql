@@ -14,3 +14,4 @@ CREATE TABLE micro_blocks (
  );
 
 CREATE INDEX micro_blocks_hash on micro_blocks(hash);
+create index micro_blocks_key_block_id ON micro_blocks (key_block_id);

@@ -1,7 +1,9 @@
 use super::schema::key_blocks::dsl::*;
 use super::schema::transactions::dsl::*;
+use diesel::Connection;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
+use diesel::result::Error;
 use diesel::sql_query;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
@@ -158,7 +160,7 @@ impl BlockLoader {
         _tx: &std::sync::mpsc::Sender<i64>,
     ) -> MiddlewareResult<bool> {
         debug!("Invalidating block at height {}", _height);
-        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
+//        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
         match _tx.send(_height) {
             Ok(()) => (),
             Err(e) => {
@@ -275,10 +277,22 @@ impl BlockLoader {
      */
 
     fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
-        let mut count = 0;
+        let result: MiddlewareResult<(i32,i32)>;
         let connection = PGCONNECTION.get()?;
+        let result = connection.transaction::<(i32, i32), MiddlewareError, _>(|| {
+            self.internal_load_block(&connection, _height)
+        });
+        result
+    }
+
+    fn internal_load_block(&self, connection: &PgConnection, _height: i64) -> MiddlewareResult<(i32,i32)> {
+        let mut count = 0;
+        let mut key_block_id: i32;
+        // clear out the block at this height, and any with the same hash, to prevent key violations.
+        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(connection)?;
         let generation: JsonGeneration =
             serde_json::from_value(self.epoch.get_generation_at_height(_height)?)?;
+        diesel::delete(key_blocks.filter(super::schema::key_blocks::dsl::hash.eq(&generation.key_block.hash))).execute(connection)?;
         let ib: InsertableKeyBlock =
             InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
