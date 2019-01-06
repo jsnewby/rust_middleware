@@ -311,7 +311,7 @@ impl JsonGeneration {
                 return None;
             }
         };
-        info!("Serving generation {} from DB", _height);
+	debug!("Serving generation {} from DB", _height);
         let sql = format!(
             "SELECT hash FROM micro_blocks WHERE key_block_id={}",
             key_block.id

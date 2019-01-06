@@ -124,7 +124,7 @@ fn key_block_at_height(
             return Json(state.epoch.get_generation_at_height(height).unwrap());
         }
     };
-    info!("Serving key block {} from DB", height);
+    debug!("Serving key block {} from DB", height);
     Json(
         serde_json::from_str(
             &serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap(),
@@ -171,7 +171,7 @@ fn key_block_at_hash(
             return epoch_get_handler(state, path);
         }
     };
-    info!("Serving key block {} from DB", hash);
+    debug!("Serving key block {} from DB", hash);
     Json(
         serde_json::from_str(
             &serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap(),
