@@ -6,6 +6,7 @@ extern crate rand;
 
 extern crate bigdecimal;
 extern crate blake2b;
+extern crate concurrent_hashmap;
 extern crate crypto;
 extern crate curl;
 #[macro_use]
@@ -106,7 +107,7 @@ fn fill_missing_heights(
     let missing_heights = epoch.get_missing_heights(top_block.height)?;
     for height in missing_heights {
         debug!("Adding {} to load queue", &height);
-        match _tx.send(height as i64) {
+        match loader::queue(height as i64, &_tx) {
             Ok(_) => (),
             Err(x) => {
                 error!("Error queuing block to send: {}", x);

@@ -116,21 +116,28 @@ fn key_block_at_height(
     conn: MiddlewareDbConn,
     state: State<MiddlewareServer>,
     height: i64,
-) -> Json<serde_json::Value> {
+    ) -> Json<String> {
     let key_block = match KeyBlock::load_at_height(&conn, height) {
         Some(x) => x,
         None => {
             info!("Generation not found at height {}", height);
-            return Json(state.epoch.get_generation_at_height(height).unwrap());
+            return Json(serde_json::to_string(&state.epoch.get_generation_at_height(height).unwrap()).unwrap())
         }
     };
+<<<<<<< HEAD
     debug!("Serving key block {} from DB", height);
     Json(
+=======
+    info!("Serving key block {} from DB", height);
+    Json(serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap())
+/*
+>>>>>>> f30735c5656f24bcb977b093efb9bafacc3680da
         serde_json::from_str(
             &serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap(),
         )
         .unwrap(),
     )
+*/
 }
 
 #[get("/transactions/<hash>")]
