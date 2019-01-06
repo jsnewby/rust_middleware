@@ -313,7 +313,7 @@ impl JsonGeneration {
         };
         info!("Serving generation {} from DB", _height);
         let sql = format!(
-            "SELECT hash FROM micro_blocks WHERE key_block_id={}",
+            "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY hash",
             key_block.id
         );
         let mut micro_block_hashes = Vec::new();
@@ -327,7 +327,6 @@ impl JsonGeneration {
     }
 
     pub fn eq(&self, other: &JsonGeneration) -> bool {
-        debug!("\nComparing {:?} to \n{:?}\n", &self, &other);
         if self.micro_blocks.len() != other.micro_blocks.len() {
             debug!(
                 "Different lengths of microblocks array: {} vs {}",
@@ -336,12 +335,14 @@ impl JsonGeneration {
             );
             return false;
         }
-        for i in 0..self.micro_blocks.len() {
-            if self.micro_blocks[i] != other.micro_blocks[i] {
-                debug!(
-                    "Microblock hashes don't match: {} vs {}",
-                    self.micro_blocks[i], other.micro_blocks[i]
-                );
+        let mut mb1 = self.micro_blocks.clone();
+        mb1.sort();
+        let mut mb2 = other.micro_blocks.clone();
+        mb2.sort();
+        debug!("\nComparing {:?} to \n{:?}\n", mb1, mb2);
+        for i in 0..mb1.len() {
+            if mb1[i] != mb2[i] {
+                debug!("Microblock hashes don't match: {} vs {}", mb1[i], mb2[i]);
                 return false;
             }
         }

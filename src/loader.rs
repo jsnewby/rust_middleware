@@ -1,12 +1,13 @@
 use super::schema::key_blocks::dsl::*;
 use super::schema::transactions::dsl::*;
+use concurrent_hashmap::*;
 use diesel::Connection;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
-use diesel::result::Error;
 use diesel::sql_query;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
+#[macro_use]use lazy_static;
 use epoch::*;
 use models::*;
 use serde_json;
@@ -26,6 +27,38 @@ pub struct BlockLoader {
 }
 
 pub static BACKLOG_CLEARED: i64 = -1;
+
+lazy_static! {
+    static ref tx_queue: ConcHashMap<i64, bool>  = ConcHashMap::<i64, bool>::new();
+}
+
+fn is_in_queue(_height: i64) -> bool {
+    match tx_queue.find(&_height) {
+        None => false,
+        _ => true,
+    }
+}
+
+fn remove_from_queue(_height: i64) {
+    debug!("tx_queue -> {}", _height);
+    tx_queue.remove(&_height);
+}
+
+fn add_to_queue(_height: i64) {
+    debug!("tx_queue <- {}", _height);
+    tx_queue.insert(_height, true);
+}
+
+pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> Result<(), std::sync::mpsc::SendError<i64>> {
+    if is_in_queue(_height) {
+        debug!("tx_queue already has {}", _height);
+        return Ok(());
+    }
+    _tx.send(_height)?;
+    add_to_queue(_height);
+    Ok(())
+}
+
 
 /*
 * You may notice the use of '_tx' as a variable name in this file,
@@ -128,7 +161,9 @@ impl BlockLoader {
             let gen_from_server: JsonGeneration =
                 serde_json::from_value(epoch.get_generation_at_height(_height)?)?;
             if !jg.eq(&gen_from_server) {
+                debug!("Generations don't match at height {}", _height);
                 fork_detected = true;
+                continue;
             }
 
             for i in 0..jg.micro_blocks.len() {
@@ -161,7 +196,7 @@ impl BlockLoader {
     ) -> MiddlewareResult<bool> {
         debug!("Invalidating block at height {}", _height);
 //        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
-        match _tx.send(_height) {
+        match queue(_height, _tx) {
             Ok(()) => (),
             Err(e) => {
                 error!("Error queuing block at height {}: {:?}", _height, e);
@@ -243,8 +278,8 @@ impl BlockLoader {
                 break;
             }
             if !KeyBlock::height_exists(&connection, _height) {
-                debug!("Fetching block {}", _height);
-                match _tx.send(_height) {
+                debug!("Queuing block {}", _height);
+                match queue(_height, _tx) {
                     Ok(x) => {
                         debug!("Success: {:?}", x);
                         blocks_changed += 1;
@@ -277,7 +312,6 @@ impl BlockLoader {
      */
 
     fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
-        let result: MiddlewareResult<(i32,i32)>;
         let connection = PGCONNECTION.get()?;
         let result = connection.transaction::<(i32, i32), MiddlewareError, _>(|| {
             self.internal_load_block(&connection, _height)
@@ -287,7 +321,7 @@ impl BlockLoader {
 
     fn internal_load_block(&self, connection: &PgConnection, _height: i64) -> MiddlewareResult<(i32,i32)> {
         let mut count = 0;
-        let mut key_block_id: i32;
+        let key_block_id: i32;
         // clear out the block at this height, and any with the same hash, to prevent key violations.
         diesel::delete(key_blocks.filter(height.eq(&_height))).execute(connection)?;
         let generation: JsonGeneration =
@@ -375,6 +409,7 @@ impl BlockLoader {
                     ),
                     Err(x) => error!("Error loading blocks {}", x),
                 };
+                remove_from_queue(b);
             }
         }
         // if we fall through here something has gone wrong. Let's quit!
@@ -446,7 +481,7 @@ impl BlockLoader {
         &self,
         conn: &PgConnection,
         block_chain: serde_json::Value,
-        block_db: KeyBlock,
+       block_db: KeyBlock,
     ) -> MiddlewareResult<i64> {
         let chain_hash = block_chain["hash"].as_str()?;
         if !block_db.hash.eq(&chain_hash) {
