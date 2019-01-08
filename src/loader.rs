@@ -1,6 +1,6 @@
 use super::schema::key_blocks::dsl::*;
 use super::schema::transactions::dsl::*;
-use concurrent_hashmap::*;
+use chashmap::*;
 use diesel::Connection;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
@@ -29,11 +29,11 @@ pub struct BlockLoader {
 pub static BACKLOG_CLEARED: i64 = -1;
 
 lazy_static! {
-    static ref tx_queue: ConcHashMap<i64, bool>  = ConcHashMap::<i64, bool>::new();
+    static ref tx_queue: CHashMap<i64, bool>  = CHashMap::<i64, bool>::new();
 }
 
 fn is_in_queue(_height: i64) -> bool {
-    match tx_queue.find(&_height) {
+    match tx_queue.get(&_height) {
         None => false,
         _ => true,
     }
@@ -42,6 +42,7 @@ fn is_in_queue(_height: i64) -> bool {
 fn remove_from_queue(_height: i64) {
     debug!("tx_queue -> {}", _height);
     tx_queue.remove(&_height);
+    debug!("tx_queue len={}", tx_queue.len());
 }
 
 fn add_to_queue(_height: i64) {
@@ -50,15 +51,8 @@ fn add_to_queue(_height: i64) {
 }
 
 pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> Result<(), std::sync::mpsc::SendError<i64>> {
-    {
-        let mut iter = tx_queue.iter();
-        loop {
-            match iter.next() {
-                Some(x) => debug!("tx_queue: {:?}", x),
-                None => break,
-            };
-        }
-    }
+    debug!("tx_queue len={}", tx_queue.len());
+
     if is_in_queue(_height) {
         debug!("tx_queue already has {}", _height);
         return Ok(());

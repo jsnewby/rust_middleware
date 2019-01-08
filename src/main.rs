@@ -6,7 +6,8 @@ extern crate rand;
 
 extern crate bigdecimal;
 extern crate blake2b;
-extern crate concurrent_hashmap;
+//extern crate concurrent_hashmap;
+extern crate chashmap;
 extern crate crypto;
 extern crate curl;
 #[macro_use]
