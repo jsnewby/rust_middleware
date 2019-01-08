@@ -50,6 +50,15 @@ fn add_to_queue(_height: i64) {
 }
 
 pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> Result<(), std::sync::mpsc::SendError<i64>> {
+    {
+        let mut iter = tx_queue.iter();
+        loop {
+            match iter.next() {
+                Some(x) => debug!("tx_queue: {:?}", x),
+                None => break,
+            };
+        }
+    }
     if is_in_queue(_height) {
         debug!("tx_queue already has {}", _height);
         return Ok(());

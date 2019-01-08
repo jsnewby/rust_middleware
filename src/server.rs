@@ -90,6 +90,15 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
     )
 }
 
+#[get("/generations/current", rank = 1)]
+fn current_generation(
+    conn: MiddlewareDbConn,
+    state: State<MiddlewareServer>,
+) -> Json<serde_json::Value> {
+    let _height = KeyBlock::top_height(&conn).unwrap();
+    generation_at_height(conn, state, _height)
+}
+
 #[get("/generations/height/<height>", rank = 1)]
 fn generation_at_height(
     conn: MiddlewareDbConn,
@@ -286,6 +295,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_interval])
             .mount("/middleware", routes![key_block_gas_price])
+            .mount("/v2", routes![current_generation])
             .mount("/v2", routes![epoch_get_handler])
             .mount("/v2", routes![epoch_post_handler])
             .mount("/api", routes![epoch_api_handler])
