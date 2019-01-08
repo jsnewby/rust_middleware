@@ -8,6 +8,7 @@ CREATE TABLE micro_blocks (
        prev_hash VARCHAR(55) NOT NULL,
        prev_key_hash VARCHAR(55) NOT NULL,
        signature VARCHAR(255) NOT NULL,
+       time_ BIGINT,
        state_hash VARCHAR(255) NOT NULL,
        txs_hash VARCHAR(255) NOT NULL,
        version INT NOT NULL

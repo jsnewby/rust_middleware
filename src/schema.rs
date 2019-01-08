@@ -26,6 +26,8 @@ table! {
         prev_hash -> Varchar,
         prev_key_hash -> Varchar,
         signature -> Varchar,
+        #[sql_name="time_"]
+        time -> Int8,
         state_hash -> Varchar,
         txs_hash -> Varchar,
         version -> Int4,
