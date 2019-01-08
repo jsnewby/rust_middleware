@@ -212,8 +212,8 @@ fn transactions_for_account(
     account: String,
 ) -> Json<JsonTransactionList> {
     let s_acc = sanitize(account);
-    let sql = format!("select * from transactions where tx->>'sender_id'='{}' or tx->>'recipient_id'='{}' order by id asc",
-                          s_acc, s_acc);
+    let sql = format!("select * from transactions where tx->>'sender_id'='{}' or tx->>'account_id' = '{}' or tx->>'recipient_id'='{}' or tx->>'owner_id' = '{}' order by id asc",
+                          s_acc, s_acc, s_acc, s_acc);
     info!("{}", sql);
     let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
