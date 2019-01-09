@@ -120,6 +120,19 @@ fn generation_at_height(
     }
 }
 
+#[get("/key-blocks/current/height", rank = 1)]
+fn current_key_block(
+    conn: MiddlewareDbConn,
+    state: State<MiddlewareServer>,
+) -> Json<JsonValue> {
+    let _height = KeyBlock::top_height(&conn).unwrap();
+    Json(json!({
+        "height" : _height,
+    }))
+}
+
+
+
 #[get("/key-blocks/height/<height>", rank = 1)]
 fn key_block_at_height(
     conn: MiddlewareDbConn,
@@ -200,6 +213,46 @@ fn transactions_in_micro_block_at_hash(
         transactions: trans,
     };
     Json(list)
+}
+
+#[get("/micro-blocks/hash/<hash>/header", rank = 1)]
+fn micro_block_header_at_hash(
+    conn: MiddlewareDbConn,
+    _state: State<MiddlewareServer>,
+    hash: String,
+) -> Json<JsonValue> {
+    let sql = "select m.hash, k.height, m.pof_hash, m.prev_hash, m.prev_key_hash, m.signature, m.state_hash, m.time_, m.txs_hash, m.version from micro_blocks m, key_blocks k where m.key_block_id=k.id and m.hash = $1";
+    let rows = SQLCONNECTION.get().unwrap().query(sql, &[&hash]).unwrap();
+    #[derive(Serialize)]
+    struct JsonMicroBlock {
+        hash: String,
+        height: i64,
+        pof_hash: String,
+        prev_hash: String,
+        prev_key_hash: String,
+        signature: String,
+        state_hash: String,
+        time: i64,
+        txs_hash: String,
+        version: i32 };
+    if rows.len() > 0 {
+        let r = rows.get(0);
+        let val = json!(JsonMicroBlock {
+            hash: r.get(0),
+            height: r.get(1),
+            pof_hash: r.get(2),
+            prev_hash: r.get(3),
+            prev_key_hash: r.get(4),
+            signature: r.get(5),
+            state_hash: r.get(6),
+            time: r.get(7),
+            txs_hash: r.get(8),
+            version: r.get(9),
+        });
+        return Json(val);
+    } else {
+        return Json(json!(""));
+    }
 }
 
 /*
@@ -296,12 +349,14 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transactions_for_interval])
             .mount("/middleware", routes![key_block_gas_price])
             .mount("/v2", routes![current_generation])
+            .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![epoch_get_handler])
             .mount("/v2", routes![epoch_post_handler])
             .mount("/api", routes![epoch_api_handler])
             .mount("/v2", routes![generation_at_height])
             .mount("/v2", routes![key_block_at_height])
             .mount("/v2", routes![key_block_at_hash])
+            .mount("/v2", routes![micro_block_header_at_hash])
             .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
             .attach(options)
