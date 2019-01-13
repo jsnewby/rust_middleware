@@ -62,15 +62,15 @@ fn epoch_test_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<ser
 fn epoch_post_handler(
     state: State<MiddlewareServer>,
     path: PathBuf,
-    body: String,
+    body: Json<String>,
 ) -> Json<serde_json::Value> {
-    debug!("{}", body);
+    debug!("{:?}", body);
     let response = state
         .epoch
         .post_naked(
             &String::from("/v2/"),
             &String::from(path.to_str().unwrap()),
-            body,
+            body.to_string(),
         )
         .unwrap();
     debug!("Response: {}", response);

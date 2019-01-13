@@ -7,7 +7,6 @@ use diesel::query_dsl::QueryDsl;
 use diesel::sql_query;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
-#[macro_use]use lazy_static;
 use epoch::*;
 use models::*;
 use serde_json;
@@ -40,21 +39,21 @@ fn is_in_queue(_height: i64) -> bool {
 }
 
 fn remove_from_queue(_height: i64) {
-    debug!("tx_queue -> {}", _height);
+    info!("tx_queue -> {}", _height);
     tx_queue.remove(&_height);
-    debug!("tx_queue len={}", tx_queue.len());
-}
+    info!("tx_queue len={}", tx_queue.len());
 
+}
 fn add_to_queue(_height: i64) {
-    debug!("tx_queue <- {}", _height);
+    info!("tx_queue <- {}", _height);
     tx_queue.insert(_height, true);
 }
 
 pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> Result<(), std::sync::mpsc::SendError<i64>> {
-    debug!("tx_queue len={}", tx_queue.len());
+    info!("tx_queue len={}", tx_queue.len());
 
     if is_in_queue(_height) {
-        debug!("tx_queue already has {}", _height);
+        info!("tx_queue already has {}", _height);
         return Ok(());
     }
     _tx.send(_height)?;
@@ -92,14 +91,30 @@ impl BlockLoader {
             let start = setting.0;
             let end = setting.1;
             thread::spawn(move || {
-                match BlockLoader::detect_forks(&epoch, start, end, &_tx) {
-                    Ok(x) => {
-                        if x {
-                            info!("Fork detected");
+                loop {
+                    let epoch = epoch.clone();
+                    let _tx = _tx.clone();
+                    let handle = thread::spawn(move || {
+                        match BlockLoader::detect_forks(&epoch, start, end, &_tx) {
+                            Ok(x) => {
+                                if x {
+                                    info!("Fork detected");
+                                }
+                            },
+                            Err(x) => error!("Error in fork detection {}", x),
                         }
-                    },
-                    Err(x) => error!("Error in fork detection {}", x),
-                };
+                    });
+                    match handle.join() {
+                        Ok(_) => {
+                            error!("Thread exited, respawning");
+                            continue;
+                        },
+                        Err(_) => {
+                            error!("Error creating fork detection thread, exiting");
+                            break;
+                        },
+                    };
+                }
             });
         }
     }

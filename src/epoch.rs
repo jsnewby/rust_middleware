@@ -38,7 +38,7 @@ impl Epoch {
         Ok(missing_heights)
     }
 
-    pub fn current_generation(&self) -> MiddlewareResult<serde_json::Value> {        
+    pub fn current_generation(&self) -> MiddlewareResult<serde_json::Value> {
         self.get(&String::from("generations/current"))
     }
 
@@ -68,6 +68,7 @@ impl Epoch {
         debug!("get_naked() fetching {}", uri);
         let mut data = Vec::new();
         let mut handle = Easy::new();
+        handle.timeout(std::time::Duration::from_secs(20))?;
         handle.url(&uri)?;
         {
             let mut transfer = handle.transfer();
