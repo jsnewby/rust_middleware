@@ -263,6 +263,21 @@ impl MicroBlock {
         }
         Some(micro_block_hashes)
     }
+
+    pub fn get_transaction_count(
+        sql_conn: &postgres::Connection,
+        mb_hash: &String,
+    ) -> i64 {
+        let sql = format!(
+            "select count(t.*) from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'",
+            mb_hash);
+        let mut micro_block_hashes = Vec::new();
+        for row in &sql_conn.query(&sql, &[]).unwrap() {
+            micro_block_hashes.push(row.get(0));
+        }
+        micro_block_hashes[0]
+    }
+
 }
 
 #[derive(Insertable)]

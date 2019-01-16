@@ -301,37 +301,21 @@ fn transactions_for_interval(
     Json(list)
 }
 
+#[get("/micro-blocks/hash/<hash>/transactions/count")]
 /*
- * Gets average gas price for a block
+ * Gets count of transactions in a microblock
  */
-#[get("/key-blocks/height/<height>/gas-price")]
-fn key_block_gas_price(
+fn transaction_count_in_micro_block(
     conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
-    height: i64,
-) -> Option<String> {
-    let sql = format!(
-        "\
-         select t.* from transactions t, micro_blocks m, key_blocks k where \
-         t.micro_block_id=m.id and \
-         m.key_block_id=k.id and \
-         k.height = {} and \
-         t.tx_type in ('SpendTx')",
-        height
-    );
-    println!("{}", sql);
-    let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
-    let mut fees: i64 = 0;
-    let mut sizes: i64 = 0;
-    for i in 0..transactions.len() {
-        fees += transactions[i].fee;
-        sizes += transactions[i].size as i64;
-    }
-    if sizes == 0 {
-        return None;
-    }
-    Some(format!("{}", fees / sizes as i64))
+    hash: String
+) -> Json<JsonValue> {
+    Json(json!({
+        "count": MicroBlock::get_transaction_count(&SQLCONNECTION.get().unwrap(), &hash, ),
+    }))
 }
+
+
 
 impl MiddlewareServer {
     pub fn start(self) {
@@ -347,7 +331,7 @@ impl MiddlewareServer {
         rocket::ignite()
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_interval])
-            .mount("/middleware", routes![key_block_gas_price])
+//            .mount("/middleware", routes![key_block_gas_price])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![epoch_get_handler])
@@ -358,6 +342,7 @@ impl MiddlewareServer {
             .mount("/v2", routes![key_block_at_hash])
             .mount("/v2", routes![micro_block_header_at_hash])
             .mount("/v2", routes![transaction_at_hash])
+            .mount("/v2", routes![transaction_count_in_micro_block])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
             .attach(options)
             .attach(MiddlewareDbConn::fairing())
