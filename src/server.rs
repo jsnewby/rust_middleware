@@ -123,7 +123,7 @@ fn generation_at_height(
 #[get("/key-blocks/current/height", rank = 1)]
 fn current_key_block(
     conn: MiddlewareDbConn,
-    state: State<MiddlewareServer>,
+    _state: State<MiddlewareServer>,
 ) -> Json<JsonValue> {
     let _height = KeyBlock::top_height(&conn).unwrap();
     Json(json!({
@@ -217,7 +217,7 @@ fn transactions_in_micro_block_at_hash(
 
 #[get("/micro-blocks/hash/<hash>/header", rank = 1)]
 fn micro_block_header_at_hash(
-    conn: MiddlewareDbConn,
+    _conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     hash: String,
 ) -> Json<JsonValue> {
@@ -265,7 +265,12 @@ fn transactions_for_account(
     account: String,
 ) -> Json<JsonTransactionList> {
     let s_acc = sanitize(account);
-    let sql = format!("select * from transactions where tx->>'sender_id'='{}' or tx->>'account_id' = '{}' or tx->>'recipient_id'='{}' or tx->>'owner_id' = '{}' order by id asc",
+    let sql = format!("select * from transactions where \
+                       tx->>'sender_id'='{}' or \
+                       tx->>'account_id' = '{}' or \
+                       tx->>'recipient_id'='{}' or \
+                       tx->>'owner_id' = '{}' \
+                       order by id desc",
                           s_acc, s_acc, s_acc, s_acc);
     info!("{}", sql);
     let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
@@ -289,7 +294,7 @@ fn transactions_for_interval(
     from: i64,
     to: i64,
 ) -> Json<JsonTransactionList> {
-    let sql = format!("select t.* from transactions t, micro_blocks m, key_blocks k where t.micro_block_id=m.id and m.key_block_id=k.id and k.height >={} and k.height <= {} order by k.height asc", from, to);
+    let sql = format!("select t.* from transactions t, micro_blocks m, key_blocks k where t.micro_block_id=m.id and m.key_block_id=k.id and k.height >={} and k.height <= {} order by k.height desc, t.id desc", from, to);
     let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
@@ -306,13 +311,35 @@ fn transactions_for_interval(
  * Gets count of transactions in a microblock
  */
 fn transaction_count_in_micro_block(
-    conn: MiddlewareDbConn,
+    _conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     hash: String
 ) -> Json<JsonValue> {
     Json(json!({
         "count": MicroBlock::get_transaction_count(&SQLCONNECTION.get().unwrap(), &hash, ),
     }))
+}
+
+#[get("/contracts/transactions/address/<address>")]
+fn transactions_for_contract_address(
+    conn: MiddlewareDbConn,
+    _state: State<MiddlewareServer>,
+    address: String
+) -> Json<JsonTransactionList> {
+    let sql = format!("select t.* from transactions t where \
+                       t.tx_type='ContractCallTx' and \
+                       t.tx->>'contract_id' = '{}'",
+                      sanitize(address));
+    let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
+    let mut trans: Vec<JsonTransaction> = vec![];
+    for i in 0..transactions.len() {
+        trans.push(JsonTransaction::from_transaction(&transactions[i]));
+    }
+    let list = JsonTransactionList {
+        transactions: trans,
+    };
+    Json(list)
+
 }
 
 
@@ -331,7 +358,7 @@ impl MiddlewareServer {
         rocket::ignite()
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_interval])
-//            .mount("/middleware", routes![key_block_gas_price])
+            .mount("/middleware", routes![transactions_for_contract_address])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![epoch_get_handler])

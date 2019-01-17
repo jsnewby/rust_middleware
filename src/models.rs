@@ -67,7 +67,7 @@ impl KeyBlock {
     }
 
     pub fn load_at_height(conn: &PgConnection, _height: i64) -> Option<KeyBlock> {
-        let mut block = match key_blocks::table
+        let block = match key_blocks::table
             .filter(height.eq(_height))
             .first::<KeyBlock>(conn)
         {

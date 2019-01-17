@@ -209,7 +209,7 @@ impl BlockLoader {
 
     pub fn invalidate_block_at_height(
         _height: i64,
-        conn: &PgConnection,
+        _conn: &PgConnection,
         _tx: &std::sync::mpsc::Sender<i64>,
     ) -> MiddlewareResult<bool> {
         debug!("Invalidating block at height {}", _height);
@@ -339,7 +339,6 @@ impl BlockLoader {
 
     fn internal_load_block(&self, connection: &PgConnection, _height: i64) -> MiddlewareResult<(i32,i32)> {
         let mut count = 0;
-        let key_block_id: i32;
         // clear out the block at this height, and any with the same hash, to prevent key violations.
         diesel::delete(key_blocks.filter(height.eq(&_height))).execute(connection)?;
         let generation: JsonGeneration =
