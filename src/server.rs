@@ -258,20 +258,39 @@ fn micro_block_header_at_hash(
 /*
  * Gets all transactions for an account
  */
-#[get("/transactions/account/<account>")]
+#[get("/transactions/account/<account>?<limit>&<page>")]
 fn transactions_for_account(
     conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     account: String,
-) -> Json<JsonTransactionList> {
+    limit: Option<i32>,
+    page: Option<i32>,
+)
+    -> Json<JsonTransactionList>
+{
     let s_acc = sanitize(account);
+    let offset_sql;
+    let limit_sql = match limit {
+        None => {
+            offset_sql = String::from(" 0 ");
+            String::from(" all ")
+        },
+        Some(x) =>  {
+            offset_sql = match page {
+                None => String::from(" 0 "),
+                Some(y) => format!(" {} ", (y - 1) * x),
+            };
+            format!(" {} ", x)
+        },
+    };
     let sql = format!("select * from transactions where \
                        tx->>'sender_id'='{}' or \
                        tx->>'account_id' = '{}' or \
                        tx->>'recipient_id'='{}' or \
                        tx->>'owner_id' = '{}' \
-                       order by id desc",
-                          s_acc, s_acc, s_acc, s_acc);
+                       order by id desc \
+                       limit {} offset {} ",
+                      s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql);
     info!("{}", sql);
     let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
