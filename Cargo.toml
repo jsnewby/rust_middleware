@@ -11,8 +11,6 @@ rust-base58 = "*"
 rust-crypto = "^0.2"
 rand = "^0.5.1"
 hex = "0.3.2"
-blake2b = "0.7.0"
-untrusted = "0.5"
 futures = "0.1"
 #hyper = "0.12.4"
 #concurrent-hashmap = "0.2.2"
@@ -50,6 +48,16 @@ r2d2 = "*"
 r2d2-diesel = "*"
 postgres = "0.15.2"
 r2d2_postgres = "0.14.0"
+
+base58="0.1.0"
+base58check = "0.0.1"
+blake2b = "0.7.0"
+blake2 = "0.8.0"
+blake2-rfc = "0.2.18"
+byteorder = "1.2.7"
+sha2 = "*"
+
+
 
 [dependencies.rocket_contrib]
 version = "0.4.0"
