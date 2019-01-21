@@ -2,11 +2,12 @@
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(try_trait)]
-extern crate rand;
-
+extern crate base58;
+extern crate base58check;
 extern crate bigdecimal;
+extern crate blake2;
 extern crate blake2b;
-//extern crate concurrent_hashmap;
+extern crate byteorder;
 extern crate chashmap;
 extern crate crypto;
 extern crate curl;
@@ -19,6 +20,7 @@ extern crate hex;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+extern crate rand;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
@@ -45,6 +47,7 @@ use clap::{App, Arg};
 use std::env;
 
 pub mod epoch;
+pub mod hashing;
 pub mod loader;
 pub mod schema;
 pub mod server;
