@@ -1,6 +1,3 @@
-use std::env;
-use std::str;
-
 pub use blake2b::Blake2b;
 use blake2::VarBlake2b;
 use blake2::digest::{Input, VariableOutput };

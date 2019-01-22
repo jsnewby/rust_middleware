@@ -256,6 +256,32 @@ fn micro_block_header_at_hash(
 }
 
 /*
+ * Gets count of transactions for an account
+ */
+#[get("/transactions/account/<account>/count")]
+fn transaction_count_for_account(
+    conn: MiddlewareDbConn,
+    _state: State<MiddlewareServer>,
+    account: String,
+) -> Json<JsonValue>
+{
+    let s_acc = sanitize(account);
+    let sql = format!(
+        "select count(1) from transactions where \
+         tx->>'sender_id'='{}' or \
+         tx->>'account_id' = '{}' or \
+         tx->>'recipient_id'='{}' or \
+         tx->>'owner_id' = '{}' ",
+        s_acc, s_acc, s_acc, s_acc);
+    debug!("{}", sql);
+    let rows = SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap();
+    let count: i64 = rows.get(0).get(0);
+    Json(json!({
+        "count": count,
+    }))
+}
+
+/*
  * Gets all transactions for an account
  */
 #[get("/transactions/account/<account>?<limit>&<page>")]
@@ -377,6 +403,7 @@ impl MiddlewareServer {
         rocket::ignite()
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_interval])
+            .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_contract_address])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
