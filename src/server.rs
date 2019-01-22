@@ -281,20 +281,12 @@ fn transaction_count_for_account(
     }))
 }
 
-/*
- * Gets all transactions for an account
- */
-#[get("/transactions/account/<account>?<limit>&<page>")]
-fn transactions_for_account(
-    conn: MiddlewareDbConn,
-    _state: State<MiddlewareServer>,
-    account: String,
+
+fn offset_limit(
     limit: Option<i32>,
     page: Option<i32>,
-)
-    -> Json<JsonTransactionList>
+) -> (String, String)
 {
-    let s_acc = sanitize(account);
     let offset_sql;
     let limit_sql = match limit {
         None => {
@@ -309,6 +301,24 @@ fn transactions_for_account(
             format!(" {} ", x)
         },
     };
+    (offset_sql, limit_sql)
+}
+
+/*
+ * Gets all transactions for an account
+ */
+#[get("/transactions/account/<account>?<limit>&<page>")]
+fn transactions_for_account(
+    conn: MiddlewareDbConn,
+    _state: State<MiddlewareServer>,
+    account: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+)
+    -> Json<JsonTransactionList>
+{
+    let s_acc = sanitize(account);
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!("select * from transactions where \
                        tx->>'sender_id'='{}' or \
                        tx->>'account_id' = '{}' or \
@@ -332,14 +342,24 @@ fn transactions_for_account(
 /*
  * Gets transactions between blocks
  */
-#[get("/transactions/interval/<from>/<to>")]
+#[get("/transactions/interval/<from>/<to>?<limit>&<page>")]
 fn transactions_for_interval(
     conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     from: i64,
     to: i64,
+    limit: Option<i32>,
+    page: Option<i32>,
 ) -> Json<JsonTransactionList> {
-    let sql = format!("select t.* from transactions t, micro_blocks m, key_blocks k where t.micro_block_id=m.id and m.key_block_id=k.id and k.height >={} and k.height <= {} order by k.height desc, t.id desc", from, to);
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "select t.* from transactions t, micro_blocks m, key_blocks k where \
+         t.micro_block_id=m.id and \
+         m.key_block_id=k.id and \
+         k.height >={} and k.height <= {} \
+         order by k.height desc, t.id desc \
+         limit {} offset {} ",
+        from, to, limit_sql, offset_sql);
     let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
