@@ -2,13 +2,14 @@
 
 ## Overview
 
-This is a caching layer for Epoch. It reads the chain and records key- and micro-blocks, and transactions in a PostgreSQL database. 
+This is a caching layer for Epoch. It reads the chain and records key- and micro-blocks, and transactions in a PostgreSQL database.
 
 ## How to use
 
 - Install a postgresql DB somewhere. Works with versions >= 9.5, at least.
 - as the admin user, execute `scripts/prepare-db.sql` which will create the DB and user
-- if you want to use a different DB name, edit `scripts/prepare-db.sql` and `.env`
+- copy 'Rocket.example.toml' to 'Rocket.toml'
+- if you want to use a different DB name, edit `scripts/prepare-db.sql`, `.env` and
 
 ## How to build
 
@@ -52,5 +53,3 @@ OPTIONS:
 `GET /transactions/account/<account>` all transactioms for account
 `GET /transactions/interval/<from>/<to>` transactions from block <from> to block <to> inclusive`
 `GET /key-blocks/height/<height>/gas-price` get the average gas price for a certain block (currently super inaccurate)
-
-

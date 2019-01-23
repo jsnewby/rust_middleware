@@ -1,27 +1,33 @@
 #![feature(slice_concat_ext)]
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
-
-extern crate rand;
-
+#![feature(try_trait)]
+extern crate base58;
+extern crate base58check;
 extern crate bigdecimal;
+extern crate blake2;
 extern crate blake2b;
+extern crate byteorder;
+extern crate chashmap;
 extern crate crypto;
 extern crate curl;
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
 extern crate env_logger;
-pub use bigdecimal::BigDecimal;
 extern crate hex;
+#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+extern crate rand;
 extern crate r2d2;
 extern crate r2d2_diesel;
+extern crate r2d2_postgres;
 extern crate regex;
 #[macro_use]
 extern crate rocket;
+#[macro_use]
 extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
@@ -41,44 +47,50 @@ use clap::{App, Arg};
 use std::env;
 
 pub mod epoch;
+pub mod hashing;
 pub mod loader;
 pub mod schema;
 pub mod server;
+pub mod middleware_result;
 
+pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
 use server::MiddlewareServer;
-
+use middleware_result::MiddlewareResult;
 pub mod models;
 
-fn start_blockloader(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
-    debug!("In start_blockloader()");
-    //    let u = url.clone();
-    let u2 = url.clone();
-    thread::spawn(move || {
-        thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone(), 1);
-            loop {
-                debug!("Scanning for new blocks");
-                loader::BlockLoader::scan(&epoch, &_tx);
-                debug!("Sleeping.");
-                thread::sleep(std::time::Duration::new(40, 0));
-            }
-        });
-    });
+use diesel::PgConnection;
+use dotenv::dotenv;
+use r2d2::Pool;
+use r2d2_diesel::ConnectionManager;
+use r2d2_postgres::PostgresConnectionManager;
+use std::sync::Arc;
+
+lazy_static! {
+    static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = ConnectionManager::<PgConnection>::new(database_url);
+        let pool = r2d2::Pool::builder()
+            .max_size(20) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
 }
 
-fn load_mempool(url: &String) {
-    debug!("In load_mempool()");
-    let u = url.clone();
-    let u2 = u.clone();
-    let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
-    thread::spawn(move || {
-        let epoch = epoch::Epoch::new(u2.clone(), 1);
-        loop {
-            loader.load_mempool(&epoch);
-            thread::sleep(std::time::Duration::new(5, 0));
-        }
-    });
+lazy_static! {
+    static ref SQLCONNECTION: Arc<Pool<PostgresConnectionManager>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = PostgresConnectionManager::new
+            (database_url, r2d2_postgres::TlsMode::None).unwrap();
+        let pool = r2d2::Pool::builder()
+            .max_size(3) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
 }
 
 /*
@@ -89,48 +101,47 @@ fn load_mempool(url: &String) {
 * return.
 */
 
-fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
+fn fill_missing_heights(
+    url: String,
+    _tx: std::sync::mpsc::Sender<i64>,
+) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
-    let u = url.clone();
-    let u2 = u.clone();
-    thread::spawn(move || {
-        let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
-        let epoch = epoch::Epoch::new(u2.clone(), 1);
-        let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-        let missing_heights = epoch::get_missing_heights(top_block.height);
-        for height in missing_heights {
-            debug!("Adding {} to load queue", &height);
-            match _tx.send(height as i64) {
-                Ok(_) => (),
-                Err(x) => {
-                    error!("Error queuing block to send: {}", x);
-                    BlockLoader::recover_from_db_error();
-                }
-            };
-        }
-        detect_forks(&url.clone(), _tx.clone());
-        loader.start();
-    });
+    let epoch = epoch::Epoch::new(url.clone());
+    let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
+    let missing_heights = epoch.get_missing_heights(top_block.height)?;
+    for height in missing_heights {
+        debug!("Adding {} to load queue", &height);
+        match loader::queue(height as i64, &_tx) {
+            Ok(_) => (),
+            Err(x) => {
+                error!("Error queuing block to send: {}", x);
+                BlockLoader::recover_from_db_error();
+            }
+        };
+    }
+    _tx.send(loader::BACKLOG_CLEARED)?;
+    Ok(true)
 }
 
 /*
  * Detect forks iterates through the blocks in the DB asking for them and checking
  * that they match what we have in the DB.
  */
-fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
+fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i64>) {
     debug!("In detect_forks()");
     let u = url.clone();
     let u2 = u.clone();
     thread::spawn(move || {
-        thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone(), 1);
-            loop {
-                debug!("Going into fork detection");
-                loader::BlockLoader::detect_forks(&epoch, &_tx);
-                debug!("Sleeping.");
-                thread::sleep(std::time::Duration::new(10, 0));
-            }
-        });
+        let epoch = epoch::Epoch::new(u2.clone());
+        loop {
+            debug!("Going into fork detection");
+            match loader::BlockLoader::detect_forks(&epoch, from, to, &_tx) {
+                Ok(_) => (),
+                Err(x) => error!("Error in detect_forks(): {}", x),
+            };
+            debug!("Sleeping.");
+            thread::sleep(std::time::Duration::new(2, 0));
+        }
     });
 }
 
@@ -154,15 +165,31 @@ fn main() {
                 .help("Populate DB")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("verify")
+                .short("v")
+                .long("verify")
+                .help("Verify DB integrity against chain")
+                .takes_value(false),
+        )
         .get_matches();
 
     let url = env::var("EPOCH_URL")
         .expect("EPOCH_URL must be set")
         .to_string();
-    let connection = epoch::establish_connection(1);
-
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
+    let verify = matches.is_present("verify");
+
+    if verify {
+        println!("Verifying");
+        let loader = BlockLoader::new(url.clone());
+        match loader.verify() {
+            Ok(_) => (),
+            Err(x) => error!("Blockloader::verify() returned an error: {}", x),
+        };
+        return;
+    }
 
     /*
      * We start 3 populate processes--one queries for missing heights
@@ -172,10 +199,11 @@ fn main() {
      */
     if populate {
         let url = url.clone();
-        let loader = BlockLoader::new(epoch::establish_connection(1), url.clone());
-        load_mempool(&url);
-        fill_missing_heights(url.clone(), loader.tx.clone());
-        start_blockloader(&url, loader.tx.clone());
+        let loader = BlockLoader::new(url.clone());
+        match fill_missing_heights(url.clone(), loader.tx.clone()) {
+            Ok(_) => (),
+            Err(x) => error!("fill_missing_heights() returned an error: {}", x),
+        };
         thread::spawn(move || {
             loader.start();
         });
@@ -183,10 +211,9 @@ fn main() {
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
-            epoch: epoch::Epoch::new(url.clone(), 20),
+            epoch: epoch::Epoch::new(url.clone()),
             dest_url: url.to_string(),
             port: 3013,
-            connection,
         };
         ms.start();
     }

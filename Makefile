@@ -4,8 +4,6 @@ OUTPUTFOLDER = target
 DOCKER_REGISTRY = 166568770115.dkr.ecr.eu-central-1.amazonaws.com/aeternity
 DOCKER_IMAGE = aepp-middleware
 DOCKER_TAG = $(shell git describe --always --tags)
-# epoch url used at build time
-VUE_APP_EPOCH_URL=//sdk-testnet.aepps.com/
 
 
 .PHONY: list
@@ -19,7 +17,7 @@ clean:
 
 build:
 	@echo build release
-  cargo build 
+	cargo build 
 	@echo done
 
 docker-build:

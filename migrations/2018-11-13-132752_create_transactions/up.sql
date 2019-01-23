@@ -13,6 +13,7 @@ CREATE TABLE transactions (
        size INT NOT NULL,
        valid BOOLEAN NOT NULL DEFAULT TRUE
 );
-       
+
 CREATE INDEX transactions_tx_type_index ON transactions(tx_type);
 CREATE INDEX transactions_block_hash_index ON transactions(block_hash);
+CREATE INDEX transactions_micro_block_id ON transactions(micro_block_id);
