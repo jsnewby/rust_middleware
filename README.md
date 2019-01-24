@@ -9,7 +9,7 @@ This is a caching layer for Epoch. It reads the chain and records key- and micro
 - Install a postgresql DB somewhere. Works with versions >= 9.5, at least.
 - as the admin user, execute `scripts/prepare-db.sql` which will create the DB and user
 - copy 'Rocket.example.toml' to 'Rocket.toml'
-- if you want to use a different DB name, edit `scripts/prepare-db.sql`, `.env` and
+- if you want to use a different DB name, edit `scripts/prepare-db.sql`, `.env` and `Rocket.toml`
 
 ## How to build
 
@@ -40,6 +40,7 @@ FLAGS:
         --help        Prints help information
     -p, --populate    Populate DB
     -s, --server      Start server
+    -v, --verify      Check the DB against the chain
     -V, --version     Prints version information
 
 OPTIONS:
@@ -49,7 +50,19 @@ OPTIONS:
 ```
 
 ## Supported queries
-
-`GET /transactions/account/<account>` all transactioms for account
-`GET /transactions/interval/<from>/<to>` transactions from block <from> to block <to> inclusive`
-`GET /key-blocks/height/<height>/gas-price` get the average gas price for a certain block (currently super inaccurate)
+```
+GET /middleware/transactions/account/<account>?<limit>&<page>
+GET /middleware/transactions/interval/<from>/<to>?<limit>&<page>
+GET /middleware/transactions/account/<account>/count
+GET /middleware/contracts/transactions/address/<address>
+GET /v2/generations/current
+GET /v2/key-blocks/current/height
+GET /api (epoch_api_handler)
+GET /v2/generations/height/<height>
+GET /v2/key-blocks/height/<height>
+GET /v2/key-blocks/hash/<hash>
+GET /v2/micro-blocks/hash/<hash>/header
+GET /v2/transactions/<hash>
+GET /v2/micro-blocks/hash/<hash>/transactions/count
+GET /v2/micro-blocks/hash/<hash>/transaction
+```
