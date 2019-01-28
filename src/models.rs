@@ -422,7 +422,7 @@ pub struct JsonTransaction {
 impl JsonTransaction {
     pub fn from_transaction(t: &Transaction) -> JsonTransaction {
         let mut signatures: Vec<String> = vec![];
-        let _s = t.signatures.split(", ");
+        let _s = t.signatures.split(" ");
         for s in _s {
             signatures.push(String::from(s));
         }
