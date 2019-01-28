@@ -16,10 +16,7 @@ use std::path::PathBuf;
 
 use SQLCONNECTION;
 
-// DB
-#[database("middleware")]
-struct MiddlewareDbConn(diesel::PgConnection);
-
+use PGCONNECTION;
 pub struct MiddlewareServer {
     pub epoch: Epoch,
     pub dest_url: String, // address to forward to
@@ -92,22 +89,20 @@ fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> 
 
 #[get("/generations/current", rank = 1)]
 fn current_generation(
-    conn: MiddlewareDbConn,
     state: State<MiddlewareServer>,
 ) -> Json<serde_json::Value> {
-    let _height = KeyBlock::top_height(&conn).unwrap();
-    generation_at_height(conn, state, _height)
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    generation_at_height(state, _height)
 }
 
 #[get("/generations/height/<height>", rank = 1)]
 fn generation_at_height(
-    conn: MiddlewareDbConn,
     state: State<MiddlewareServer>,
     height: i64,
 ) -> Json<serde_json::Value> {
     match JsonGeneration::get_generation_at_height(
         &SQLCONNECTION.get().unwrap(),
-        &conn,
+        &PGCONNECTION.get().unwrap(),
         height,
     ) {
         Some(x) => Json(serde_json::from_str(&serde_json::to_string(&x).unwrap()).unwrap()),
@@ -122,10 +117,9 @@ fn generation_at_height(
 
 #[get("/key-blocks/current/height", rank = 1)]
 fn current_key_block(
-    conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
 ) -> Json<JsonValue> {
-    let _height = KeyBlock::top_height(&conn).unwrap();
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
     Json(json!({
         "height" : _height,
     }))
@@ -135,11 +129,10 @@ fn current_key_block(
 
 #[get("/key-blocks/height/<height>", rank = 1)]
 fn key_block_at_height(
-    conn: MiddlewareDbConn,
     state: State<MiddlewareServer>,
     height: i64,
     ) -> Json<String> {
-    let key_block = match KeyBlock::load_at_height(&conn, height) {
+    let key_block = match KeyBlock::load_at_height(&PGCONNECTION.get().unwrap(), height) {
         Some(x) => x,
         None => {
             info!("Generation not found at height {}", height);
@@ -152,11 +145,10 @@ fn key_block_at_height(
 
 #[get("/transactions/<hash>")]
 fn transaction_at_hash(
-    conn: MiddlewareDbConn,
     state: State<MiddlewareServer>,
     hash: String,
 ) -> Json<serde_json::Value> {
-    let tx: Transaction = match Transaction::load_at_hash(&conn, &hash) {
+    let tx: Transaction = match Transaction::load_at_hash(&PGCONNECTION.get().unwrap(), &hash) {
         Some(x) => x,
         None => {
             info!("Transaction not found at hash {}", &hash);
@@ -175,11 +167,10 @@ fn transaction_at_hash(
 
 #[get("/key-blocks/hash/<hash>", rank = 1)]
 fn key_block_at_hash(
-    conn: MiddlewareDbConn,
     state: State<MiddlewareServer>,
     hash: String,
 ) -> Json<serde_json::Value> {
-    let key_block = match KeyBlock::load_at_hash(&conn, &hash) {
+    let key_block = match KeyBlock::load_at_hash(&PGCONNECTION.get().unwrap(), &hash) {
         Some(x) => x,
         None => {
             info!("Key block not found at hash {}", &hash);
@@ -199,12 +190,11 @@ fn key_block_at_hash(
 
 #[get("/micro-blocks/hash/<hash>/transactions", rank = 1)]
 fn transactions_in_micro_block_at_hash(
-    conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     hash: String,
 ) -> Json<JsonTransactionList> {
     let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(hash));
-    let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
+    let transactions: Vec<Transaction> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
         trans.push(JsonTransaction::from_transaction(&transactions[i]));
@@ -217,7 +207,6 @@ fn transactions_in_micro_block_at_hash(
 
 #[get("/micro-blocks/hash/<hash>/header", rank = 1)]
 fn micro_block_header_at_hash(
-    _conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     hash: String,
 ) -> Json<JsonValue> {
@@ -260,7 +249,6 @@ fn micro_block_header_at_hash(
  */
 #[get("/transactions/account/<account>/count")]
 fn transaction_count_for_account(
-    conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     account: String,
 ) -> Json<JsonValue>
@@ -309,7 +297,6 @@ fn offset_limit(
  */
 #[get("/transactions/account/<account>?<limit>&<page>")]
 fn transactions_for_account(
-    conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     account: String,
     limit: Option<i32>,
@@ -328,7 +315,7 @@ fn transactions_for_account(
                        limit {} offset {} ",
                       s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql);
     info!("{}", sql);
-    let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
+    let transactions: Vec<Transaction> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
         trans.push(JsonTransaction::from_transaction(&transactions[i]));
@@ -344,7 +331,6 @@ fn transactions_for_account(
  */
 #[get("/transactions/interval/<from>/<to>?<limit>&<page>")]
 fn transactions_for_interval(
-    conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     from: i64,
     to: i64,
@@ -360,7 +346,7 @@ fn transactions_for_interval(
          order by k.height desc, t.id desc \
          limit {} offset {} ",
         from, to, limit_sql, offset_sql);
-    let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
+    let transactions: Vec<Transaction> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
         trans.push(JsonTransaction::from_transaction(&transactions[i]));
@@ -376,7 +362,6 @@ fn transactions_for_interval(
  * Gets count of transactions in a microblock
  */
 fn transaction_count_in_micro_block(
-    _conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     hash: String
 ) -> Json<JsonValue> {
@@ -387,7 +372,6 @@ fn transaction_count_in_micro_block(
 
 #[get("/contracts/transactions/address/<address>")]
 fn transactions_for_contract_address(
-    conn: MiddlewareDbConn,
     _state: State<MiddlewareServer>,
     address: String
 ) -> Json<JsonTransactionList> {
@@ -395,7 +379,7 @@ fn transactions_for_contract_address(
                        t.tx_type='ContractCallTx' and \
                        t.tx->>'contract_id' = '{}'",
                       sanitize(address));
-    let transactions: Vec<Transaction> = sql_query(sql).load(&*conn).unwrap();
+    let transactions: Vec<Transaction> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
         trans.push(JsonTransaction::from_transaction(&transactions[i]));
@@ -438,7 +422,6 @@ impl MiddlewareServer {
             .mount("/v2", routes![transaction_count_in_micro_block])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
             .attach(options)
-            .attach(MiddlewareDbConn::fairing())
             .manage(self)
             .launch();
     }
