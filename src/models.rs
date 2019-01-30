@@ -5,24 +5,23 @@ use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
 use super::schema::transactions;
 
-use diesel::sql_query;
 use diesel::dsl::exists;
 use diesel::dsl::select;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::sql_types::*;
+use diesel::sql_query;
 
 extern crate serde_json;
 use serde_json::Number;
 
 use bigdecimal;
 use bigdecimal::ToPrimitive;
-use std;
 use std::str::FromStr;
 
-use epoch;
+use middleware_result::MiddlewareResult;
 
-#[derive(Queryable)]
+#[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
+#[table_name = "key_blocks"]
 pub struct KeyBlock {
     pub id: i32,
     pub hash: String,
@@ -40,9 +39,7 @@ pub struct KeyBlock {
 }
 
 impl KeyBlock {
-    pub fn from_json_key_block(
-        jb: &JsonKeyBlock,
-    ) -> Result<KeyBlock, Box<std::error::Error>> {
+    pub fn from_json_key_block(jb: &JsonKeyBlock) -> MiddlewareResult<KeyBlock> {
         let n: u64 = match jb.nonce.as_u64() {
             Some(val) => val,
             None => 0,
@@ -64,44 +61,39 @@ impl KeyBlock {
         })
     }
 
-    pub fn top_height(conn: &PgConnection) -> Result<i64, Box<std::error::Error>> {
-        let b = key_blocks::table
-            .order(key_blocks::height.desc())
-            .load::<KeyBlock>(conn)?;
-        let h = match b.first() {
-            Some(x) => x,
-            None => return Ok(0),
-        };
-        Ok(h.height)
+    pub fn top_height(conn: &PgConnection) -> MiddlewareResult<i64> {
+        let _height: Option<i64> = key_blocks.select(diesel::dsl::max(height)).first(conn)?;
+        Ok(_height?)
     }
 
     pub fn load_at_height(conn: &PgConnection, _height: i64) -> Option<KeyBlock> {
-        let mut blocks = match key_blocks::table
+        let block = match key_blocks::table
             .filter(height.eq(_height))
-            .limit(1)
-            .load::<KeyBlock>(conn) {
-                Ok(x) => x,
-                Err(y) => {
-                    error!("Error loading key block: {:?}", y);
-                    return None;
-                },
-            };
-        Some(blocks.pop()?)
+            .first::<KeyBlock>(conn)
+        {
+            Ok(x) => x,
+            Err(y) => {
+                error!("Error loading key block: {:?}", y);
+                return None;
+            }
+        };
+        Some(block)
     }
 
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<KeyBlock> {
         let mut blocks = match key_blocks::table
             .filter(hash.eq(_hash))
-            .load::<KeyBlock>(conn) {
-                Ok(x) => x,
-                Err(y) => {
-                    error!("Error loading key block: {:?}", y);
-                    return None;
-                },
-            };
+            .load::<KeyBlock>(conn)
+        {
+            Ok(x) => x,
+            Err(y) => {
+                error!("Error loading key block: {:?}", y);
+                return None;
+            }
+        };
         Some(blocks.pop()?)
     }
-            
+
     pub fn height_exists(conn: &PgConnection, h: i64) -> bool {
         match select(exists(key_blocks.filter(height.eq(h)))).get_result(conn) {
             Ok(result) => result,
@@ -128,17 +120,20 @@ pub struct InsertableKeyBlock {
 }
 
 impl InsertableKeyBlock {
-    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::key_blocks::dsl::*;
-        let generated_ids: Vec<i32> = insert_into(key_blocks).values(self).returning(id).get_results(&*conn)?;
+        let generated_ids: Vec<i32> = insert_into(key_blocks)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
         Ok(generated_ids[0])
     }
 
     pub fn from_json_key_block(
         jb: &JsonKeyBlock,
-    ) -> Result<InsertableKeyBlock, Box<std::error::Error>> {
+    ) -> MiddlewareResult<InsertableKeyBlock> {
         //TODO: fix this.
         let n: u64 = match jb.nonce.as_u64() {
             Some(val) => val,
@@ -169,8 +164,7 @@ bigdecimal::BigDecimal. So this struct exists to be pulled from the
 JSON.  If @newby gets smart enough he will write the implementations
 for these missing methods.
 */
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct JsonKeyBlock {
     pub hash: String,
     pub height: i64,
@@ -189,24 +183,21 @@ pub struct JsonKeyBlock {
 }
 
 impl JsonKeyBlock {
-
     pub fn eq(&self, other: &JsonKeyBlock) -> bool {
-        (
-            self.hash.eq(&other.hash) &&
+        (self.hash.eq(&other.hash) &&
                 self.height == other.height &&
                 self.miner.eq(&other.miner) &&
                 self.beneficiary.eq(&other.beneficiary) &&
-//                self.nonce == other.nonce && // 
+//                self.nonce == other.nonce && // These don't compare well. TODO -- fix
                 self.pow.len() == other.pow.len() && // TODO <-- fix
                 self.prev_hash.eq(&other.prev_hash) &&
                 self.prev_key_hash.eq(&other.prev_key_hash) &&
                 self.state_hash.eq(&other.state_hash) &&
                 self.target == other.target &&
                 self.time == other.time &&
-                self.version == other.version
-        )
+                self.version == other.version)
     }
-    
+
     pub fn from_key_block(kb: &KeyBlock) -> JsonKeyBlock {
         let pows: Vec<serde_json::Value> = serde_json::from_str(&kb.pow).unwrap();
         let mut pows2 = Vec::<i32>::new();
@@ -228,7 +219,7 @@ impl JsonKeyBlock {
             version: kb.version,
         }
     }
-}           
+}
 
 fn zero() -> Number {
     serde_json::Number::from_f64(0.0).unwrap()
@@ -238,41 +229,55 @@ fn zero_vec_i32() -> Vec<i32> {
     vec![0]
 }
 
-#[derive(Queryable)]
-#[derive(Identifiable)]
+#[derive(Identifiable, Associations, Queryable, QueryableByName)]
+#[belongs_to(KeyBlock)]
 #[table_name = "micro_blocks"]
 pub struct MicroBlock {
     pub id: i32,
-    #[serde(default = "option_i32")]
+    #[sql_type = "diesel::sql_types::Int4"]
+    #[column_name = "key_block_id"]
     pub key_block: Option<KeyBlock>,
     pub hash: String,
     pub pof_hash: String,
     pub prev_hash: String,
     pub prev_key_hash: String,
     pub signature: String,
+    pub time: i64,
     pub state_hash: String,
     pub txs_hash: String,
     pub version: i32,
 }
 
-fn option_i32() -> Option<i32> {
-    None
-}
-
 impl MicroBlock {
-    pub fn get_microblock_hashes_for_key_block_hash(conn: &PgConnection,
-                                                    kb_hash: &String) ->
-        Option<Vec<String>>
-    {
+    pub fn get_microblock_hashes_for_key_block_hash(
+        sql_conn: &postgres::Connection,
+        kb_hash: &String,
+    ) -> Option<Vec<String>> {
         let sql = format!(
-            "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY hash",
-            kb_hash);
+            "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE mb.key_block_id=kb.id and kb.hash='{}' ORDER BY mb.hash",
+            kb_hash
+        );
         let mut micro_block_hashes = Vec::new();
-        for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
+        for row in &sql_conn.query(&sql, &[]).unwrap() {
             micro_block_hashes.push(row.get(0));
         }
         Some(micro_block_hashes)
     }
+
+    pub fn get_transaction_count(
+        sql_conn: &postgres::Connection,
+        mb_hash: &String,
+    ) -> i64 {
+        let sql = format!(
+            "select count(t.*) from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'",
+            mb_hash);
+        let mut micro_block_hashes = Vec::new();
+        for row in &sql_conn.query(&sql, &[]).unwrap() {
+            micro_block_hashes.push(row.get(0));
+        }
+        micro_block_hashes[0]
+    }
+
 }
 
 #[derive(Insertable)]
@@ -285,46 +290,51 @@ pub struct InsertableMicroBlock {
     pub prev_hash: String,
     pub prev_key_hash: String,
     pub signature: String,
+    pub time: i64,
     pub state_hash: String,
     pub txs_hash: String,
     pub version: i32,
 }
 
 impl InsertableMicroBlock {
-    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::micro_blocks::dsl::*;
-        let generated_ids: Vec<i32> =
-            insert_into(micro_blocks).values(self).returning(id).get_results(&*conn)?;
+        let generated_ids: Vec<i32> = insert_into(micro_blocks)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
         Ok(generated_ids[0])
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct JsonGeneration {
     pub key_block: JsonKeyBlock,
     pub micro_blocks: Vec<String>,
 }
 
 impl JsonGeneration {
-    pub fn get_generation_at_height(conn: &PgConnection, _height: i64) ->
-        Option<JsonGeneration>
-    {
+    pub fn get_generation_at_height(
+        sql_conn: &postgres::Connection,
+        conn: &PgConnection,
+        _height: i64,
+    ) -> Option<JsonGeneration> {
         let key_block = match KeyBlock::load_at_height(conn, _height) {
             Some(x) => x,
             None => {
                 debug!("Didn't find key block at height {} in DB", _height);
                 return None;
-            },
+            }
         };
-        info!("Serving generation {} from DB", _height);
+	debug!("Serving generation {} from DB", _height);
         let sql = format!(
-            "SELECT hash FROM micro_blocks WHERE key_block_id={}",
-            key_block.id);
+            "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY hash",
+            key_block.id
+        );
         let mut micro_block_hashes = Vec::new();
-        for row in &epoch::establish_sql_connection().query(&sql, &[]).unwrap() {
+        for row in &sql_conn.query(&sql, &[]).unwrap() {
             micro_block_hashes.push(row.get(0));
         }
         Some(JsonGeneration {
@@ -334,24 +344,30 @@ impl JsonGeneration {
     }
 
     pub fn eq(&self, other: &JsonGeneration) -> bool {
-        debug!("\nComparing {:?} to \n{:?}\n", &self, &other);
         if self.micro_blocks.len() != other.micro_blocks.len() {
-            debug!("Different lengths of microblocks array: {} vs {}",
-                   self.micro_blocks.len(), other.micro_blocks.len());
+            debug!(
+                "Different lengths of microblocks array: {} vs {}",
+                self.micro_blocks.len(),
+                other.micro_blocks.len()
+            );
             return false;
         }
-        for i in 0 .. self.micro_blocks.len() {
-            if self.micro_blocks[i] != other.micro_blocks[i] {
+        let mut mb1 = self.micro_blocks.clone();
+        mb1.sort();
+        let mut mb2 = other.micro_blocks.clone();
+        mb2.sort();
+        debug!("\nComparing {:?} to \n{:?}\n", mb1, mb2);
+        for i in 0..mb1.len() {
+            if mb1[i] != mb2[i] {
+                debug!("Microblock hashes don't match: {} vs {}", mb1[i], mb2[i]);
                 return false;
             }
         }
         self.key_block.eq(&other.key_block)
     }
 }
-    
-#[derive(Queryable, QueryableByName)]
-#[derive(Identifiable)]
-#[derive(Serialize, Deserialize)]
+
+#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize)]
 #[table_name = "transactions"]
 pub struct Transaction {
     pub id: i32,
@@ -383,7 +399,16 @@ impl Transaction {
          */
         Some(_transactions.pop()?)
     }
-}    
+
+    pub fn load_for_micro_block(
+        conn: &PgConnection,
+        mb_hash: &String) -> Option<Vec<Transaction>>
+    {
+        let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}'", mb_hash);
+        let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
+        Some(_transactions)
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct JsonTransaction {
@@ -397,7 +422,7 @@ pub struct JsonTransaction {
 impl JsonTransaction {
     pub fn from_transaction(t: &Transaction) -> JsonTransaction {
         let mut signatures: Vec<String> = vec![];
-        let _s = t.signatures.split(", ");
+        let _s = t.signatures.split(" ");
         for s in _s {
             signatures.push(String::from(s));
         }
@@ -409,6 +434,7 @@ impl JsonTransaction {
             tx: t.tx.clone(),
         }
     }
+
 }
 
 #[derive(Serialize, Deserialize)]
@@ -431,11 +457,14 @@ pub struct InsertableTransaction {
 }
 
 impl InsertableTransaction {
-    pub fn save(&self, conn: &PgConnection) -> Result<i32, Box<std::error::Error>> {
-        use diesel::dsl::{insert_into, select};
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        use diesel::dsl::insert_into;
         use diesel::RunQueryDsl;
         use schema::transactions::dsl::*;
-        let generated_ids: Vec<i32> = insert_into(transactions).values(self).returning(id).get_results(&*conn)?;
+        let generated_ids: Vec<i32> = insert_into(transactions)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
         Ok(generated_ids[0])
     }
 
@@ -443,7 +472,7 @@ impl InsertableTransaction {
         jt: &JsonTransaction,
         tx_type: String,
         micro_block_id: Option<i32>,
-    ) -> Result<InsertableTransaction, Box<std::error::Error>> {
+    ) -> MiddlewareResult<InsertableTransaction> {
         let mut signatures = String::new();
         for i in 0..jt.signatures.len() {
             if i > 0 {
@@ -451,6 +480,16 @@ impl InsertableTransaction {
             }
             signatures.push_str(&jt.signatures[i].clone());
         }
+        // TODO (urgent): make this handle big numbers.
+        let fee = match jt.tx["fee"].as_i64() {
+            Some(x) => x,
+            None => {
+                error!(
+                    "Fee too high for i64, setting to i64::MAX, hash is {}",
+                    jt.hash);
+                    std::i64::MAX
+                },
+            };
         Ok(InsertableTransaction {
             micro_block_id,
             block_height: jt.block_height,
@@ -458,9 +497,9 @@ impl InsertableTransaction {
             hash: jt.hash.clone(),
             signatures,
             tx_type,
-            fee: jt.tx["fee"].as_i64().unwrap(),
+            fee,
             size: jt.tx.to_string().len() as i32,
-            tx: serde_json::from_str(&jt.tx.to_string()).unwrap(),
+            tx: serde_json::from_str(&jt.tx.to_string())?,
         })
     }
 }
