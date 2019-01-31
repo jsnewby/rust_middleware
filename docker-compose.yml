@@ -6,6 +6,7 @@ services:
       dockerfile: ./docker/Dockerfile
     ports:
       - "80:80"
+      - "3020:3020"
     environment: 
       - EPOCH_URL=https://roma-net.aepps.com
       - DATABASE_URL=postgres://middleware:middleware@db/middleware

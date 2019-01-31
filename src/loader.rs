@@ -19,6 +19,9 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use PGCONNECTION;
 use SQLCONNECTION;
+
+use super::websocket;
+
 pub struct BlockLoader {
     epoch: Epoch,
     rx: std::sync::mpsc::Receiver<i64>,
@@ -347,6 +350,7 @@ impl BlockLoader {
         let ib: InsertableKeyBlock =
             InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
+        websocket::broadcast_ws(serde_json::to_string(&generation.key_block).unwrap()); //broadcast the key_block
         for mb_hash in &generation.micro_blocks {
             let mut mb: InsertableMicroBlock =
                 serde_json::from_value(self.epoch.get_micro_block_by_hash(&mb_hash)?)?;

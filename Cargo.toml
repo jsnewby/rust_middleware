@@ -37,7 +37,8 @@ serde-xml-rs = {git = "git://github.com/Metaswitch/serde-xml-rs.git" , branch = 
 error-chain = "0.11"
 diesel = { version = "1.3.3", features = ["postgres", "numeric", "serde_json", "r2d2",  ] }
 dotenv = "0.13.0"
-bigdecimal = "0.0.11"
+bigdecimal = "0.0.14"
+ws = "0.7.9"
 itertools = "0.7.8"
 tokio-core = "0.1.17"
 clap = "~2.32"

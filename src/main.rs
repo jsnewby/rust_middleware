@@ -52,6 +52,7 @@ pub mod loader;
 pub mod schema;
 pub mod server;
 pub mod middleware_result;
+pub mod websocket; 
 
 pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
@@ -180,7 +181,7 @@ fn main() {
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
     let verify = matches.is_present("verify");
-
+    
     if verify {
         println!("Verifying");
         let loader = BlockLoader::new(url.clone());
@@ -215,6 +216,7 @@ fn main() {
             dest_url: url.to_string(),
             port: 3013,
         };
+        websocket::start_ws(); //start the websocket server
         ms.start();
     }
     if !populate && !serve {
