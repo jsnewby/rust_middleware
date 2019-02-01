@@ -6,23 +6,23 @@ use std::sync::{Arc, Mutex};
 use chashmap::*;
 use super::models::WsMessage;
 use super::serde_json;
-use self::ws::{listen, CloseCode, Sender, Message, Handshake, Handler, Result, Error};
+use self::ws::{listen, CloseCode, Sender, Message, Handshake, Handler, Result};
 
 #[derive(Clone)]
-struct Server {
+struct Client {
     out: Sender,
     rules: CHashMap<String, bool>,
 }
 
+// Todo: Clean the list
 lazy_static! {
-    static ref client_list: Arc<Mutex<Option<Vec<Server>>>> = Arc::new(Mutex::new(Some(vec![])));
+    static ref client_list: Arc<Mutex<Option<Vec<Client>>>> = Arc::new(Mutex::new(Some(vec![])));
 }
 
-impl Handler for Server {
+impl Handler for Client {
 
     fn on_close(&mut self, code: CloseCode, reason: &str) {
-        debug!("WebSocket closing for ({:?}) {}", code, reason);
-        self.out.shutdown().unwrap();
+        println!("WebSocket closing for ({:?}) {}", code, reason);
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
@@ -30,7 +30,11 @@ impl Handler for Server {
             Some(list) => {
                 for client in list.into_iter() {
                     let value: WsMessage = unpack_message(msg.clone());
-                    client.rules.insert(value.value, true);
+                    if value.op == "subscribe" {
+                        client.rules.insert(value.value, true);
+                    } else if value.op == "unsubscribe" {
+                        client.rules.remove(&value.value);
+                    }
                 }
             },
             None => {},
@@ -38,7 +42,7 @@ impl Handler for Server {
         Ok(())
     }
 
-    fn on_open(&mut self, shake: Handshake) -> Result<()> {
+    fn on_open(&mut self, _shake: Handshake) -> Result<()> {
         match client_list.lock().unwrap().as_mut() {
             Some(list) => list.push(self.clone()),
             None => {},
@@ -56,7 +60,7 @@ pub fn start_ws() {
 	let server = thread::spawn(move || {
         listen("0.0.0.0:3020", |out| {
             let rules: CHashMap<String, bool> = CHashMap::<String, bool>::new();
-            Server { out: out, rules: rules }
+            Client { out: out, rules: rules }
         }).unwrap();
     });
     sleep(Duration::from_millis(10)); // waiting for server to initialize fully
