@@ -29,11 +29,13 @@ impl Handler for Client {
         match client_list.lock().unwrap().as_mut() {
             Some(list) => {
                 for client in list.into_iter() {
-                    let value: WsMessage = unpack_message(msg.clone());
-                    if value.op == "subscribe" {
-                        client.rules.insert(value.value, true);
-                    } else if value.op == "unsubscribe" {
-                        client.rules.remove(&value.value);
+                    if self.out == client.out {
+                        let value: WsMessage = unpack_message(msg.clone());
+                        if value.op == "subscribe" {
+                         client.rules.insert(value.value, true);
+                        } else if value.op == "unsubscribe" {
+                            client.rules.remove(&value.value);
+                        }
                     }
                 }
             },
