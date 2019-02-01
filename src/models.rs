@@ -503,3 +503,10 @@ impl InsertableTransaction {
         })
     }
 }
+
+
+#[derive(Serialize, Deserialize)]
+pub struct WsMessage {
+    pub op: String,
+    pub value: String,
+}
