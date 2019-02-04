@@ -16,7 +16,7 @@ struct Client {
 
 // Todo: Clean the list
 lazy_static! {
-    static ref client_list: Arc<Mutex<Option<Vec<Client>>>> = Arc::new(Mutex::new(Some(vec![])));
+    static ref CLIENT_LIST: Arc<Mutex<Option<Vec<Client>>>> = Arc::new(Mutex::new(Some(vec![])));
 }
 
 impl Handler for Client {
@@ -26,15 +26,16 @@ impl Handler for Client {
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        match client_list.lock().unwrap().as_mut() {
+        match CLIENT_LIST.lock().unwrap().as_mut() {
             Some(list) => {
                 for client in list.into_iter() {
                     if self.out == client.out {
                         let value: WsMessage = unpack_message(msg.clone());
+                        //TODO: verify payload
                         if value.op == "subscribe" {
-                         client.rules.insert(value.value, true);
+                         client.rules.insert(value.payload, true); break;
                         } else if value.op == "unsubscribe" {
-                            client.rules.remove(&value.value);
+                         client.rules.remove(&value.payload); break;
                         }
                     }
                 }
@@ -45,7 +46,7 @@ impl Handler for Client {
     }
 
     fn on_open(&mut self, _shake: Handshake) -> Result<()> {
-        match client_list.lock().unwrap().as_mut() {
+        match CLIENT_LIST.lock().unwrap().as_mut() {
             Some(list) => list.push(self.clone()),
             None => {},
         }
@@ -71,11 +72,11 @@ pub fn start_ws() {
 
 
 pub fn broadcast_ws(rule: String, data: String) {
-    match client_list.lock().unwrap().as_ref() {
+    match CLIENT_LIST.lock().unwrap().as_ref() {
             Some(list) => {
                 for client in list.into_iter() {
                      match client.rules.get(&rule) {
-                        Some(value) => { client.out.send(data.clone()); },
+                        Some(_value) => { client.out.send(data.clone()); },
                         None => {},
                     }
                 }
