@@ -503,3 +503,16 @@ impl InsertableTransaction {
         })
     }
 }
+
+pub fn size_at_height(
+    sql_conn: &postgres::Connection,
+    _height: i32,
+) -> MiddlewareResult<Option<i64>>
+{
+    for row in &sql_conn.query("select sum(size) from transactions where block_height <= $1", &[&_height])?
+    {
+        let result: i64 = row.get(0);
+        return Ok(Some(result));
+    }
+    Ok(None)
+}

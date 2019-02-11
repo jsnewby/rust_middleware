@@ -245,6 +245,53 @@ fn micro_block_header_at_hash(
 }
 
 /*
+ * Gets the amount spent, and number of transactions between specific dates,
+ * broken up by day.
+ *
+ */
+#[get("/transactions/rate/<from>/<to>")]
+fn transaction_rate(
+    _state: State<MiddlewareServer>,
+    from: String,
+    to: String,
+) -> Json<JsonValue>
+{
+    let from = NaiveDate::parse_from_str(&from, "%Y%m%d").unwrap();
+    let to = NaiveDate::parse_from_str(&to, "%Y%m%d").unwrap();
+    debug!("{:?} - {:?}", from, to);
+    Json(json!(Transaction::rate(&SQLCONNECTION.get().unwrap(), from, to).unwrap()))
+}
+
+/*
+ * Gets this size of the chain at some height
+ */
+#[get("/size/height/<height>")]
+fn size(
+    _state: State<MiddlewareServer>,
+    height: i32,
+) -> Json<JsonValue>
+{
+    let size = size_at_height(&SQLCONNECTION.get().unwrap(), height).unwrap();
+    Json(json!({
+        "size": size,
+    }))
+
+}
+
+/*
+ * return the current size of the DB
+ */
+#[get("/size/current")]
+fn current_size(
+    _state: State<MiddlewareServer>,
+) -> Json<JsonValue>
+{
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    size(_state, _height as i32)
+}
+
+
+/*
  * Gets count of transactions for an account
  */
 #[get("/transactions/account/<account>/count")]
@@ -391,8 +438,6 @@ fn transactions_for_contract_address(
 
 }
 
-
-
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -405,6 +450,9 @@ impl MiddlewareServer {
         };
 
         rocket::ignite()
+            .mount("/middleware", routes![current_size])
+            .mount("/middleware", routes![size])
+            .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_interval])
             .mount("/middleware", routes![transaction_count_for_account])
