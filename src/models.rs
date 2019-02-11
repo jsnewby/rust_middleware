@@ -504,9 +504,24 @@ impl InsertableTransaction {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WsOp {
+    subscribe,
+    unsubscribe,
+}
 
-#[derive(Serialize, Deserialize)]
-pub struct WsMessage {
-    pub op: String,
-    pub payload: String,
+#[derive(Serialize, Deserialize, Clone, PartialEq, Hash, Debug)]
+pub enum WsPayload {
+    key_blocks,
+    micro_blocks,
+    transactions,
+    tx_update
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WsMessage{
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub op: Option<WsOp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<WsPayload>,
 }

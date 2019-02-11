@@ -350,12 +350,12 @@ impl BlockLoader {
         let ib: InsertableKeyBlock =
             InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
-        websocket::broadcast_ws("key_blocks".to_string(), serde_json::to_string(&generation.key_block).unwrap()); //broadcast key_block
+        websocket::broadcast_ws(WsPayload::key_blocks, serde_json::to_string(&generation.key_block).unwrap()); //broadcast key_block
         for mb_hash in &generation.micro_blocks {
             let mut mb: InsertableMicroBlock =
                 serde_json::from_value(self.epoch.get_micro_block_by_hash(&mb_hash)?)?;
             mb.key_block_id = Some(key_block_id);
-            websocket::broadcast_ws("micro_blocks".to_string(), serde_json::to_string(&mb).unwrap()); //broadcast micro_block
+            websocket::broadcast_ws(WsPayload::micro_blocks, serde_json::to_string(&mb).unwrap()); //broadcast micro_block
             let _micro_block_id = mb.save(&connection)? as i32;
             let trans: JsonTransactionList =
                 serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&mb_hash)?)?;
@@ -396,7 +396,7 @@ impl BlockLoader {
             Some(x) => {
                 debug!("Updating transaction with hash {}", &trans.hash);
                 diesel::update(&x).set(micro_block_id.eq(_micro_block_id));
-                websocket::broadcast_ws("tx_update".to_string(), serde_json::to_string(&x).unwrap()); //broadcast updated transaction
+                websocket::broadcast_ws(WsPayload::tx_update, serde_json::to_string(&x).unwrap()); //broadcast updated transaction
                 Ok(x.id)
             }
             None => {
@@ -407,7 +407,7 @@ impl BlockLoader {
                     _tx_type,
                     _micro_block_id,
                 )?;
-                websocket::broadcast_ws("transactions".to_string(), serde_json::to_string(&trans).unwrap()); //broadcast updated transaction
+                websocket::broadcast_ws(WsPayload::transactions, serde_json::to_string(&trans).unwrap()); //broadcast updated transaction
                 _tx.save(conn)
             }
         }
