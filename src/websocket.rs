@@ -30,21 +30,19 @@ impl Handler for Client {
                 for client in list.into_iter() {
                     if self.out == client.out {
                         let value: WsMessage = unpack_message(msg.clone());
-                        if value.payload.is_some() {
-                            match value.op {
-                                Some(WsOp::subscribe) => {
-                                    match value.payload {
-                                        Some(WsPayload::key_blocks) => { client.rules.insert(WsPayload::key_blocks, true); },
-                                        Some(WsPayload::micro_blocks) => { client.rules.insert(WsPayload::micro_blocks, true); },
-                                        Some(WsPayload::transactions) => { client.rules.insert(WsPayload::transactions, true); },
-                                        Some(WsPayload::tx_update) => { client.rules.insert(WsPayload::tx_update, true); },
-                                        _ => {}
+                        match value.op {
+                            Some(WsOp::subscribe) => {
+                                match value.payload {
+                                    Some(WsPayload::key_blocks) => { client.rules.insert(WsPayload::key_blocks, true); },
+                                    Some(WsPayload::micro_blocks) => { client.rules.insert(WsPayload::micro_blocks, true); },
+                                    Some(WsPayload::transactions) => { client.rules.insert(WsPayload::transactions, true); },
+                                    Some(WsPayload::tx_update) => { client.rules.insert(WsPayload::tx_update, true); },
+                                    _ => {}
                                     }
                                 },
                                 Some(WsOp::unsubscribe) => { client.rules.remove(&value.payload.unwrap()); break; },
                                 _ => {},
-                            }
-                        }
+                        };
                     }
                 }
             },
