@@ -9,6 +9,7 @@ extern crate blake2;
 extern crate blake2b;
 extern crate byteorder;
 extern crate chashmap;
+extern crate chrono;
 extern crate crypto;
 extern crate curl;
 #[macro_use]
@@ -31,6 +32,7 @@ extern crate rocket;
 extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
+extern crate rust_decimal;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;

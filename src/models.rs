@@ -5,12 +5,13 @@ use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
 use super::schema::transactions;
 
+use chrono::prelude::*;
 use diesel::dsl::exists;
 use diesel::dsl::select;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_query;
-
+use rust_decimal::Decimal;
 extern crate serde_json;
 use serde_json::Number;
 
@@ -408,6 +409,27 @@ impl Transaction {
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
         Some(_transactions)
     }
+
+    pub fn rate(
+        sql_conn: &postgres::Connection,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<Vec<(i64, rust_decimal::Decimal, String)>, crate::middleware_result::MiddlewareError> {
+        let mut v = vec!();
+        for row in &sql_conn.query(
+            "select count(1), sum(cast(tx->>'amount' as decimal)), date(to_timestamp(time_/1000)) as _date from \
+             transactions t, micro_blocks m where \
+             m.id=t.micro_block_id and tx_type = 'SpendTx' and \
+             date(to_timestamp(time_/1000)) > $1 and \
+             date(to_timestamp(time_/1000)) < $2 \
+             group by _date order by _date",
+            &[&from, &to])?
+        {
+            let dt: NaiveDate = row.get(2);
+            v.push((row.get(0), row.get(1), dt.format("%Y-%m-%d").to_string()))
+        }
+        Ok(v)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -434,7 +456,6 @@ impl JsonTransaction {
             tx: t.tx.clone(),
         }
     }
-
 }
 
 #[derive(Serialize, Deserialize)]
