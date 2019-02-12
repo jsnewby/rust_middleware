@@ -382,6 +382,15 @@ pub struct Transaction {
     pub tx: serde_json::Value,
 }
 
+#[derive(Serialize)]
+pub struct Rate {
+    pub count: i64,
+    pub amount: rust_decimal::Decimal,
+    pub date: String,
+}
+
+
+
 impl Transaction {
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
         let sql = format!("select * from transactions where hash='{}'", _hash);
@@ -414,7 +423,7 @@ impl Transaction {
         sql_conn: &postgres::Connection,
         from: NaiveDate,
         to: NaiveDate,
-    ) -> Result<Vec<(i64, rust_decimal::Decimal, String)>, crate::middleware_result::MiddlewareError> {
+    ) -> MiddlewareResult<Vec<Rate>> {
         let mut v = vec!();
         for row in &sql_conn.query(
             "select count(1), sum(cast(tx->>'amount' as decimal)), date(to_timestamp(time_/1000)) as _date from \
@@ -426,7 +435,7 @@ impl Transaction {
             &[&from, &to])?
         {
             let dt: NaiveDate = row.get(2);
-            v.push((row.get(0), row.get(1), dt.format("%Y-%m-%d").to_string()))
+            v.push(Rate {count: row.get(0), amount: row.get(1), date: dt.format("%Y-%m-%d").to_string() });
         }
         Ok(v)
     }
