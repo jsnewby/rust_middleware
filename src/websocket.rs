@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::thread;
+use std::borrow::Cow;
 use std::thread::sleep;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
@@ -71,6 +72,15 @@ pub fn get_client_rules(client: &Client) -> MiddlewareResult<ClientRules>
     }
 }
 
+pub fn get_clients() -> Vec<Client> {
+    if let Ok(x) = (*CLIENT_LIST).lock() {
+        x.borrow().keys().map(|c| c.clone()).collect()
+    } else {
+        error!("Couldn't get client list");
+        vec!()
+    }
+}
+
 impl Handler for Client {
 
     fn on_close(&mut self, code: CloseCode, reason: &str) {
@@ -79,10 +89,19 @@ impl Handler for Client {
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        let rules = get_client_rules(&self).unwrap();
-        let value: WsMessage = unpack_message(msg.clone()).unwrap();
+        let rules = get_client_rules(&self).unwrap_or(ClientRules::new());
+        let value: WsMessage = match unpack_message(msg.clone()) {
+            Ok(x) => x,
+            Err(err) => {
+                error!("Error unpacking message: {:?}", err);
+                return Err(ws::Error { kind: ws::ErrorKind::Custom(Box::new(err)),
+                                       details: Cow::from("Foo") });
+            }
+        };
+        debug!("Value is {:?}", value);
         match value.op {
             Some(WsOp::subscribe) => {
+                debug!("Subscription with payload {:?}", value.payload);
                 match value.payload {
                     Some(WsPayload::key_blocks) => { rules.insert(WsPayload::key_blocks, true); },
                     Some(WsPayload::micro_blocks) => { rules.insert(WsPayload::micro_blocks, true); },
@@ -92,11 +111,14 @@ impl Handler for Client {
                 }
             },
             Some(WsOp::unsubscribe) => {
-                rules.remove(&value.payload.unwrap());
+                if let Some(x) = value.payload {
+                    rules.remove(&x);
+                }
             },
             _ => (),
         }
         update_client(&self, &rules);
+        debug!("Client with token {:?} has rules {:?}", self.out.token(), rules);
         Ok(())
     }
 
@@ -112,6 +134,7 @@ impl Handler for Client {
 pub fn unpack_message(msg: Message)
                       -> crate::middleware_result::MiddlewareResult<WsMessage>
 {
+    debug!("Received message {:?}", msg);
     let value = msg.into_text()?;
     Ok(serde_json::from_str(&value)?)
 }
@@ -129,17 +152,13 @@ pub fn start_ws() {
 
 pub fn broadcast_ws(rule: WsPayload, data: String) -> MiddlewareResult<()>
 {
-    if let Ok(list) = CLIENT_LIST.lock() {
-        for client in list.borrow_mut().keys() {
-            if let Ok(rules) = get_client_rules(&client) {
-                match rules.get(&rule) {
-                    Some(_value) => { client.out.send(data.clone())?; },
-                    _ => {},
-                }
+    for client in get_clients() {
+        if let Ok(rules) = get_client_rules(&client) {
+            match rules.get(&rule) {
+                Some(_value) => { client.out.send(data.clone())?; },
+                _ => {},
             }
         }
-    } else {
-        error!("Couldn't find client!");
     }
     Ok(())
 }

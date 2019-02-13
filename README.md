@@ -92,11 +92,19 @@ Here is some magic
 ```
 var exampleSocket = new WebSocket("ws://127.0.0.1:3020");
 exampleSocket.onopen = function (event) {  // when connection is open, send a subscribe request
-    exampleSocket.send('{"op":"subscribe", "value": "key_blocks"}');
-    //to unsubscribe: exampleSocket.send('{"op":"unsubscribe", "value": "key_blocks"}')
+    exampleSocket.send('{"op":"subscribe", "payload": "key_blocks"}');
+    //to unsubscribe: exampleSocket.send('{"op":"unsubscribe", "payload": "key_blocks"}')
 }
 
 exampleSocket.onmessage = function (event) {
    	console.log(event.data); // you get data here when it arrives
 }
+
+```
+
+Some sample messages:
+
+```
+{"op":"unsubscribe", "payload": "key_blocks"}
+
 ```
