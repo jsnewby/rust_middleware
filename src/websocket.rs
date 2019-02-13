@@ -1,20 +1,20 @@
-use std::collections::HashMap;
-use std::thread;
-use std::borrow::Cow;
-use std::thread::sleep;
-use std::hash::{Hash, Hasher};
-use std::time::Duration;
-use std::sync::{Arc, Mutex,};
-use std::cell::RefCell;
-use chashmap::*;
 use super::models::{WsMessage, WsOp, WsPayload};
 use super::serde_json;
-use ws::{listen, CloseCode, Sender, Message, Handshake, Handler, Result,};
-use ws::util::Token;
+use chashmap::*;
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::env;
+use std::hash::{Hash, Hasher};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::thread::sleep;
+use std::time::Duration;
+use ws::{listen, CloseCode, Handler, Handshake, Message, Result, Sender};
 
 use crate::middleware_result::MiddlewareResult;
 
-type ClientRules = CHashMap<WsPayload, bool>;
+type ClientRules = HashMap<WsPayload, bool>;
 type ClientMap = HashMap<Client, ClientRules>;
 
 #[derive(Clone, Debug)]
@@ -23,13 +23,12 @@ pub struct Client {
 }
 
 impl PartialEq for Client {
-    fn eq(&self, other: &Client) -> bool
-    {
+    fn eq(&self, other: &Client) -> bool {
         self.out.token() == other.out.token()
     }
 }
 
-impl Eq for Client { }
+impl Eq for Client {}
 
 impl Hash for Client {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -38,7 +37,8 @@ impl Hash for Client {
 }
 
 lazy_static! {
-    static ref CLIENT_LIST: Arc<Mutex<RefCell<ClientMap>>> = Arc::new(Mutex::new(RefCell::new(ClientMap::new())));
+    static ref CLIENT_LIST: Arc<Mutex<RefCell<ClientMap>>> =
+        Arc::new(Mutex::new(RefCell::new(ClientMap::new())));
 }
 
 pub fn add_client(client: &Client) {
@@ -53,15 +53,13 @@ pub fn remove_client(client: &Client) {
     };
 }
 
-pub fn update_client(client: &Client, rules: &ClientRules)
-{
+pub fn update_client(client: &Client, rules: &ClientRules) {
     if let Ok(x) = (*CLIENT_LIST).lock() {
         x.borrow_mut().insert(client.clone(), rules.clone());
     };
 }
 
-pub fn get_client_rules(client: &Client) -> MiddlewareResult<ClientRules>
-{
+pub fn get_client_rules(client: &Client) -> MiddlewareResult<ClientRules> {
     if let Ok(x) = (*CLIENT_LIST).lock() {
         match x.borrow_mut().get(&client) {
             Some(y) => return Ok(y.clone()),
@@ -74,28 +72,29 @@ pub fn get_client_rules(client: &Client) -> MiddlewareResult<ClientRules>
 
 pub fn get_clients() -> Vec<Client> {
     if let Ok(x) = (*CLIENT_LIST).lock() {
-        x.borrow().keys().map(|c| c.clone()).collect()
+        x.borrow().keys().cloned().collect()
     } else {
         error!("Couldn't get client list");
-        vec!()
+        vec![]
     }
 }
 
 impl Handler for Client {
-
     fn on_close(&mut self, code: CloseCode, reason: &str) {
         debug!("WebSocket closing with code {:?} because {}", code, reason);
         remove_client(&self);
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        let rules = get_client_rules(&self).unwrap_or(ClientRules::new());
+        let mut rules = get_client_rules(&self).unwrap_or_default();
         let value: WsMessage = match unpack_message(msg.clone()) {
             Ok(x) => x,
             Err(err) => {
                 error!("Error unpacking message: {:?}", err);
-                return Err(ws::Error { kind: ws::ErrorKind::Custom(Box::new(err)),
-                                       details: Cow::from("Foo") });
+                return Err(ws::Error {
+                    kind: ws::ErrorKind::Custom(Box::new(err)),
+                    details: Cow::from("error unpacking message"),
+                });
             }
         };
         debug!("Value is {:?}", value);
@@ -103,22 +102,36 @@ impl Handler for Client {
             Some(WsOp::subscribe) => {
                 debug!("Subscription with payload {:?}", value.payload);
                 match value.payload {
-                    Some(WsPayload::key_blocks) => { rules.insert(WsPayload::key_blocks, true); },
-                    Some(WsPayload::micro_blocks) => { rules.insert(WsPayload::micro_blocks, true); },
-                    Some(WsPayload::transactions) => { rules.insert(WsPayload::transactions, true); },
-                    Some(WsPayload::tx_update) => { rules.insert(WsPayload::tx_update, true); },
+                    Some(WsPayload::key_blocks) => {
+                        rules.insert(WsPayload::key_blocks, true);
+                    }
+                    Some(WsPayload::micro_blocks) => {
+                        rules.insert(WsPayload::micro_blocks, true);
+                    }
+                    Some(WsPayload::transactions) => {
+                        rules.insert(WsPayload::transactions, true);
+                    }
+                    Some(WsPayload::tx_update) => {
+                        rules.insert(WsPayload::tx_update, true);
+                    }
                     _ => {}
                 }
-            },
+            }
             Some(WsOp::unsubscribe) => {
                 if let Some(x) = value.payload {
                     rules.remove(&x);
                 }
-            },
+            }
             _ => (),
         }
         update_client(&self, &rules);
-        debug!("Client with token {:?} has rules {:?}", self.out.token(), rules);
+        let v: Vec<String> = rules.keys().map(|x| x.to_string()).collect();
+        self.out.send(json!(v).to_string())?;
+        debug!(
+            "Client with token {:?} has rules {:?}",
+            self.out.token(),
+            rules
+        );
         Ok(())
     }
 
@@ -131,32 +144,30 @@ impl Handler for Client {
     }
 }
 
-pub fn unpack_message(msg: Message)
-                      -> crate::middleware_result::MiddlewareResult<WsMessage>
-{
+pub fn unpack_message(msg: Message) -> crate::middleware_result::MiddlewareResult<WsMessage> {
     debug!("Received message {:?}", msg);
     let value = msg.into_text()?;
     Ok(serde_json::from_str(&value)?)
 }
 
 pub fn start_ws() {
-	let server = thread::spawn(move || {
-        listen("0.0.0.0:3020", |out| {
-            Client { out: out }
-        }).expect("Unable to start the websocket server");
+    let server = thread::spawn(move || {
+        let ws_address = env::var("WEBSOCKET_ADDRESS").unwrap_or("0.0.0.0:3020".to_string());
+        listen(ws_address, |out| Client { out })
+            .expect("Unable to start the websocket server");
     });
     sleep(Duration::from_millis(10)); // waiting for server to initialize fully
     let _ = server.join();
 }
 
-
-pub fn broadcast_ws(rule: WsPayload, data: String) -> MiddlewareResult<()>
-{
+pub fn broadcast_ws(rule: WsPayload, data: &serde_json::Value) -> MiddlewareResult<()> {
     for client in get_clients() {
         if let Ok(rules) = get_client_rules(&client) {
-            match rules.get(&rule) {
-                Some(_value) => { client.out.send(data.clone())?; },
-                _ => {},
+            if let Some(_value) = rules.get(&rule) {
+                client.out.send(json!({
+                    "type": rule.to_string(),
+                    "payload": data.clone(),
+                }).to_string())?;
             }
         }
     }

@@ -18,6 +18,7 @@ use serde_json::Number;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
 use std::str::FromStr;
+use std::fmt;
 
 use middleware_result::MiddlewareResult;
 
@@ -553,12 +554,18 @@ pub enum WsOp {
     unsubscribe,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Hash, Debug)]
+#[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum WsPayload {
     key_blocks,
     micro_blocks,
     transactions,
     tx_update
+}
+
+impl fmt::Display for WsPayload {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
