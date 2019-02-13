@@ -66,3 +66,37 @@ GET /v2/transactions/<hash>
 GET /v2/micro-blocks/hash/<hash>/transactions/count
 GET /v2/micro-blocks/hash/<hash>/transaction
 ```
+
+## Websocket support
+
+Message format:
+```
+{
+"op": "<operation to perform>",
+"payload": "<message payload>"
+}
+```
+###Supported ops:
+- subscribe
+- unsubscribe
+
+###Supported payload:
+- key_blocks
+- micro_blocks
+- transactions
+- tx_update
+
+### Testing the websocket
+
+Here is some magic
+```
+var exampleSocket = new WebSocket("ws://127.0.0.1:3020");
+exampleSocket.onopen = function (event) {  // when connection is open, send a subscribe request
+    exampleSocket.send('{"op":"subscribe", "value": "key_blocks"}');
+    //to unsubscribe: exampleSocket.send('{"op":"unsubscribe", "value": "key_blocks"}')
+}
+
+exampleSocket.onmessage = function (event) {
+   	console.log(event.data); // you get data here when it arrives
+}
+```

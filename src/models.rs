@@ -546,3 +546,25 @@ pub fn size_at_height(
     }
     Ok(None)
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WsOp {
+    subscribe,
+    unsubscribe,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Hash, Debug)]
+pub enum WsPayload {
+    key_blocks,
+    micro_blocks,
+    transactions,
+    tx_update
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WsMessage{
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub op: Option<WsOp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<WsPayload>,
+}
