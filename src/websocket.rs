@@ -1,73 +1,75 @@
+use std::collections::HashMap;
 use std::thread;
 use std::thread::sleep;
+use std::hash::{Hash, Hasher};
 use std::time::Duration;
 use std::sync::{Arc, Mutex,};
 use std::cell::RefCell;
 use chashmap::*;
 use super::models::{WsMessage, WsOp, WsPayload};
 use super::serde_json;
-use ws::{listen, CloseCode, Sender, Message, Handshake, Handler, Result};
+use ws::{listen, CloseCode, Sender, Message, Handshake, Handler, Result,};
+use ws::util::Token;
 
 use crate::middleware_result::MiddlewareResult;
 
 type ClientRules = CHashMap<WsPayload, bool>;
+type ClientMap = HashMap<Client, ClientRules>;
 
 #[derive(Clone, Debug)]
 pub struct Client {
     out: Sender,
-    rules: ClientRules,
-}
-
-lazy_static! {
-    static ref CLIENT_LIST: Arc<Mutex<RefCell<Vec<Client>>>> = Arc::new(Mutex::new(RefCell::new(vec!())));
-}
-
-pub fn add_client(client: &Client) {
-    match (*CLIENT_LIST).lock() {
-        Ok(x) => x.borrow_mut().push(client.clone()),
-        Err(x) => error!("Error adding client to list {:?}", x),
-    };
-}
-
-pub fn remove_client(client: &Client) {
-    match (*CLIENT_LIST).lock() {
-        Ok(x) => x.borrow_mut().retain(|ele| ele != client),
-        Err(x) => error!("Error removing client from list {:?}", x),
-    };
-}
-
-pub fn update_client(client: &Client) -> MiddlewareResult<()>
-{
-    remove_client(&client);
-    add_client(&client);
-    Ok(())
-}
-
-pub fn get_client(sender: &Sender) -> MiddlewareResult<Option<Client>>
-{
-    let list = (*CLIENT_LIST).lock()?;
-    for ele in list.borrow_mut().iter() {
-        if ele.out == *sender {
-            return Ok(Some(ele.clone()));
-        }
-    }
-    Ok(None)
-}
-
-pub fn client_rules(client: &Client) -> MiddlewareResult<Option<ClientRules>> {
-    match get_client(&client.out)? {
-        Some(x) => Ok(Some(x.rules.clone())),
-        None => Ok(None),
-    }
 }
 
 impl PartialEq for Client {
     fn eq(&self, other: &Client) -> bool
     {
-        self.out == other.out
+        self.out.token() == other.out.token()
     }
 }
 
+impl Eq for Client { }
+
+impl Hash for Client {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.out.token().hash(state)
+    }
+}
+
+lazy_static! {
+    static ref CLIENT_LIST: Arc<Mutex<RefCell<ClientMap>>> = Arc::new(Mutex::new(RefCell::new(ClientMap::new())));
+}
+
+pub fn add_client(client: &Client) {
+    if let Ok(x) = (*CLIENT_LIST).lock() {
+        x.borrow_mut().insert(client.clone(), ClientRules::new());
+    };
+}
+
+pub fn remove_client(client: &Client) {
+    if let Ok(x) = (*CLIENT_LIST).lock() {
+        x.borrow_mut().remove(&client);
+    };
+}
+
+pub fn update_client(client: &Client, rules: &ClientRules)
+{
+    if let Ok(x) = (*CLIENT_LIST).lock() {
+        x.borrow_mut().insert(client.clone(), rules.clone());
+    };
+}
+
+pub fn get_client_rules(client: &Client) -> MiddlewareResult<ClientRules>
+{
+    if let Ok(x) = (*CLIENT_LIST).lock() {
+        match x.borrow_mut().get(&client) {
+            Some(y) => return Ok(y.clone()),
+            _ => Ok(ClientRules::new()),
+        }
+    } else {
+        Ok(ClientRules::new()) // TODO check this is correct
+    }
+}
 
 impl Handler for Client {
 
@@ -77,8 +79,7 @@ impl Handler for Client {
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        let mut client = get_client(&self.out).unwrap().unwrap();
-        let rules = client_rules(&client).unwrap().unwrap();
+        let rules = get_client_rules(&self).unwrap();
         let value: WsMessage = unpack_message(msg.clone()).unwrap();
         match value.op {
             Some(WsOp::subscribe) => {
@@ -95,8 +96,7 @@ impl Handler for Client {
             },
             _ => (),
         }
-        client.rules = rules;
-        update_client(&client);
+        update_client(&self, &rules);
         Ok(())
     }
 
@@ -119,8 +119,7 @@ pub fn unpack_message(msg: Message)
 pub fn start_ws() {
 	let server = thread::spawn(move || {
         listen("0.0.0.0:3020", |out| {
-            let rules: CHashMap<WsPayload, bool> = CHashMap::<WsPayload, bool>::new();
-            Client { out: out, rules: rules }
+            Client { out: out }
         }).expect("Unable to start the websocket server");
     });
     sleep(Duration::from_millis(10)); // waiting for server to initialize fully
@@ -130,17 +129,17 @@ pub fn start_ws() {
 
 pub fn broadcast_ws(rule: WsPayload, data: String) -> MiddlewareResult<()>
 {
-    match CLIENT_LIST.lock() {
-        Ok(x) => {
-            let list = &*x;
-            for client in list.borrow_mut().iter() {
-                match client.rules.get(&rule) {
+    if let Ok(list) = CLIENT_LIST.lock() {
+        for client in list.borrow_mut().keys() {
+            if let Ok(rules) = get_client_rules(&client) {
+                match rules.get(&rule) {
                     Some(_value) => { client.out.send(data.clone())?; },
                     _ => {},
                 }
             }
-        },
-        Err(x) => error!("Couldn't find client! {:?}", x),
+        }
+    } else {
+        error!("Couldn't find client!");
     }
     Ok(())
 }
