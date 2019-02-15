@@ -59,6 +59,10 @@ pub fn update_client(client: &Client, rules: &ClientRules) {
     };
 }
 
+/*
+ * get the set of rules for a client. If we can't unlock the rules,
+ * we just return an empty list, which may not be the correct choice.
+*/
 pub fn get_client_rules(client: &Client) -> MiddlewareResult<ClientRules> {
     if let Ok(x) = (*CLIENT_LIST).lock() {
         match x.borrow_mut().get(&client) {
@@ -144,7 +148,7 @@ impl Handler for Client {
     }
 }
 
-pub fn unpack_message(msg: Message) -> crate::middleware_result::MiddlewareResult<WsMessage> {
+pub fn unpack_message(msg: Message) -> MiddlewareResult<WsMessage> {
     debug!("Received message {:?}", msg);
     let value = msg.into_text()?;
     Ok(serde_json::from_str(&value)?)
@@ -160,12 +164,18 @@ pub fn start_ws() {
     let _ = server.join();
 }
 
+/*
+ * The function which actually sends the data to clients
+ *
+ * everything is wrapped in a JSON object with details of the
+ * subscription to which it relates.
+ */
 pub fn broadcast_ws(rule: WsPayload, data: &serde_json::Value) -> MiddlewareResult<()> {
     for client in get_clients() {
         if let Ok(rules) = get_client_rules(&client) {
             if let Some(_value) = rules.get(&rule) {
                 client.out.send(json!({
-                    "type": rule.to_string(),
+                    "subscription": rule.to_string(),
                     "payload": data.clone(),
                 }).to_string())?;
             }
