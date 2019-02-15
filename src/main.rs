@@ -42,6 +42,7 @@ extern crate itertools;
 
 extern crate futures;
 extern crate postgres;
+extern crate ws;
 
 extern crate clap;
 use clap::{App, Arg};
@@ -54,6 +55,7 @@ pub mod loader;
 pub mod schema;
 pub mod server;
 pub mod middleware_result;
+pub mod websocket;
 
 pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
@@ -217,6 +219,7 @@ fn main() {
             dest_url: url.to_string(),
             port: 3013,
         };
+        websocket::start_ws(); //start the websocket server
         ms.start();
     }
     if !populate && !serve {

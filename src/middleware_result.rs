@@ -2,6 +2,8 @@ use serde_json;
 use std::error::Error;
 use std::fmt;
 use std::option::NoneError;
+use ws::Error as WsError;
+
 
 #[derive(Debug)]
 pub struct MiddlewareError {
@@ -92,6 +94,24 @@ impl std::convert::From<std::sync::mpsc::SendError<i64>> for MiddlewareError {
         MiddlewareError::new(&err.to_string())
     }
 }
+
+impl std::convert::From<WsError> for MiddlewareError {
+    fn from(err: WsError) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::sync::PoisonError<std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>>>
+    for MiddlewareError
+{
+    fn from(err: std::sync::PoisonError<std::sync::MutexGuard<'_,std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>> )
+        -> Self
+    {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
+
 
 
 pub type MiddlewareResult<T> = Result<T, MiddlewareError>;

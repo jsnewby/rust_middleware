@@ -18,6 +18,7 @@ use serde_json::Number;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
 use std::str::FromStr;
+use std::fmt;
 
 use middleware_result::MiddlewareResult;
 
@@ -545,4 +546,32 @@ pub fn size_at_height(
         return Ok(Some(result));
     }
     Ok(None)
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WsOp {
+    subscribe,
+    unsubscribe,
+}
+
+#[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum WsPayload {
+    key_blocks,
+    micro_blocks,
+    transactions,
+    tx_update
+}
+
+impl fmt::Display for WsPayload {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WsMessage{
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub op: Option<WsOp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<WsPayload>,
 }
