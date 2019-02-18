@@ -439,6 +439,20 @@ fn transactions_for_contract_address(
 
 }
 
+#[get("/generations/<from>/<to>")]
+fn generations_by_range(
+    _state: State<MiddlewareServer>,
+    from: i64,
+    to: i64,
+) -> Json<JsonValue>
+{
+    debug!("{:?} - {:?}", from, to);
+    match get_generation_range(&SQLCONNECTION.get().unwrap(), from, to).unwrap() {
+        Some(value) => return Json(json!(value)),
+        _ => return Json(json!({})),
+    }
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -458,6 +472,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transactions_for_interval])
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_contract_address])
+            .mount("/middleware", routes![generations_by_range])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![epoch_get_handler])
