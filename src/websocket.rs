@@ -160,8 +160,6 @@ pub fn start_ws() {
         listen(ws_address, |out| Client { out })
             .expect("Unable to start the websocket server");
     });
-    sleep(Duration::from_millis(10)); // waiting for server to initialize fully
-    let _ = server.join();
 }
 
 /*
