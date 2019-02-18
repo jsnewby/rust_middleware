@@ -256,7 +256,7 @@ impl MicroBlock {
         kb_hash: &String,
     ) -> Option<Vec<String>> {
         let sql = format!(
-            "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE mb.key_block_id=kb.id and kb.hash='{}' ORDER BY mb.hash",
+            "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE mb.key_block_id=kb.id and kb.hash='{}' ORDER BY mb.time_ ASC",
             kb_hash
         );
         let mut micro_block_hashes = Vec::new();
@@ -332,7 +332,7 @@ impl JsonGeneration {
         };
 	debug!("Serving generation {} from DB", _height);
         let sql = format!(
-            "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY hash",
+            "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY time_ asc",
             key_block.id
         );
         let mut micro_block_hashes = Vec::new();
