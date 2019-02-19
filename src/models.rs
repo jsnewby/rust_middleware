@@ -13,12 +13,12 @@ use diesel::prelude::*;
 use diesel::sql_query;
 use rust_decimal::Decimal;
 extern crate serde_json;
-use serde_json::Number;
-use serde_json::Value;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
-use std::str::FromStr;
+use serde_json::Number;
+use serde_json::Value;
 use std::fmt;
+use std::str::FromStr;
 
 use middleware_result::MiddlewareResult;
 
@@ -550,22 +550,28 @@ pub fn size_at_height(
 
 pub fn get_generation_range(
     sql_conn: &postgres::Connection,
-    from: i64, to: i64
-    ) -> MiddlewareResult<Option<Value>> {
-for row in &sql_conn.query("select jsonb_agg(jso) result from ( \
-            select kb.*, COALESCE(jsonb_agg(distinct mb.*) FILTER \
-            (WHERE mb.id IS NOT NULL), '[]') as micro_blocks from \
-            key_blocks kb left outer join (select m.*, COALESCE ( \
-            jsonb_agg(distinct tx.*) FILTER (WHERE tx.id IS NOT NULL), \
-            '[]') as txs from micro_blocks m left outer join transactions \
-            tx on m.id = tx.micro_block_id group by m.id) mb on kb.id = \
-            mb.key_block_id where kb.height >=$1 and kb.height <=$2 group by kb.id) jso;", &[&from, &to])? {
-    match row.get(0) {
-        Some(result) => { return Ok(Some(result)); },
-        None => { error!("Invalid Input") }
+    from: i64,
+    to: i64,
+) -> MiddlewareResult<Option<Value>> {
+    for row in &sql_conn.query(
+        "select jsonb_agg(jso) result from ( \
+         select kb.*, COALESCE(jsonb_agg(distinct mb.*) FILTER \
+         (WHERE mb.id IS NOT NULL), '[]') as micro_blocks from \
+         key_blocks kb left outer join (select m.*, COALESCE ( \
+         jsonb_agg(distinct tx.*) FILTER (WHERE tx.id IS NOT NULL), \
+         '[]') as txs from micro_blocks m left outer join transactions \
+         tx on m.id = tx.micro_block_id group by m.id) mb on kb.id = \
+         mb.key_block_id where kb.height >=$1 and kb.height <=$2 group by kb.id) jso;",
+        &[&from, &to],
+    )? {
+        match row.get(0) {
+            Some(result) => {
+                return Ok(Some(result));
+            }
+            None => error!("Invalid Input"),
         }
     }
-Ok(None)
+    Ok(None)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
