@@ -436,16 +436,10 @@ fn transactions_for_contract_address(
         transactions: trans,
     };
     Json(list)
-
 }
 
 #[get("/generations/<from>/<to>")]
-fn generations_by_range(
-    _state: State<MiddlewareServer>,
-    from: i64,
-    to: i64,
-) -> Json<JsonValue>
-{
+fn generations_by_range(_state: State<MiddlewareServer>, from: i64, to: i64) -> Json<JsonValue> {
     debug!("{:?} - {:?}", from, to);
     match get_generation_range(&SQLCONNECTION.get().unwrap(), from, to).unwrap() {
         Some(value) => return Json(json!(value)),
@@ -466,13 +460,13 @@ impl MiddlewareServer {
 
         rocket::ignite()
             .mount("/middleware", routes![current_size])
+            .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_interval])
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_contract_address])
-            .mount("/middleware", routes![generations_by_range])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![epoch_get_handler])
