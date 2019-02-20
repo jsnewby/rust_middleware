@@ -16,7 +16,6 @@ extern crate serde_json;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
 use serde_json::Number;
-use serde_json::Value;
 use std::fmt;
 use std::str::FromStr;
 
@@ -552,7 +551,7 @@ pub fn get_generation_range(
     sql_conn: &postgres::Connection,
     from: i64,
     to: i64,
-) -> MiddlewareResult<Option<Value>> {
+) -> MiddlewareResult<Option<serde_json::Value>> {
     for row in &sql_conn.query(
         "select jsonb_agg(jso) result from \
         ( select * from public.agg_generations \
