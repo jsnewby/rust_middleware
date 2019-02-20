@@ -554,14 +554,9 @@ pub fn get_generation_range(
     to: i64,
 ) -> MiddlewareResult<Option<Value>> {
     for row in &sql_conn.query(
-        "select jsonb_agg(jso) result from ( \
-         select kb.*, COALESCE(jsonb_agg(distinct mb.*) FILTER \
-         (WHERE mb.id IS NOT NULL), '[]') as micro_blocks from \
-         key_blocks kb left outer join (select m.*, COALESCE ( \
-         jsonb_agg(distinct tx.*) FILTER (WHERE tx.id IS NOT NULL), \
-         '[]') as txs from micro_blocks m left outer join transactions \
-         tx on m.id = tx.micro_block_id group by m.id) mb on kb.id = \
-         mb.key_block_id where kb.height >=$1 and kb.height <=$2 group by kb.id) jso;",
+        "select jsonb_agg(jso) result from \
+        ( select * from public.agg_generations \
+        where height >=$1 and height <=$2 ) jso;",
         &[&from, &to],
     )? {
         match row.get(0) {
