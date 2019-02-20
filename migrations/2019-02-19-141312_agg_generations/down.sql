@@ -1,0 +1,1 @@
+drop if exists materialized view public.agg_generations
