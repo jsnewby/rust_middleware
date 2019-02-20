@@ -8,7 +8,7 @@ services:
       - "80:80"
       - "3020:3020"
     environment: 
-      - EPOCH_URL=https://roma-net.aepps.com
+      - NODE_URL=https://roma-net.aepps.com
       - DATABASE_URL=postgres://middleware:middleware@db/middleware
     depends_on:
       - db

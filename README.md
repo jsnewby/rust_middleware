@@ -57,7 +57,7 @@ GET /middleware/transactions/account/<account>/count
 GET /middleware/contracts/transactions/address/<address>
 GET /v2/generations/current
 GET /v2/key-blocks/current/height
-GET /api (epoch_api_handler)
+GET /api (node_api_handler)
 GET /v2/generations/height/<height>
 GET /v2/key-blocks/height/<height>
 GET /v2/key-blocks/hash/<hash>
