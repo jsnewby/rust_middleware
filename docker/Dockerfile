@@ -20,4 +20,4 @@ WORKDIR /app
 COPY ./docker/Rocket.toml ./Rocket.toml
 ENTRYPOINT ["/app/aepp-middleware"]
 CMD ["-p", "-s"]
-EXPOSE 80:80
+EXPOSE 80 3020
