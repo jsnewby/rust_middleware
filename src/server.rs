@@ -1,6 +1,6 @@
 use diesel::sql_query;
 
-use epoch::Epoch;
+use node::Node;
 use models::*;
 
 use chrono::prelude::*;
@@ -19,7 +19,7 @@ use SQLCONNECTION;
 
 use PGCONNECTION;
 pub struct MiddlewareServer {
-    pub epoch: Epoch,
+    pub node: Node,
     pub dest_url: String, // address to forward to
     pub port: u16,        // port to listen on
 }
@@ -30,41 +30,41 @@ fn sanitize(s: String) -> String {
 }
 
 /*
- * GET handler for Epoch
+ * GET handler for Node
  */
 #[get("/<path..>", rank = 6)]
-fn epoch_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
+fn node_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
     debug!("Fetching from node: {}", path.to_str().unwrap());
     Json(
         state
-            .epoch
+            .node
             .get_naked(&String::from("/v2/"), &String::from(path.to_str().unwrap()))
             .unwrap(),
     )
 }
 
 #[get("/v2/<path..>")]
-fn epoch_test_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
+fn node_test_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
     Json(
         state
-            .epoch
+            .node
             .get_naked(&String::from("/v2/"), &String::from(path.to_str().unwrap()))
             .unwrap(),
     )
 }
 
 /*
- * POST handler for Epoch
+ * POST handler for Node
  */
 #[post("/<path..>", format = "application/json", data = "<body>")]
-fn epoch_post_handler(
+fn node_post_handler(
     state: State<MiddlewareServer>,
     path: PathBuf,
     body: Json<String>,
 ) -> Json<serde_json::Value> {
     debug!("{:?}", body);
     let response = state
-        .epoch
+        .node
         .post_naked(
             &String::from("/v2/"),
             &String::from(path.to_str().unwrap()),
@@ -76,13 +76,13 @@ fn epoch_post_handler(
 }
 
 /*
- * Epoch's only endpoint which lives outside of /v2/...
+ * Node's only endpoint which lives outside of /v2/...
  */
 #[get("/")]
-fn epoch_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> {
+fn node_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> {
     Json(
         state
-            .epoch
+            .node
             .get_naked(&String::from("/api"), &String::from(""))
             .unwrap(),
     )
@@ -111,7 +111,7 @@ fn generation_at_height(
             info!("Generation not found at height {}", height);
             let mut path = std::path::PathBuf::new();
             path.push(format!("generations/height/{}", height));
-            return epoch_get_handler(state, path);
+            return node_get_handler(state, path);
         }
     }
 }
@@ -137,7 +137,7 @@ fn key_block_at_height(
         Some(x) => x,
         None => {
             info!("Generation not found at height {}", height);
-            return Json(serde_json::to_string(&state.epoch.get_generation_at_height(height).unwrap()).unwrap())
+            return Json(serde_json::to_string(&state.node.get_generation_at_height(height).unwrap()).unwrap())
         }
     };
     info!("Serving key block {} from DB", height);
@@ -155,7 +155,7 @@ fn transaction_at_hash(
             info!("Transaction not found at hash {}", &hash);
             let mut path = std::path::PathBuf::new();
             path.push(format!("/transactions/hash/{}", hash));
-            return epoch_get_handler(state, path);
+            return node_get_handler(state, path);
         }
     };
     Json(
@@ -177,7 +177,7 @@ fn key_block_at_hash(
             info!("Key block not found at hash {}", &hash);
             let mut path = std::path::PathBuf::new();
             path.push(format!("/key-blocks/hash/{}", hash));
-            return epoch_get_handler(state, path);
+            return node_get_handler(state, path);
         }
     };
     debug!("Serving key block {} from DB", hash);
@@ -460,13 +460,13 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transactions_for_contract_address])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
-            .mount("/v2", routes![epoch_get_handler])
-            .mount("/v2", routes![epoch_post_handler])
-            .mount("/api", routes![epoch_api_handler])
             .mount("/v2", routes![generation_at_height])
             .mount("/v2", routes![key_block_at_height])
             .mount("/v2", routes![key_block_at_hash])
             .mount("/v2", routes![micro_block_header_at_hash])
+            .mount("/v2", routes![node_get_handler])
+            .mount("/v2", routes![node_post_handler])
+            .mount("/api", routes![node_api_handler])
             .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transaction_count_in_micro_block])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])

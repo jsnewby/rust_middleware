@@ -49,7 +49,7 @@ use clap::{App, Arg};
 
 use std::env;
 
-pub mod epoch;
+pub mod node;
 pub mod hashing;
 pub mod loader;
 pub mod schema;
@@ -110,9 +110,9 @@ fn fill_missing_heights(
     _tx: std::sync::mpsc::Sender<i64>,
 ) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
-    let epoch = epoch::Epoch::new(url.clone());
-    let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-    let missing_heights = epoch.get_missing_heights(top_block.height)?;
+    let node = node::Node::new(url.clone());
+    let top_block = node::key_block_from_json(node.latest_key_block().unwrap()).unwrap();
+    let missing_heights = node.get_missing_heights(top_block.height)?;
     for height in missing_heights {
         debug!("Adding {} to load queue", &height);
         match loader::queue(height as i64, &_tx) {
@@ -136,10 +136,10 @@ fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i
     let u = url.clone();
     let u2 = u.clone();
     thread::spawn(move || {
-        let epoch = epoch::Epoch::new(u2.clone());
+        let node = node::Node::new(u2.clone());
         loop {
             debug!("Going into fork detection");
-            match loader::BlockLoader::detect_forks(&epoch, from, to, &_tx) {
+            match loader::BlockLoader::detect_forks(&node, from, to, &_tx) {
                 Ok(_) => (),
                 Err(x) => error!("Error in detect_forks(): {}", x),
             };
@@ -178,8 +178,8 @@ fn main() {
         )
         .get_matches();
 
-    let url = env::var("EPOCH_URL")
-        .expect("EPOCH_URL must be set")
+    let url = env::var("NODE_URL")
+        .expect("NODE_URL must be set")
         .to_string();
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
@@ -215,7 +215,7 @@ fn main() {
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
-            epoch: epoch::Epoch::new(url.clone()),
+            node: node::Node::new(url.clone()),
             dest_url: url.to_string(),
             port: 3013,
         };
