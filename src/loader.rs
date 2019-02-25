@@ -368,7 +368,6 @@ impl BlockLoader {
             }
             count += 1;
         }
-        self.refresh_agg_generation_view(connection); //refresh view after saving everything
         Ok((key_block_id, count))
     }
 
@@ -624,10 +623,5 @@ impl BlockLoader {
             }
         }
         Ok(differences)
-    }
-
-    pub fn refresh_agg_generation_view(&self, connection: &PgConnection) {
-        let result = sql_query("refresh materialized view public.agg_generations;")
-                    .execute(connection);
     }
 }

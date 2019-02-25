@@ -554,11 +554,15 @@ pub fn get_generation_range(
     limit: String,
     offset: String
 ) -> MiddlewareResult<Option<serde_json::Value>> {
-    let sql = format!("select jsonb_agg(jso) result from \
-                    ( select * from public.agg_generations \
-                    where height >={} and height <={} \
-                    limit {} offset {}) jso;",
-                    from, to, limit, offset);
+    let sql = format!("select jsonb_agg(jso) result from ( \
+         select kb.*, COALESCE(jsonb_agg(distinct mb.*) FILTER \
+         (WHERE mb.id IS NOT NULL), '[]') as micro_blocks from \
+         key_blocks kb left outer join (select m.*, COALESCE ( \
+         jsonb_agg(distinct tx.*) FILTER (WHERE tx.id IS NOT NULL), \
+         '[]') as txs from micro_blocks m left outer join transactions \
+         tx on m.id = tx.micro_block_id group by m.id) mb on kb.id = \
+         mb.key_block_id where kb.height >={} and kb.height <={} group by kb.id \
+         limit {} offset {}) jso;", from, to, limit, offset);
     for row in &sql_conn.query(&sql, &[],)? {
         match row.get(0) {
             Some(result) => {
