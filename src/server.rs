@@ -453,12 +453,6 @@ fn oracle_requests_responses(
                        left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
                        limit {} offset {} ",
                       limit_sql, offset_sql);
-    #[derive(Serialize)]
-    struct _R {
-        pub query_id: String,
-        pub request: JsonValue,
-        pub response: JsonValue,
-    };
     let mut res: Vec<JsonValue> = vec!();
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
         let query_id: String = row.get(0);
