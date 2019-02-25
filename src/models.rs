@@ -4,6 +4,7 @@ use super::schema::key_blocks;
 use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
 use super::schema::transactions;
+use super::schema::oracle_queries;
 
 use chrono::prelude::*;
 use diesel::dsl::exists;
@@ -466,6 +467,10 @@ impl JsonTransaction {
             tx: t.tx.clone(),
         }
     }
+
+    pub fn is_oracle_query(&self) -> bool {
+        self.tx["type"].as_str() == Some("OracleQueryTx")
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -574,4 +579,35 @@ pub struct WsMessage{
     pub op: Option<WsOp>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<WsPayload>,
+}
+
+#[derive(Insertable)]
+#[table_name = "oracle_queries"]
+pub struct InsertableOracleQuery {
+    pub oracle_id: String,
+    pub query_id: String,
+    pub transaction_id: i32,
+}
+
+impl InsertableOracleQuery {
+    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self>
+    {
+        Some(InsertableOracleQuery {
+            oracle_id: String::from(tx.tx["oracle_id"].as_str()?),
+            query_id: super::hashing::gen_oracle_query_id(
+                &String::from(tx.tx["sender_id"].as_str()?),
+                tx.tx["nonce"].as_i64()?,
+                &String::from(tx.tx["oracle_id"].as_str()?)),
+            transaction_id: tx_id })
+    }
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        use diesel::dsl::insert_into;
+        use diesel::RunQueryDsl;
+        use schema::oracle_queries::dsl::*;
+        let generated_ids: Vec<i32> = insert_into(oracle_queries)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
+        Ok(generated_ids[0])
+    }
 }

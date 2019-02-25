@@ -50,6 +50,16 @@ table! {
     }
 }
 
+
+table! {
+    oracle_queries (id) {
+        id -> Int4,
+        oracle_id -> Nullable<Varchar>,
+        query_id -> Nullable<Varchar>,
+        transaction_id -> Int4,
+    }
+}
+
 joinable!(micro_blocks -> key_blocks (key_block_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
 

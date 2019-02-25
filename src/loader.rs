@@ -360,11 +360,14 @@ impl BlockLoader {
             let trans: JsonTransactionList =
                 serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&mb_hash)?)?;
             for i in 0..trans.transactions.len() {
-                self.store_or_update_transaction(
+                let tx_id = self.store_or_update_transaction(
                     &connection,
                     &trans.transactions[i],
                     Some(_micro_block_id),
                 )?;
+                if trans.transactions[i].is_oracle_query() {
+                    InsertableOracleQuery::from_tx(tx_id, &trans.transactions[i])?.save(&connection)?;
+                }
             }
             count += 1;
         }

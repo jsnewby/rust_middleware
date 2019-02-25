@@ -439,6 +439,41 @@ fn transactions_for_contract_address(
 
 }
 
+#[get("/oracles/all?<limit>&<page>")]
+fn oracle_requests_responses(
+    _state: State<MiddlewareServer>,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> JsonValue
+{
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!("select oq.query_id, t1.tx, t2.tx from \
+                       oracle_queries oq \
+                       join transactions t1 on oq.transaction_id=t1.id \
+                       left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
+                       limit {} offset {} ",
+                      limit_sql, offset_sql);
+    #[derive(Serialize)]
+    struct _R {
+        pub query_id: String,
+        pub request: JsonValue,
+        pub response: JsonValue,
+    };
+    let mut res: Vec<JsonValue> = vec!();
+    for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
+        let query_id: String = row.get(0);
+        let request: serde_json::Value = row.get(1);
+        let response: Option<serde_json::Value> = row.get(2);
+        res.push(json!({
+            "query_id": query_id,
+            "request": json!(request),
+            "response": json!(response),
+        }));
+    }
+    json!(res)
+}
+
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -452,6 +487,7 @@ impl MiddlewareServer {
 
         rocket::ignite()
             .mount("/middleware", routes![current_size])
+            .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
