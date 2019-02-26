@@ -88,6 +88,30 @@ pub fn gen_oracle_query_id(sender_id: &String,
     format!("oq_{}", encoded)
 }
 
+pub fn gen_channel_id(initiator_id: &String,
+                            channel_create_tx_nonce: i64,
+                            responder_id: &String) -> String
+{
+    let mut initiator_id_bin = decodebase58check(&hash_part(initiator_id));
+    let mut responder_id_bin = decodebase58check(&hash_part(responder_id));
+    let mut nonce_byte32 = min_b(channel_create_tx_nonce);
+    loop {
+        if nonce_byte32.len() < 32 {
+            nonce_byte32.insert(0, 0u8);
+        } else {
+            break;
+        }
+    }
+    let mut all = vec!();
+    all.append(&mut initiator_id_bin);
+    all.append(&mut nonce_byte32);
+    all.append(&mut responder_id_bin);
+    let hash = blake2bdigest(&all);
+    let encoded = to_base58check(&hash);
+    format!("ch_{}", encoded)
+
+}
+
 /*
  * decode base 58, adding the version byte onto the returned value
  */

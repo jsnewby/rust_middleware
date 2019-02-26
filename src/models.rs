@@ -1,5 +1,6 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 
+use super::schema::channel_identifiers;
 use super::schema::contract_identifiers;
 use super::schema::key_blocks;
 use super::schema::key_blocks::dsl::*;
@@ -476,6 +477,11 @@ impl JsonTransaction {
     pub fn is_contract_creation(&self) -> bool {
         self.tx["type"].as_str() == Some("ContractCreateTx")
     }
+
+    pub fn is_channel_creation(&self) -> bool {
+        self.tx["type"].as_str() == Some("ChannelCreateTx")
+    }
+
 }
 
 #[derive(Serialize, Deserialize)]
@@ -641,6 +647,38 @@ impl InsertableContractIdentifier {
         use diesel::RunQueryDsl;
         use schema::contract_identifiers::dsl::*;
         let generated_ids: Vec<i32> = insert_into(contract_identifiers)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
+        Ok(generated_ids[0])
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "channel_identifiers"]
+pub struct InsertableChannelIdentifier {
+    pub channel_identifier: String,
+    pub transaction_id: i32,
+}
+
+impl InsertableChannelIdentifier {
+    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self>
+    {
+        Some(InsertableChannelIdentifier {
+            channel_identifier: super::hashing::gen_channel_id(
+                &String::from(tx.tx["initiator_id"].as_str()?),
+                tx.tx["nonce"].as_i64()?,
+                &String::from(tx.tx["responder_id"].as_str()?),
+                ),
+            transaction_id: tx_id,
+        })
+    }
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        debug!("Saving channel info");
+        use diesel::dsl::insert_into;
+        use diesel::RunQueryDsl;
+        use schema::channel_identifiers::dsl::*;
+        let generated_ids: Vec<i32> = insert_into(channel_identifiers)
             .values(self)
             .returning(id)
             .get_results(&*conn)?;

@@ -1,3 +1,12 @@
+
+table! {
+    channel_identifiers (id) {
+        id -> Int4,
+        channel_identifier -> Nullable<Varchar>,
+        transaction_id -> Int4,
+    }
+}
+
 table! {
     contract_identifiers (id) {
         id -> Int4,
@@ -69,6 +78,7 @@ table! {
 
 joinable!(micro_blocks -> key_blocks (key_block_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
+joinable!(channel_identifiers -> transactions (transaction_id));
 joinable!(contract_identifiers -> transactions (transaction_id));
 joinable!(oracle_queries -> transactions (transaction_id));
 

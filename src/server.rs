@@ -25,7 +25,7 @@ pub struct MiddlewareServer {
 }
 
 // SQL santitizing method to prevent injection attacks.
-fn sanitize(s: String) -> String {
+fn sanitize(s: &String) -> String {
     s.replace("'", "\\'")
 }
 
@@ -194,7 +194,7 @@ fn transactions_in_micro_block_at_hash(
     _state: State<MiddlewareServer>,
     hash: String,
 ) -> Json<JsonTransactionList> {
-    let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(hash));
+    let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(&hash));
     let transactions: Vec<Transaction> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
@@ -301,7 +301,7 @@ fn transaction_count_for_account(
     account: String,
 ) -> Json<JsonValue>
 {
-    let s_acc = sanitize(account);
+    let s_acc = sanitize(&account);
     let sql = format!(
         "select count(1) from transactions where \
          tx->>'sender_id'='{}' or \
@@ -352,7 +352,7 @@ fn transactions_for_account(
 )
     -> Json<JsonTransactionList>
 {
-    let s_acc = sanitize(account);
+    let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!("select * from transactions where \
                        tx->>'sender_id'='{}' or \
@@ -425,8 +425,10 @@ fn transactions_for_contract_address(
 ) -> Json<JsonTransactionList> {
     let sql = format!("select t.* from transactions t where \
                        t.tx_type='ContractCallTx' and \
-                       t.tx->>'contract_id' = '{}'",
-                      sanitize(address));
+                       t.tx->>'contract_id' = '{}' or \
+                       t.id in (select transaction_id from contract_identifiers where \
+                       contract_identifier='{}')",
+                      sanitize(&address), sanitize(&address));
     let transactions: Vec<Transaction> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     let mut trans: Vec<JsonTransaction> = vec![];
     for i in 0..transactions.len() {
@@ -438,6 +440,29 @@ fn transactions_for_contract_address(
     Json(list)
 
 }
+
+
+#[get("/channels/transactions/address/<address>")]
+fn transactions_for_channel_address(
+    _state: State<MiddlewareServer>,
+    address: String
+) -> Json<JsonTransactionList> {
+    let sql = format!("select t.* from transactions t where \
+                       t.tx->>'channel_id' = '{}' or \
+                       t.id in (select transaction_id from channel_identifiers where \
+                       channel_identifier='{}')",
+                      sanitize(&address), sanitize(&address));
+    debug!("{}", sql);
+    let transactions: Vec<Transaction> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    let mut trans: Vec<JsonTransaction> = vec![];
+    for tx in transactions {
+        trans.push(JsonTransaction::from_transaction(&tx));
+    }
+    Json(JsonTransactionList {
+        transactions: trans,
+    })
+}
+
 
 #[get("/oracles/all?<limit>&<page>")]
 fn oracle_requests_responses(
@@ -487,6 +512,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_interval])
             .mount("/middleware", routes![transaction_count_for_account])
+            .mount("/middleware", routes![transactions_for_channel_address])
             .mount("/middleware", routes![transactions_for_contract_address])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
