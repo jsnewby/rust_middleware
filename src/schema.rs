@@ -1,4 +1,12 @@
 table! {
+    contract_identifiers (id) {
+        id -> Int4,
+        contract_identifier -> Nullable<Varchar>,
+        transaction_id -> Int4,
+    }
+}
+
+table! {
     key_blocks (id) {
         id -> Int4,
         hash -> Varchar,
@@ -35,6 +43,15 @@ table! {
 }
 
 table! {
+    oracle_queries (id) {
+        id -> Int4,
+        oracle_id -> Nullable<Varchar>,
+        query_id -> Nullable<Varchar>,
+        transaction_id -> Int4,
+    }
+}
+
+table! {
     transactions (id) {
         id -> Int4,
         micro_block_id -> Nullable<Int4>,
@@ -50,17 +67,15 @@ table! {
     }
 }
 
-
-table! {
-    oracle_queries (id) {
-        id -> Int4,
-        oracle_id -> Nullable<Varchar>,
-        query_id -> Nullable<Varchar>,
-        transaction_id -> Int4,
-    }
-}
-
 joinable!(micro_blocks -> key_blocks (key_block_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
+joinable!(contract_identifiers -> transactions (transaction_id));
+joinable!(oracle_queries -> transactions (transaction_id));
 
-allow_tables_to_appear_in_same_query!(key_blocks, micro_blocks, transactions,);
+allow_tables_to_appear_in_same_query!(
+    contract_identifiers,
+    key_blocks,
+    micro_blocks,
+    oracle_queries,
+    transactions,
+);

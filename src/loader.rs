@@ -367,6 +367,8 @@ impl BlockLoader {
                 )?;
                 if trans.transactions[i].is_oracle_query() {
                     InsertableOracleQuery::from_tx(tx_id, &trans.transactions[i])?.save(&connection)?;
+                } else if trans.transactions[i].is_contract_creation() {
+                    InsertableContractIdentifier::from_tx(tx_id, &trans.transactions[i])?.save(&connection)?;
                 }
             }
             count += 1;

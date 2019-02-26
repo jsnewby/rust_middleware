@@ -28,7 +28,8 @@ impl Epoch {
     }
 
     pub fn get_missing_heights(&self, height: i64) ->
-        MiddlewareResult<Vec<i32>> {
+        MiddlewareResult<Vec<i32>>
+    {
         let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
         debug!("{}", &sql);
         let mut missing_heights = Vec::new();

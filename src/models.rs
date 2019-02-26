@@ -1,10 +1,11 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 
+use super::schema::contract_identifiers;
 use super::schema::key_blocks;
 use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
-use super::schema::transactions;
 use super::schema::oracle_queries;
+use super::schema::transactions;
 
 use chrono::prelude::*;
 use diesel::dsl::exists;
@@ -471,6 +472,10 @@ impl JsonTransaction {
     pub fn is_oracle_query(&self) -> bool {
         self.tx["type"].as_str() == Some("OracleQueryTx")
     }
+
+    pub fn is_contract_creation(&self) -> bool {
+        self.tx["type"].as_str() == Some("ContractCreateTx")
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -605,6 +610,37 @@ impl InsertableOracleQuery {
         use diesel::RunQueryDsl;
         use schema::oracle_queries::dsl::*;
         let generated_ids: Vec<i32> = insert_into(oracle_queries)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
+        Ok(generated_ids[0])
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "contract_identifiers"]
+pub struct InsertableContractIdentifier {
+    pub contract_identifier: String,
+    pub transaction_id: i32,
+}
+
+impl InsertableContractIdentifier {
+    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self>
+    {
+        Some(InsertableContractIdentifier {
+            contract_identifier: super::hashing::gen_contract_id(
+                &String::from(tx.tx["owner_id"].as_str()?),
+                tx.tx["nonce"].as_i64()?,
+                ),
+            transaction_id: tx_id,
+        })
+    }
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        debug!("Saving contract info");
+        use diesel::dsl::insert_into;
+        use diesel::RunQueryDsl;
+        use schema::contract_identifiers::dsl::*;
+        let generated_ids: Vec<i32> = insert_into(contract_identifiers)
             .values(self)
             .returning(id)
             .get_results(&*conn)?;
