@@ -358,7 +358,7 @@ impl BlockLoader {
             websocket::broadcast_ws(WsPayload::micro_blocks, &json!(&mb))?; //broadcast micro_block
             let _micro_block_id = mb.save(&connection)? as i32;
             let trans: JsonTransactionList =
-                serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&mb_hash)?)?;
+                serde_json::from_value(self.node.get_transaction_list_by_micro_block(&mb_hash)?)?;
             for transaction in trans.transactions {
                 let tx_id = self.store_or_update_transaction(
                     &connection,
