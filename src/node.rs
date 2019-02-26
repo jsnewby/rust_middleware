@@ -12,19 +12,19 @@ use middleware_result::MiddlewareResult;
 
 use SQLCONNECTION;
 
-pub struct Epoch {
+pub struct Node {
     base_uri: String,
 }
 
-impl Epoch {
-    pub fn new(base_url: String) -> Epoch {
-        Epoch {
+impl Node {
+    pub fn new(base_url: String) -> Node {
+        Node {
             base_uri: base_url,
         }
     }
 
-    pub fn clone(&self) -> Epoch {
-        Epoch::new(self.base_uri.clone())
+    pub fn clone(&self) -> Node {
+        Node::new(self.base_uri.clone())
     }
 
     pub fn get_missing_heights(&self, height: i64) ->
