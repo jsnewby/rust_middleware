@@ -442,7 +442,6 @@ fn transactions_for_contract_address(
 fn generations_by_range(_state: State<MiddlewareServer>, from: i64, to: i64,
     limit: Option<i32>,
     page: Option<i32>,) -> Json<JsonValue> {
-    debug!("{:?} - {:?}", from, to);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     match get_generation_range(&SQLCONNECTION.get().unwrap(), from, to, limit_sql, offset_sql).unwrap() {
         Some(value) => return Json(json!(value)),
