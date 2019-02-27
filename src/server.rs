@@ -463,6 +463,25 @@ fn transactions_for_channel_address(
     })
 }
 
+#[get("/channels/active")]
+fn active_channels(
+    _state: State<MiddlewareServer>,
+) -> Json<Vec<String>> {
+    let sql =
+        "select channel_identifier from channel_identifiers where \
+         channel_identifier not in \
+         (select tx->>'channel_id' from transactions where \
+         tx_type in \
+         ('ChannelCloseTx', 'ChannelCloseMutualTx', 'ChannelCloseSoloTx', 'ChannelSlashTx')) \
+         order by id asc".to_string();
+    Json(SQLCONNECTION.get().unwrap().
+         query(&sql, &[]).
+         unwrap().
+         iter().
+         map(|x|x.get(0)).
+         collect())
+}
+
 
 #[get("/oracles/all?<limit>&<page>")]
 fn oracle_requests_responses(
@@ -505,6 +524,7 @@ impl MiddlewareServer {
         };
 
         rocket::ignite()
+            .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![size])
