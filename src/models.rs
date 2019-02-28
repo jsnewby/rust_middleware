@@ -547,36 +547,6 @@ pub fn size_at_height(
     Ok(None)
 }
 
-pub fn get_generation_range(
-    sql_conn: &postgres::Connection,
-    from: i64,
-    to: i64,
-    limit: String,
-    offset: String
-) -> MiddlewareResult<Option<serde_json::Value>> {
-    let sql = format!("select jsonb_agg(jso) result from ( \
-         select kb.hash, kb.height, kb.miner, kb.beneficiary, kb.nonce, kb.pow, \
-         kb.prev_hash, kb.prev_key_hash, kb.state_hash, kb.target,kb.\"version\", \
-         kb.time_ as time, COALESCE(jsonb_agg(distinct mb.*) FILTER \
-         (WHERE mb.key_block_id IS NOT NULL), '[]') as micro_blocks from \
-         key_blocks kb left outer join (select m.hash, m.key_block_id, m.pof_hash, \
-         m.prev_hash, m.prev_key_hash, m.signature, m.state_hash, m.time_ as time,\
-         m.txs_hash, m.\"version\", COALESCE ( jsonb_agg(distinct tx.*) \
-         FILTER (WHERE tx.id IS NOT NULL), '[]') as transactions from micro_blocks m \
-         left outer join transactions tx on m.id = tx.micro_block_id group by m.id)\
-         mb on kb.id = mb.key_block_id where kb.height >={} and kb.height <={} \
-         group by kb.id limit {} offset {}) jso;", from, to, limit, offset);
-    for row in &sql_conn.query(&sql, &[],)? {
-        match row.get(0) {
-            Some(result) => {
-                return Ok(Some(result));
-            }
-            None => error!("Invalid Input"),
-        }
-    }
-    Ok(None)
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub enum WsOp {
     subscribe,
