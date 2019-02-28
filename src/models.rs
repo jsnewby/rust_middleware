@@ -20,8 +20,8 @@ use serde_json::Number;
 
 use bigdecimal;
 use bigdecimal::ToPrimitive;
-use std::str::FromStr;
 use std::fmt;
+use std::str::FromStr;
 
 use middleware_result::MiddlewareResult;
 
@@ -136,9 +136,7 @@ impl InsertableKeyBlock {
         Ok(generated_ids[0])
     }
 
-    pub fn from_json_key_block(
-        jb: &JsonKeyBlock,
-    ) -> MiddlewareResult<InsertableKeyBlock> {
+    pub fn from_json_key_block(jb: &JsonKeyBlock) -> MiddlewareResult<InsertableKeyBlock> {
         //TODO: fix this.
         let n: u64 = match jb.nonce.as_u64() {
             Some(val) => val,
@@ -269,10 +267,7 @@ impl MicroBlock {
         Some(micro_block_hashes)
     }
 
-    pub fn get_transaction_count(
-        sql_conn: &postgres::Connection,
-        mb_hash: &String,
-    ) -> i64 {
+    pub fn get_transaction_count(sql_conn: &postgres::Connection, mb_hash: &String) -> i64 {
         let sql = format!(
             "select count(t.*) from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'",
             mb_hash);
@@ -282,7 +277,6 @@ impl MicroBlock {
         }
         micro_block_hashes[0]
     }
-
 }
 
 #[derive(Insertable)]
@@ -333,7 +327,7 @@ impl JsonGeneration {
                 return None;
             }
         };
-	debug!("Serving generation {} from DB", _height);
+        debug!("Serving generation {} from DB", _height);
         let sql = format!(
             "SELECT hash FROM micro_blocks WHERE key_block_id={} ORDER BY time_ asc",
             key_block.id
@@ -393,8 +387,6 @@ pub struct Rate {
     pub date: String,
 }
 
-
-
 impl Transaction {
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
         let sql = format!("select * from transactions where hash='{}'", _hash);
@@ -414,10 +406,7 @@ impl Transaction {
         Some(_transactions.pop()?)
     }
 
-    pub fn load_for_micro_block(
-        conn: &PgConnection,
-        mb_hash: &String) -> Option<Vec<Transaction>>
-    {
+    pub fn load_for_micro_block(conn: &PgConnection, mb_hash: &String) -> Option<Vec<Transaction>> {
         let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}'", mb_hash);
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
         Some(_transactions)
@@ -428,7 +417,7 @@ impl Transaction {
         from: NaiveDate,
         to: NaiveDate,
     ) -> MiddlewareResult<Vec<Rate>> {
-        let mut v = vec!();
+        let mut v = vec![];
         for row in &sql_conn.query(
             "select count(1), sum(cast(tx->>'amount' as decimal)), date(to_timestamp(time_/1000)) as _date from \
              transactions t, micro_blocks m where \
@@ -481,7 +470,6 @@ impl JsonTransaction {
     pub fn is_channel_creation(&self) -> bool {
         self.tx["type"].as_str() == Some("ChannelCreateTx")
     }
-
 }
 
 #[derive(Serialize, Deserialize)]
@@ -533,10 +521,11 @@ impl InsertableTransaction {
             None => {
                 error!(
                     "Fee too high for i64, setting to i64::MAX, hash is {}",
-                    jt.hash);
-                    std::i64::MAX
-                },
-            };
+                    jt.hash
+                );
+                std::i64::MAX
+            }
+        };
         Ok(InsertableTransaction {
             micro_block_id,
             block_height: jt.block_height,
@@ -554,10 +543,11 @@ impl InsertableTransaction {
 pub fn size_at_height(
     sql_conn: &postgres::Connection,
     _height: i32,
-) -> MiddlewareResult<Option<i64>>
-{
-    for row in &sql_conn.query("select sum(size) from transactions where block_height <= $1", &[&_height])?
-    {
+) -> MiddlewareResult<Option<i64>> {
+    for row in &sql_conn.query(
+        "select sum(size) from transactions where block_height <= $1",
+        &[&_height],
+    )? {
         let result: i64 = row.get(0);
         return Ok(Some(result));
     }
@@ -575,7 +565,7 @@ pub enum WsPayload {
     key_blocks,
     micro_blocks,
     transactions,
-    tx_update
+    tx_update,
 }
 
 impl fmt::Display for WsPayload {
@@ -585,7 +575,7 @@ impl fmt::Display for WsPayload {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct WsMessage{
+pub struct WsMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub op: Option<WsOp>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -601,15 +591,16 @@ pub struct InsertableOracleQuery {
 }
 
 impl InsertableOracleQuery {
-    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self>
-    {
+    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self> {
         Some(InsertableOracleQuery {
             oracle_id: String::from(tx.tx["oracle_id"].as_str()?),
             query_id: super::hashing::gen_oracle_query_id(
                 &String::from(tx.tx["sender_id"].as_str()?),
                 tx.tx["nonce"].as_i64()?,
-                &String::from(tx.tx["oracle_id"].as_str()?)),
-            transaction_id: tx_id })
+                &String::from(tx.tx["oracle_id"].as_str()?),
+            ),
+            transaction_id: tx_id,
+        })
     }
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
@@ -631,13 +622,12 @@ pub struct InsertableContractIdentifier {
 }
 
 impl InsertableContractIdentifier {
-    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self>
-    {
+    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self> {
         Some(InsertableContractIdentifier {
             contract_identifier: super::hashing::gen_contract_id(
                 &String::from(tx.tx["owner_id"].as_str()?),
                 tx.tx["nonce"].as_i64()?,
-                ),
+            ),
             transaction_id: tx_id,
         })
     }
@@ -662,14 +652,13 @@ pub struct InsertableChannelIdentifier {
 }
 
 impl InsertableChannelIdentifier {
-    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self>
-    {
+    pub fn from_tx(tx_id: i32, tx: &JsonTransaction) -> Option<Self> {
         Some(InsertableChannelIdentifier {
             channel_identifier: super::hashing::gen_channel_id(
                 &String::from(tx.tx["initiator_id"].as_str()?),
                 tx.tx["nonce"].as_i64()?,
                 &String::from(tx.tx["responder_id"].as_str()?),
-                ),
+            ),
             transaction_id: tx_id,
         })
     }

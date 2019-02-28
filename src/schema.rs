@@ -1,4 +1,3 @@
-
 table! {
     channel_identifiers (id) {
         id -> Int4,

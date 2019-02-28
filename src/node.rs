@@ -5,10 +5,10 @@ use serde_json::Value;
 use std;
 use std::io::Read;
 
+use middleware_result::MiddlewareResult;
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
-use middleware_result::MiddlewareResult;
 
 use SQLCONNECTION;
 
@@ -18,18 +18,14 @@ pub struct Node {
 
 impl Node {
     pub fn new(base_url: String) -> Node {
-        Node {
-            base_uri: base_url,
-        }
+        Node { base_uri: base_url }
     }
 
     pub fn clone(&self) -> Node {
         Node::new(self.base_uri.clone())
     }
 
-    pub fn get_missing_heights(&self, height: i64) ->
-        MiddlewareResult<Vec<i32>>
-    {
+    pub fn get_missing_heights(&self, height: i64) -> MiddlewareResult<Vec<i32>> {
         let sql = format!("SELECT * FROM generate_series(0,{}) s(i) WHERE NOT EXISTS (SELECT height FROM key_blocks WHERE height = s.i)", height);
         debug!("{}", &sql);
         let mut missing_heights = Vec::new();
@@ -43,10 +39,7 @@ impl Node {
         self.get(&String::from("generations/current"))
     }
 
-    pub fn get_generation_at_height(
-        &self,
-        height: i64,
-    ) -> MiddlewareResult<serde_json::Value> {
+    pub fn get_generation_at_height(&self, height: i64) -> MiddlewareResult<serde_json::Value> {
         let path = format!("generations/height/{}", height);
         self.get(&String::from(path))
     }
@@ -116,18 +109,12 @@ impl Node {
         Ok(resp)
     }
 
-    pub fn get_key_block_by_hash(
-        &self,
-        hash: &String,
-    ) -> MiddlewareResult<serde_json::Value> {
+    pub fn get_key_block_by_hash(&self, hash: &String) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&format!("{}{}", String::from("key-blocks/hash/"), &hash))?;
         Ok(result)
     }
 
-    pub fn get_key_block_by_height(
-        &self,
-        height: i64,
-    ) -> MiddlewareResult<serde_json::Value> {
+    pub fn get_key_block_by_height(&self, height: i64) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&format!(
             "{}{}",
             String::from("key-blocks/height/"),
@@ -136,10 +123,7 @@ impl Node {
         Ok(result)
     }
 
-    pub fn get_micro_block_by_hash(
-        &self,
-        hash: &String,
-    ) -> MiddlewareResult<serde_json::Value> {
+    pub fn get_micro_block_by_hash(&self, hash: &String) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&format!(
             "{}{}{}",
             String::from("micro-blocks/hash/"),
@@ -162,9 +146,7 @@ impl Node {
         Ok(result)
     }
 
-    pub fn get_pending_transaction_list(
-        &self,
-    ) -> MiddlewareResult<serde_json::Value> {
+    pub fn get_pending_transaction_list(&self) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&String::from("debug/transactions/pending"))?;
         Ok(result)
     }

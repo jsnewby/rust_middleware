@@ -1,17 +1,17 @@
 use super::schema::key_blocks::dsl::*;
 use super::schema::transactions::dsl::*;
 use chashmap::*;
-use diesel::Connection;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
 use diesel::sql_query;
+use diesel::Connection;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
-use node::*;
-use models::*;
-use serde_json;
-use middleware_result::*;
 use middleware_result::MiddlewareResult;
+use middleware_result::*;
+use models::*;
+use node::*;
+use serde_json;
 
 use std::slice::SliceConcatExt;
 use std::sync::mpsc;
@@ -31,7 +31,7 @@ pub struct BlockLoader {
 pub static BACKLOG_CLEARED: i64 = -1;
 
 lazy_static! {
-    static ref tx_queue: CHashMap<i64, bool>  = CHashMap::<i64, bool>::new();
+    static ref tx_queue: CHashMap<i64, bool> = CHashMap::<i64, bool>::new();
 }
 
 fn is_in_queue(_height: i64) -> bool {
@@ -45,14 +45,16 @@ fn remove_from_queue(_height: i64) {
     info!("tx_queue -> {}", _height);
     tx_queue.remove(&_height);
     info!("tx_queue len={}", tx_queue.len());
-
 }
 fn add_to_queue(_height: i64) {
     info!("tx_queue <- {}", _height);
     tx_queue.insert(_height, true);
 }
 
-pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> Result<(), std::sync::mpsc::SendError<i64>> {
+pub fn queue(
+    _height: i64,
+    _tx: &std::sync::mpsc::Sender<i64>,
+) -> Result<(), std::sync::mpsc::SendError<i64>> {
     info!("tx_queue len={}", tx_queue.len());
 
     if is_in_queue(_height) {
@@ -63,7 +65,6 @@ pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> Result<(), std
     add_to_queue(_height);
     Ok(())
 }
-
 
 /*
 * You may notice the use of '_tx' as a variable name in this file,
@@ -83,41 +84,36 @@ impl BlockLoader {
         BlockLoader { node, rx, tx: _tx }
     }
 
-    pub fn start_fork_detection(
-        node: &Node,
-        _tx: &std::sync::mpsc::Sender<i64>)
-    {
-        let settings = [(1,10),(11,50),(51,500)];
+    pub fn start_fork_detection(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) {
+        let settings = [(1, 10), (11, 50), (51, 500)];
         for setting in settings.iter() {
             let _tx = _tx.clone();
             let node = node.clone();
             let start = setting.0;
             let end = setting.1;
-            thread::spawn(move || {
-                loop {
-                    let node = node.clone();
-                    let _tx = _tx.clone();
-                    let handle = thread::spawn(move || {
-                        match BlockLoader::detect_forks(&node, start, end, &_tx) {
-                            Ok(x) => {
-                                if x {
-                                    info!("Fork detected");
-                                }
-                            },
-                            Err(x) => error!("Error in fork detection {}", x),
+            thread::spawn(move || loop {
+                let node = node.clone();
+                let _tx = _tx.clone();
+                let handle = thread::spawn(move || {
+                    match BlockLoader::detect_forks(&node, start, end, &_tx) {
+                        Ok(x) => {
+                            if x {
+                                info!("Fork detected");
+                            }
                         }
-                    });
-                    match handle.join() {
-                        Ok(_) => {
-                            error!("Thread exited, respawning");
-                            continue;
-                        },
-                        Err(_) => {
-                            error!("Error creating fork detection thread, exiting");
-                            break;
-                        },
-                    };
-                }
+                        Err(x) => error!("Error in fork detection {}", x),
+                    }
+                });
+                match handle.join() {
+                    Ok(_) => {
+                        error!("Thread exited, respawning");
+                        continue;
+                    }
+                    Err(_) => {
+                        error!("Error creating fork detection thread, exiting");
+                        break;
+                    }
+                };
             });
         }
     }
@@ -162,8 +158,10 @@ impl BlockLoader {
             if _height <= stop_height {
                 _height = KeyBlock::top_height(&conn)?;
                 stop_height = _height - to;
-                debug!("Resetting fork detection loop: now from {} to {}",
-                       _height, stop_height);
+                debug!(
+                    "Resetting fork detection loop: now from {} to {}",
+                    _height, stop_height
+                );
             }
 
             let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(
@@ -216,7 +214,7 @@ impl BlockLoader {
         _tx: &std::sync::mpsc::Sender<i64>,
     ) -> MiddlewareResult<bool> {
         debug!("Invalidating block at height {}", _height);
-//        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
+        //        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
         match queue(_height, _tx) {
             Ok(()) => (),
             Err(e) => {
@@ -256,30 +254,26 @@ impl BlockLoader {
         Ok(SQLCONNECTION.get()?.execute(&sql, &[])?)
     }
 
-    pub fn start_scan_thread(node: &Node, _tx: &std::sync::mpsc::Sender<i64>)
-    {
+    pub fn start_scan_thread(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) {
         let _tx = _tx.clone();
         let node = node.clone();
-        thread::spawn(move || {
-            loop {
-                match BlockLoader::scan(&node, &_tx) {
-                    Ok(count) => debug!("BlockLoader::scan() added {} blocks to loading queue",
-                                        count),
-                    Err(x) => debug!("BlockLoader::scan() returned an error: {}", x),
-                };
-                thread::sleep(std::time::Duration::new(5, 0));
-            }
+        thread::spawn(move || loop {
+            match BlockLoader::scan(&node, &_tx) {
+                Ok(count) => debug!(
+                    "BlockLoader::scan() added {} blocks to loading queue",
+                    count
+                ),
+                Err(x) => debug!("BlockLoader::scan() returned an error: {}", x),
+            };
+            thread::sleep(std::time::Duration::new(5, 0));
         });
     }
-
 
     /*
      * this method scans the blocks from the heighest reported by the
      * node to the highest iairport n the DB, filling in the gaps.
      */
-    pub fn scan(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) ->
-        MiddlewareResult<i32>
-    {
+    pub fn scan(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) -> MiddlewareResult<i32> {
         let connection = PGCONNECTION.get()?;
         let top_block_chain = key_block_from_json(node.latest_key_block()?)?;
         let top_block_db = KeyBlock::top_height(&connection)?;
@@ -340,13 +334,20 @@ impl BlockLoader {
         result
     }
 
-    fn internal_load_block(&self, connection: &PgConnection, _height: i64) -> MiddlewareResult<(i32,i32)> {
+    fn internal_load_block(
+        &self,
+        connection: &PgConnection,
+        _height: i64,
+    ) -> MiddlewareResult<(i32, i32)> {
         let mut count = 0;
         // clear out the block at this height, and any with the same hash, to prevent key violations.
         diesel::delete(key_blocks.filter(height.eq(&_height))).execute(connection)?;
         let generation: JsonGeneration =
             serde_json::from_value(self.node.get_generation_at_height(_height)?)?;
-        diesel::delete(key_blocks.filter(super::schema::key_blocks::dsl::hash.eq(&generation.key_block.hash))).execute(connection)?;
+        diesel::delete(
+            key_blocks.filter(super::schema::key_blocks::dsl::hash.eq(&generation.key_block.hash)),
+        )
+        .execute(connection)?;
         let ib: InsertableKeyBlock =
             InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
@@ -368,7 +369,8 @@ impl BlockLoader {
                 if transaction.is_oracle_query() {
                     InsertableOracleQuery::from_tx(tx_id, &transaction)?.save(&connection)?;
                 } else if transaction.is_contract_creation() {
-                    InsertableContractIdentifier::from_tx(tx_id, &transaction)?.save(&connection)?;
+                    InsertableContractIdentifier::from_tx(tx_id, &transaction)?
+                        .save(&connection)?;
                 } else if transaction.is_channel_creation() {
                     InsertableChannelIdentifier::from_tx(tx_id, &transaction)?.save(&connection)?;
                 }
@@ -460,10 +462,8 @@ impl BlockLoader {
      * - micro blocks
      * - transactions
      */
-    pub fn verify(&self) -> MiddlewareResult<i64>
-    {
-        let top_chain = self.node.latest_key_block()?["height"]
-            .as_i64()?;
+    pub fn verify(&self) -> MiddlewareResult<i64> {
+        let top_chain = self.node.latest_key_block()?["height"].as_i64()?;
         let mut _verified: i64 = 0;
         let conn = PGCONNECTION.get()?;
         let top_db = KeyBlock::top_height(&conn)?;
@@ -476,9 +476,11 @@ impl BlockLoader {
         }
     }
 
-    pub fn compare_chain_and_db(&self, _height: i64, conn: &PgConnection) ->
-        MiddlewareResult<bool>
-    {
+    pub fn compare_chain_and_db(
+        &self,
+        _height: i64,
+        conn: &PgConnection,
+    ) -> MiddlewareResult<bool> {
         let block_chain = self.node.get_key_block_by_height(_height);
         let block_db = KeyBlock::load_at_height(conn, _height);
         match block_chain {
@@ -512,7 +514,7 @@ impl BlockLoader {
         &self,
         conn: &PgConnection,
         block_chain: serde_json::Value,
-       block_db: KeyBlock,
+        block_db: KeyBlock,
     ) -> MiddlewareResult<i64> {
         let chain_hash = block_chain["hash"].as_str()?;
         if !block_db.hash.eq(&chain_hash) {
@@ -527,9 +529,7 @@ impl BlockLoader {
             &String::from(chain_hash),
         )?;
         db_mb_hashes.sort_by(|a, b| a.cmp(b));
-        let chain_gen = self
-            .node
-            .get_generation_at_height(block_db.height)?;
+        let chain_gen = self.node.get_generation_at_height(block_db.height)?;
         let mut chain_mb_hashes = chain_gen["micro_blocks"].as_array()?.clone();
         chain_mb_hashes.sort_by(|a, b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
         if db_mb_hashes.len() != chain_mb_hashes.len() {
@@ -617,15 +617,15 @@ impl BlockLoader {
             }
         }
         if diffs.len() != 0 {
-            for i in 0 .. diffs.len() {
+            for i in 0..diffs.len() {
                 differences.push(format!(
-                        "{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
-                        _height,
-                        db_mb_hash,
-                        diffs[i].0,
-                        diffs.len(),
-                        diffs[i].2,
-                        diffs[i].1
+                    "{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
+                    _height,
+                    db_mb_hash,
+                    diffs[i].0,
+                    diffs.len(),
+                    diffs[i].2,
+                    diffs[i].1
                 ));
             }
         }
