@@ -529,7 +529,7 @@ fn generations_by_range(_state: State<MiddlewareServer>, from: i64, to: i64,
         if list[&key_height] != serde_json::json!(null) {
             if micro_block["prev_key_hash"] != "" {
                 let mb_hash:String = serde_json::from_value(micro_block["hash"].clone()).unwrap();
-                if list[&key_height]["micro_blocks"][&mb_hash] == "" {
+                if list[&key_height]["micro_blocks"][&mb_hash] == serde_json::json!(null) {
                     list[&key_height]["micro_blocks"][&mb_hash] = serde_json::to_value(micro_block).unwrap();
                     list[&key_height]["micro_blocks"][&mb_hash]["transactions"] = serde_json::json!({});
                     mb_count += 1;
