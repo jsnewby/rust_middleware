@@ -16,6 +16,7 @@ use diesel::prelude::*;
 use diesel::sql_query;
 use rust_decimal::Decimal;
 extern crate serde_json;
+use serde_json::Number;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
 use std::fmt;
