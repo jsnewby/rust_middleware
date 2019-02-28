@@ -21,10 +21,10 @@ extern crate hex;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate rand;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
+extern crate rand;
 extern crate regex;
 #[macro_use]
 extern crate rocket;
@@ -49,18 +49,18 @@ use clap::{App, Arg};
 
 use std::env;
 
-pub mod node;
 pub mod hashing;
 pub mod loader;
+pub mod middleware_result;
+pub mod node;
 pub mod schema;
 pub mod server;
-pub mod middleware_result;
 pub mod websocket;
 
 pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
-use server::MiddlewareServer;
 use middleware_result::MiddlewareResult;
+use server::MiddlewareServer;
 pub mod models;
 
 use diesel::PgConnection;
@@ -105,10 +105,7 @@ lazy_static! {
 * return.
 */
 
-fn fill_missing_heights(
-    url: String,
-    _tx: std::sync::mpsc::Sender<i64>,
-) -> MiddlewareResult<bool> {
+fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
     let node = node::Node::new(url.clone());
     let top_block = node::key_block_from_json(node.latest_key_block().unwrap()).unwrap();

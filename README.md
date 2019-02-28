@@ -51,20 +51,26 @@ OPTIONS:
 
 ## Supported queries
 ```
-GET /middleware/transactions/account/<account>?<limit>&<page>
-GET /middleware/transactions/interval/<from>/<to>?<limit>&<page>
-GET /middleware/transactions/account/<account>/count
+GET /middleware/channels/active
+GET /middleware/channels/transactions/address/<address>
 GET /middleware/contracts/transactions/address/<address>
+GET /middleware/oracles/all?<limit>&<page>
+GET /middleware/size/current
+GET /middleware/size/height/<height>
+GET /middleware/transactions/account/<account>/count
+GET /middleware/transactions/account/<account>?<limit>&<page>
+GET /middleware/transactions/<hash>
+GET /middleware/transactions/interval/<from>/<to>?<limit>&<page>
+GET /middleware/transactions/rate/<from>/<to>
+
 GET /v2/generations/current
-GET /v2/key-blocks/current/height
-GET /api (node_api_handler)
 GET /v2/generations/height/<height>
-GET /v2/key-blocks/height/<height>
+GET /v2/key-blocks/current/height
 GET /v2/key-blocks/hash/<hash>
+GET /v2/key-blocks/height/<height>
 GET /v2/micro-blocks/hash/<hash>/header
-GET /v2/transactions/<hash>
+GET /v2/micro-blocks/hash/<hash>/transactions
 GET /v2/micro-blocks/hash/<hash>/transactions/count
-GET /v2/micro-blocks/hash/<hash>/transaction
 ```
 
 ## Websocket support

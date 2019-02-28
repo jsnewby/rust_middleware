@@ -4,7 +4,6 @@ use std::fmt;
 use std::option::NoneError;
 use ws::Error as WsError;
 
-
 #[derive(Debug)]
 pub struct MiddlewareError {
     details: String,
@@ -76,7 +75,6 @@ impl std::convert::From<curl::Error> for MiddlewareError {
     }
 }
 
-
 impl std::convert::From<std::str::Utf8Error> for MiddlewareError {
     fn from(err: std::str::Utf8Error) -> Self {
         MiddlewareError::new(&err.to_string())
@@ -101,17 +99,20 @@ impl std::convert::From<WsError> for MiddlewareError {
     }
 }
 
-impl std::convert::From<std::sync::PoisonError<std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>>>
-    for MiddlewareError
+impl
+    std::convert::From<
+        std::sync::PoisonError<
+            std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>,
+        >,
+    > for MiddlewareError
 {
-    fn from(err: std::sync::PoisonError<std::sync::MutexGuard<'_,std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>> )
-        -> Self
-    {
+    fn from(
+        err: std::sync::PoisonError<
+            std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>,
+        >,
+    ) -> Self {
         MiddlewareError::new(&err.to_string())
     }
 }
-
-
-
 
 pub type MiddlewareResult<T> = Result<T, MiddlewareError>;
