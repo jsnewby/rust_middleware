@@ -1,17 +1,17 @@
 use super::schema::key_blocks::dsl::*;
 use super::schema::transactions::dsl::*;
 use chashmap::*;
-use diesel::Connection;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
 use diesel::sql_query;
+use diesel::Connection;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
-use epoch::*;
-use models::*;
-use serde_json;
-use middleware_result::*;
 use middleware_result::MiddlewareResult;
+use middleware_result::*;
+use models::*;
+use node::*;
+use serde_json;
 
 use std::slice::SliceConcatExt;
 use std::sync::mpsc;
@@ -19,8 +19,11 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use PGCONNECTION;
 use SQLCONNECTION;
+
+use super::websocket;
+
 pub struct BlockLoader {
-    epoch: Epoch,
+    node: Node,
     rx: std::sync::mpsc::Receiver<i64>,
     pub tx: std::sync::mpsc::Sender<i64>,
 }
@@ -28,7 +31,7 @@ pub struct BlockLoader {
 pub static BACKLOG_CLEARED: i64 = -1;
 
 lazy_static! {
-    static ref tx_queue: CHashMap<i64, bool>  = CHashMap::<i64, bool>::new();
+    static ref tx_queue: CHashMap<i64, bool> = CHashMap::<i64, bool>::new();
 }
 
 fn is_in_queue(_height: i64) -> bool {
@@ -42,14 +45,16 @@ fn remove_from_queue(_height: i64) {
     info!("tx_queue -> {}", _height);
     tx_queue.remove(&_height);
     info!("tx_queue len={}", tx_queue.len());
-
 }
 fn add_to_queue(_height: i64) {
     info!("tx_queue <- {}", _height);
     tx_queue.insert(_height, true);
 }
 
-pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> Result<(), std::sync::mpsc::SendError<i64>> {
+pub fn queue(
+    _height: i64,
+    _tx: &std::sync::mpsc::Sender<i64>,
+) -> Result<(), std::sync::mpsc::SendError<i64>> {
     info!("tx_queue len={}", tx_queue.len());
 
     if is_in_queue(_height) {
@@ -60,7 +65,6 @@ pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> Result<(), std
     add_to_queue(_height);
     Ok(())
 }
-
 
 /*
 * You may notice the use of '_tx' as a variable name in this file,
@@ -74,47 +78,42 @@ impl BlockLoader {
     /*
      * Makes a new BlockLoader object, initializes its DB pool.
      */
-    pub fn new(epoch_url: String) -> BlockLoader {
+    pub fn new(node_url: String) -> BlockLoader {
         let (_tx, rx): (Sender<i64>, Receiver<i64>) = mpsc::channel();
-        let epoch = Epoch::new(epoch_url.clone());
-        BlockLoader { epoch, rx, tx: _tx }
+        let node = Node::new(node_url.clone());
+        BlockLoader { node, rx, tx: _tx }
     }
 
-    pub fn start_fork_detection(
-        epoch: &Epoch,
-        _tx: &std::sync::mpsc::Sender<i64>)
-    {
-        let settings = [(1,10),(11,50),(51,500)];
+    pub fn start_fork_detection(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) {
+        let settings = [(1, 10), (11, 50), (51, 500)];
         for setting in settings.iter() {
             let _tx = _tx.clone();
-            let epoch = epoch.clone();
+            let node = node.clone();
             let start = setting.0;
             let end = setting.1;
-            thread::spawn(move || {
-                loop {
-                    let epoch = epoch.clone();
-                    let _tx = _tx.clone();
-                    let handle = thread::spawn(move || {
-                        match BlockLoader::detect_forks(&epoch, start, end, &_tx) {
-                            Ok(x) => {
-                                if x {
-                                    info!("Fork detected");
-                                }
-                            },
-                            Err(x) => error!("Error in fork detection {}", x),
+            thread::spawn(move || loop {
+                let node = node.clone();
+                let _tx = _tx.clone();
+                let handle = thread::spawn(move || {
+                    match BlockLoader::detect_forks(&node, start, end, &_tx) {
+                        Ok(x) => {
+                            if x {
+                                info!("Fork detected");
+                            }
                         }
-                    });
-                    match handle.join() {
-                        Ok(_) => {
-                            error!("Thread exited, respawning");
-                            continue;
-                        },
-                        Err(_) => {
-                            error!("Error creating fork detection thread, exiting");
-                            break;
-                        },
-                    };
-                }
+                        Err(x) => error!("Error in fork detection {}", x),
+                    }
+                });
+                match handle.join() {
+                    Ok(_) => {
+                        error!("Thread exited, respawning");
+                        continue;
+                    }
+                    Err(_) => {
+                        error!("Error creating fork detection thread, exiting");
+                        break;
+                    }
+                };
             });
         }
     }
@@ -132,7 +131,7 @@ impl BlockLoader {
      * for reporting purposes.
      */
     pub fn detect_forks(
-        epoch: &Epoch,
+        node: &Node,
         from: i64,
         to: i64,
         _tx: &std::sync::mpsc::Sender<i64>,
@@ -159,8 +158,10 @@ impl BlockLoader {
             if _height <= stop_height {
                 _height = KeyBlock::top_height(&conn)?;
                 stop_height = _height - to;
-                debug!("Resetting fork detection loop: now from {} to {}",
-                       _height, stop_height);
+                debug!(
+                    "Resetting fork detection loop: now from {} to {}",
+                    _height, stop_height
+                );
             }
 
             let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(
@@ -177,7 +178,7 @@ impl BlockLoader {
             };
 
             let gen_from_server: JsonGeneration =
-                serde_json::from_value(epoch.get_generation_at_height(_height)?)?;
+                serde_json::from_value(node.get_generation_at_height(_height)?)?;
             if !jg.eq(&gen_from_server) {
                 debug!("Generations don't match at height {}", _height);
                 fork_detected = true;
@@ -186,7 +187,7 @@ impl BlockLoader {
 
             for i in 0..jg.micro_blocks.len() {
                 let differences = BlockLoader::compare_micro_blocks(
-                    &epoch,
+                    &node,
                     &conn,
                     _height,
                     jg.micro_blocks[i].clone(),
@@ -213,7 +214,7 @@ impl BlockLoader {
         _tx: &std::sync::mpsc::Sender<i64>,
     ) -> MiddlewareResult<bool> {
         debug!("Invalidating block at height {}", _height);
-//        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
+        //        diesel::delete(key_blocks.filter(height.eq(&_height))).execute(conn)?;
         match queue(_height, _tx) {
             Ok(()) => (),
             Err(e) => {
@@ -229,10 +230,10 @@ impl BlockLoader {
      * the debug endpoint is also available on the main URL. Otherwise
      * it harmlessly explodes.
      */
-    pub fn load_mempool(&self, _epoch: &Epoch) -> MiddlewareResult<u64> {
+    pub fn load_mempool(&self, _node: &Node) -> MiddlewareResult<u64> {
         let conn = PGCONNECTION.get()?;
         let trans: JsonTransactionList =
-            serde_json::from_value(self.epoch.get_pending_transaction_list()?)?;
+            serde_json::from_value(self.node.get_pending_transaction_list()?)?;
         let mut hashes_in_mempool = vec![];
         for i in 0..trans.transactions.len() {
             match self.store_or_update_transaction(&conn, &trans.transactions[i], None) {
@@ -253,32 +254,28 @@ impl BlockLoader {
         Ok(SQLCONNECTION.get()?.execute(&sql, &[])?)
     }
 
-    pub fn start_scan_thread(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>)
-    {
+    pub fn start_scan_thread(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) {
         let _tx = _tx.clone();
-        let epoch = epoch.clone();
-        thread::spawn(move || {
-            loop {
-                match BlockLoader::scan(&epoch, &_tx) {
-                    Ok(count) => debug!("BlockLoader::scan() added {} blocks to loading queue",
-                                        count),
-                    Err(x) => debug!("BlockLoader::scan() returned an error: {}", x),
-                };
-                thread::sleep(std::time::Duration::new(5, 0));
-            }
+        let node = node.clone();
+        thread::spawn(move || loop {
+            match BlockLoader::scan(&node, &_tx) {
+                Ok(count) => debug!(
+                    "BlockLoader::scan() added {} blocks to loading queue",
+                    count
+                ),
+                Err(x) => debug!("BlockLoader::scan() returned an error: {}", x),
+            };
+            thread::sleep(std::time::Duration::new(5, 0));
         });
     }
-
 
     /*
      * this method scans the blocks from the heighest reported by the
      * node to the highest iairport n the DB, filling in the gaps.
      */
-    pub fn scan(epoch: &Epoch, _tx: &std::sync::mpsc::Sender<i64>) ->
-        MiddlewareResult<i32>
-    {
+    pub fn scan(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) -> MiddlewareResult<i32> {
         let connection = PGCONNECTION.get()?;
-        let top_block_chain = key_block_from_json(epoch.latest_key_block()?)?;
+        let top_block_chain = key_block_from_json(node.latest_key_block()?)?;
         let top_block_db = KeyBlock::top_height(&connection)?;
         let mut blocks_changed = 0;
         if top_block_chain.height == top_block_db {
@@ -337,29 +334,46 @@ impl BlockLoader {
         result
     }
 
-    fn internal_load_block(&self, connection: &PgConnection, _height: i64) -> MiddlewareResult<(i32,i32)> {
+    fn internal_load_block(
+        &self,
+        connection: &PgConnection,
+        _height: i64,
+    ) -> MiddlewareResult<(i32, i32)> {
         let mut count = 0;
         // clear out the block at this height, and any with the same hash, to prevent key violations.
         diesel::delete(key_blocks.filter(height.eq(&_height))).execute(connection)?;
         let generation: JsonGeneration =
-            serde_json::from_value(self.epoch.get_generation_at_height(_height)?)?;
-        diesel::delete(key_blocks.filter(super::schema::key_blocks::dsl::hash.eq(&generation.key_block.hash))).execute(connection)?;
+            serde_json::from_value(self.node.get_generation_at_height(_height)?)?;
+        diesel::delete(
+            key_blocks.filter(super::schema::key_blocks::dsl::hash.eq(&generation.key_block.hash)),
+        )
+        .execute(connection)?;
         let ib: InsertableKeyBlock =
             InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
+        websocket::broadcast_ws(WsPayload::key_blocks, &json!(&generation.key_block))?; //broadcast key_block
         for mb_hash in &generation.micro_blocks {
             let mut mb: InsertableMicroBlock =
-                serde_json::from_value(self.epoch.get_micro_block_by_hash(&mb_hash)?)?;
+                serde_json::from_value(self.node.get_micro_block_by_hash(&mb_hash)?)?;
             mb.key_block_id = Some(key_block_id);
+            websocket::broadcast_ws(WsPayload::micro_blocks, &json!(&mb))?; //broadcast micro_block
             let _micro_block_id = mb.save(&connection)? as i32;
             let trans: JsonTransactionList =
-                serde_json::from_value(self.epoch.get_transaction_list_by_micro_block(&mb_hash)?)?;
-            for i in 0..trans.transactions.len() {
-                self.store_or_update_transaction(
+                serde_json::from_value(self.node.get_transaction_list_by_micro_block(&mb_hash)?)?;
+            for transaction in trans.transactions {
+                let tx_id = self.store_or_update_transaction(
                     &connection,
-                    &trans.transactions[i],
+                    &transaction,
                     Some(_micro_block_id),
                 )?;
+                if transaction.is_oracle_query() {
+                    InsertableOracleQuery::from_tx(tx_id, &transaction)?.save(&connection)?;
+                } else if transaction.is_contract_creation() {
+                    InsertableContractIdentifier::from_tx(tx_id, &transaction)?
+                        .save(&connection)?;
+                } else if transaction.is_channel_creation() {
+                    InsertableChannelIdentifier::from_tx(tx_id, &transaction)?.save(&connection)?;
+                }
             }
             count += 1;
         }
@@ -391,6 +405,7 @@ impl BlockLoader {
             Some(x) => {
                 debug!("Updating transaction with hash {}", &trans.hash);
                 diesel::update(&x).set(micro_block_id.eq(_micro_block_id));
+                websocket::broadcast_ws(WsPayload::tx_update, &json!(&x))?; //broadcast updated transaction
                 Ok(x.id)
             }
             None => {
@@ -401,6 +416,7 @@ impl BlockLoader {
                     _tx_type,
                     _micro_block_id,
                 )?;
+                websocket::broadcast_ws(WsPayload::transactions, &json!(&trans))?; //broadcast updated transaction
                 _tx.save(conn)
             }
         }
@@ -415,8 +431,8 @@ impl BlockLoader {
             debug!("Pulling height {} from queue for storage", b);
             if b == BACKLOG_CLEARED {
                 debug!("Backlog cleared, now launching fork detection & scanning threads");
-                BlockLoader::start_fork_detection(&self.epoch, &self.tx);
-                BlockLoader::start_scan_thread(&self.epoch, &self.tx);
+                BlockLoader::start_fork_detection(&self.node, &self.tx);
+                BlockLoader::start_scan_thread(&self.node, &self.tx);
             } else {
                 debug!("Loading block at height {} into DB", b);
                 match self.load_blocks(b) {
@@ -446,10 +462,8 @@ impl BlockLoader {
      * - micro blocks
      * - transactions
      */
-    pub fn verify(&self) -> MiddlewareResult<i64>
-    {
-        let top_chain = self.epoch.latest_key_block()?["height"]
-            .as_i64()?;
+    pub fn verify(&self) -> MiddlewareResult<i64> {
+        let top_chain = self.node.latest_key_block()?["height"].as_i64()?;
         let mut _verified: i64 = 0;
         let conn = PGCONNECTION.get()?;
         let top_db = KeyBlock::top_height(&conn)?;
@@ -462,10 +476,12 @@ impl BlockLoader {
         }
     }
 
-    pub fn compare_chain_and_db(&self, _height: i64, conn: &PgConnection) ->
-        MiddlewareResult<bool>
-    {
-        let block_chain = self.epoch.get_key_block_by_height(_height);
+    pub fn compare_chain_and_db(
+        &self,
+        _height: i64,
+        conn: &PgConnection,
+    ) -> MiddlewareResult<bool> {
+        let block_chain = self.node.get_key_block_by_height(_height);
         let block_db = KeyBlock::load_at_height(conn, _height);
         match block_chain {
             Ok(x) => {
@@ -498,7 +514,7 @@ impl BlockLoader {
         &self,
         conn: &PgConnection,
         block_chain: serde_json::Value,
-       block_db: KeyBlock,
+        block_db: KeyBlock,
     ) -> MiddlewareResult<i64> {
         let chain_hash = block_chain["hash"].as_str()?;
         if !block_db.hash.eq(&chain_hash) {
@@ -513,9 +529,7 @@ impl BlockLoader {
             &String::from(chain_hash),
         )?;
         db_mb_hashes.sort_by(|a, b| a.cmp(b));
-        let chain_gen = self
-            .epoch
-            .get_generation_at_height(block_db.height)?;
+        let chain_gen = self.node.get_generation_at_height(block_db.height)?;
         let mut chain_mb_hashes = chain_gen["micro_blocks"].as_array()?.clone();
         chain_mb_hashes.sort_by(|a, b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
         if db_mb_hashes.len() != chain_mb_hashes.len() {
@@ -531,7 +545,7 @@ impl BlockLoader {
                 let chain_mb_hash = String::from(chain_mb_hashes[i].as_str()?);
                 let db_mb_hash = db_mb_hashes[i].clone();
                 let differences = BlockLoader::compare_micro_blocks(
-                    &self.epoch,
+                    &self.node,
                     &conn,
                     block_db.height,
                     db_mb_hash,
@@ -550,7 +564,7 @@ impl BlockLoader {
     }
 
     pub fn compare_micro_blocks(
-        epoch: &Epoch,
+        node: &Node,
         conn: &PgConnection,
         _height: i64,
         db_mb_hash: String,
@@ -571,11 +585,11 @@ impl BlockLoader {
             }
         };
         db_transactions.sort_by(|a, b| a.hash.cmp(&b.hash));
-        // well this fails when Epoch barfs on us.
-        let ct = match epoch.get_transaction_list_by_micro_block(&chain_mb_hash) {
+        // well this fails when Node barfs on us.
+        let ct = match node.get_transaction_list_by_micro_block(&chain_mb_hash) {
             Ok(x) => x,
             Err(y) => {
-                error!("Couldn't load transaction list from Epoch {}", y);
+                error!("Couldn't load transaction list from Node {}", y);
                 return Ok(differences); // TODO should force reload?
             }
         };
@@ -603,15 +617,15 @@ impl BlockLoader {
             }
         }
         if diffs.len() != 0 {
-            for i in 0 .. diffs.len() {
+            for i in 0..diffs.len() {
                 differences.push(format!(
-                        "{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
-                        _height,
-                        db_mb_hash,
-                        diffs[i].0,
-                        diffs.len(),
-                        diffs[i].2,
-                        diffs[i].1
+                    "{} micro block {} transaction {} of {} hashes differ: {} chain vs {} DB",
+                    _height,
+                    db_mb_hash,
+                    diffs[i].0,
+                    diffs.len(),
+                    diffs[i].2,
+                    diffs[i].1
                 ));
             }
         }

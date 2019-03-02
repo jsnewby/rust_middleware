@@ -9,6 +9,7 @@ extern crate blake2;
 extern crate blake2b;
 extern crate byteorder;
 extern crate chashmap;
+extern crate chrono;
 extern crate crypto;
 extern crate curl;
 #[macro_use]
@@ -20,10 +21,10 @@ extern crate hex;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate rand;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
+extern crate rand;
 extern crate regex;
 #[macro_use]
 extern crate rocket;
@@ -31,6 +32,7 @@ extern crate rocket;
 extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
+extern crate rust_decimal;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
@@ -40,23 +42,25 @@ extern crate itertools;
 
 extern crate futures;
 extern crate postgres;
+extern crate ws;
 
 extern crate clap;
 use clap::{App, Arg};
 
 use std::env;
 
-pub mod epoch;
 pub mod hashing;
 pub mod loader;
+pub mod middleware_result;
+pub mod node;
 pub mod schema;
 pub mod server;
-pub mod middleware_result;
+pub mod websocket;
 
 pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
-use server::MiddlewareServer;
 use middleware_result::MiddlewareResult;
+use server::MiddlewareServer;
 pub mod models;
 
 use diesel::PgConnection;
@@ -65,6 +69,8 @@ use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use r2d2_postgres::PostgresConnectionManager;
 use std::sync::Arc;
+
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 lazy_static! {
     static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
@@ -101,14 +107,11 @@ lazy_static! {
 * return.
 */
 
-fn fill_missing_heights(
-    url: String,
-    _tx: std::sync::mpsc::Sender<i64>,
-) -> MiddlewareResult<bool> {
+fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
-    let epoch = epoch::Epoch::new(url.clone());
-    let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-    let missing_heights = epoch.get_missing_heights(top_block.height)?;
+    let node = node::Node::new(url.clone());
+    let top_block = node::key_block_from_json(node.latest_key_block().unwrap()).unwrap();
+    let missing_heights = node.get_missing_heights(top_block.height)?;
     for height in missing_heights {
         debug!("Adding {} to load queue", &height);
         match loader::queue(height as i64, &_tx) {
@@ -132,10 +135,10 @@ fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i
     let u = url.clone();
     let u2 = u.clone();
     thread::spawn(move || {
-        let epoch = epoch::Epoch::new(u2.clone());
+        let node = node::Node::new(u2.clone());
         loop {
             debug!("Going into fork detection");
-            match loader::BlockLoader::detect_forks(&epoch, from, to, &_tx) {
+            match loader::BlockLoader::detect_forks(&node, from, to, &_tx) {
                 Ok(_) => (),
                 Err(x) => error!("Error in detect_forks(): {}", x),
             };
@@ -148,7 +151,7 @@ fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i
 fn main() {
     env_logger::init();
     let matches = App::new("æternity middleware")
-        .version("0.1")
+        .version(VERSION)
         .author("John Newby <john@newby.org>")
         .about("----")
         .arg(
@@ -174,8 +177,8 @@ fn main() {
         )
         .get_matches();
 
-    let url = env::var("EPOCH_URL")
-        .expect("EPOCH_URL must be set")
+    let url = env::var("NODE_URL")
+        .expect("NODE_URL must be set")
         .to_string();
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
@@ -211,10 +214,11 @@ fn main() {
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
-            epoch: epoch::Epoch::new(url.clone()),
+            node: node::Node::new(url.clone()),
             dest_url: url.to_string(),
             port: 3013,
         };
+        websocket::start_ws(); //start the websocket server
         ms.start();
     }
     if !populate && !serve {
