@@ -70,6 +70,8 @@ use r2d2_diesel::ConnectionManager;
 use r2d2_postgres::PostgresConnectionManager;
 use std::sync::Arc;
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 lazy_static! {
     static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
         dotenv().ok(); // Grabbing ENV vars
@@ -149,7 +151,7 @@ fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i
 fn main() {
     env_logger::init();
     let matches = App::new("æternity middleware")
-        .version("0.1")
+        .version(VERSION)
         .author("John Newby <john@newby.org>")
         .about("----")
         .arg(
