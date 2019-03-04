@@ -43,16 +43,6 @@ fn node_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde
     )
 }
 
-#[get("/v2/<path..>")]
-fn node_test_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
-    Json(
-        state
-            .node
-            .get_naked(&String::from("/v2/"), &String::from(path.to_str().unwrap()))
-            .unwrap(),
-    )
-}
-
 /*
  * POST handler for Node
  */
