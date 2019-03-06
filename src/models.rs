@@ -16,9 +16,9 @@ use diesel::prelude::*;
 use diesel::sql_query;
 use rust_decimal::Decimal;
 extern crate serde_json;
-use serde_json::Number;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
+use serde_json::Number;
 use std::fmt;
 use std::str::FromStr;
 
@@ -256,7 +256,9 @@ impl MicroBlock {
         kb_hash: &String,
     ) -> Option<Vec<String>> {
         let sql = format!(
-            "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE mb.key_block_id=kb.id and kb.hash='{}' ORDER BY mb.time_ ASC",
+            "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE \
+             mb.key_block_id=kb.id and kb.hash='{}' \
+             ORDER BY mb.time_ ASC",
             kb_hash
         );
         let mut micro_block_hashes = Vec::new();

@@ -409,19 +409,26 @@ fn transactions_for_contract_address(
 
 // TODO: Lot of refactoring in the below method
 #[get("/generations/<from>/<to>?<limit>&<page>")]
-fn generations_by_range(_state: State<MiddlewareServer>, from: i64, to: i64,
+fn generations_by_range(
+    _state: State<MiddlewareServer>,
+    from: i64,
+    to: i64,
     limit: Option<i32>,
-    page: Option<i32>,) -> Json<JsonValue> {
+    page: Option<i32>,
+) -> Json<JsonValue> {
     let (offset, limit) = offset_limit(limit, page);
-    let sql = format!("select k.height, k.beneficiary, k.hash, k.miner, k.nonce::text, k.pow, \
-        k.prev_hash, k.prev_key_hash, k.state_hash, k.target, k.time_, k.\"version\", \
-        m.hash, m.pof_hash, m.prev_hash, m.prev_key_hash, m.signature, \
-        m.state_hash, m.time_, m.txs_hash, m.\"version\", \
-        t.block_hash, t.block_height, t.hash, t.signatures, t.tx \
-        from key_blocks k left join micro_blocks m on k.id = m.key_block_id \
-        left join transactions t on m.id = t.micro_block_id \
-        where k.height >={} and k.height <={} \
-        order by k.height desc, m.time_ desc limit {} offset {}", from, to, limit, offset);
+    let sql = format!(
+        "select k.height, k.beneficiary, k.hash, k.miner, k.nonce::text, k.pow, \
+         k.prev_hash, k.prev_key_hash, k.state_hash, k.target, k.time_, k.\"version\", \
+         m.hash, m.pof_hash, m.prev_hash, m.prev_key_hash, m.signature, \
+         m.state_hash, m.time_, m.txs_hash, m.\"version\", \
+         t.block_hash, t.block_height, t.hash, t.signatures, t.tx \
+         from key_blocks k left join micro_blocks m on k.id = m.key_block_id \
+         left join transactions t on m.id = t.micro_block_id \
+         where k.height >={} and k.height <={} \
+         order by k.height desc, m.time_ desc limit {} offset {}",
+        from, to, limit, offset
+    );
     let mut list = json!({});
     let mut mb_count = 0;
     let mut tx_count = 0;
@@ -430,97 +437,93 @@ fn generations_by_range(_state: State<MiddlewareServer>, from: i64, to: i64,
         let mut micro_block = json!({"prev_key_hash":""});
         let mut key_block = json!({"height": ""});
         // check if tx is avaiable for a given row
-        match row.get(21) {
-            Some(val) =>  {
-                let block_hash: String = val;
-                let block_height:i32 =  row.get(22);
-                let hash:String =  row.get(23);
-                let signatures:String =  row.get(24);
-                let tx_:serde_json::Value =  row.get(25);
-                transaction = json!({
-                    "block_hash": block_hash,
-                    "block_height": block_height,
-                    "hash": hash,
-                    "signatures": signatures,
-                    "tx": tx_
-                });
+        if let Some(val) = row.get(21) {
+            let block_hash: String = val;
+            let block_height: i32 = row.get(22);
+            let hash: String = row.get(23);
+            let signatures: String = row.get(24);
+            let tx_: serde_json::Value = row.get(25);
+            transaction = json!({
+                "block_hash": block_hash,
+                "block_height": block_height,
+                "hash": hash,
+                "signatures": signatures,
+                "tx": tx_
+            });
             tx_count += 1;
-            },
-            _ => {},
-        };
-        //check if micro_block is avaialble for a given row
-        match row.get(15) {
-            Some(val) => {
-                let prev_key_hash: String = val;
-                let hash: String = row.get(12);
-                let pof_hash:String = row.get(13);
-                let prev_hash:String = row.get(14);
-                let signature:String = row.get(16);
-                let state_hash:String = row.get(17);
-                let time:i64 = row.get(18);
-                let txs_hash:String = row.get(19);
-                let version:i32 = row.get(20);
-                micro_block = json!({
-                    "hash": hash, "pof_hash": pof_hash, "prev_hash": prev_hash,
-                    "prev_key_hash": prev_key_hash, "signature": signature,
-                    "state_hash": state_hash, "time": time, "txs_hash": txs_hash,
-                    "version": version
+        }
+        //check if micro_block is available for a given row
+        if let Some(val) = row.get(15) {
+            let prev_key_hash: String = val;
+            let hash: String = row.get(12);
+            let pof_hash: String = row.get(13);
+            let prev_hash: String = row.get(14);
+            let signature: String = row.get(16);
+            let state_hash: String = row.get(17);
+            let time: i64 = row.get(18);
+            let txs_hash: String = row.get(19);
+            let version: i32 = row.get(20);
+            micro_block = json!({
+                "hash": hash, "pof_hash": pof_hash, "prev_hash": prev_hash,
+                "prev_key_hash": prev_key_hash, "signature": signature,
+                "state_hash": state_hash, "time": time, "txs_hash": txs_hash,
+                "version": version
             });
-            },
-            _ => {},
-        };
+        }
+
         // get current key block
-        match row.get(0) {
-            Some(val) => {
-                let height:i64 = val;
-                let beneficiary:String = row.get(1);
-                let hash:String = row.get(2);
-                let miner:String = row.get(3);
-                let nonce:String = row.get(4);
-                let pow:String = row.get(5);
-                let prev_hash:String = row.get(6);
-                let prev_key_hash:String = row.get(7);
-                let state_hash:String = row.get(8);
-                let target:i64 = row.get(9);
-                let time:i64 = row.get(10);
-                let version:i32 = row.get(11);
-                key_block = json!({
-                    "height": height, "beneficiary": beneficiary, "hash": hash,
-                    "miner": miner, "nonce": nonce, "pow": pow, "prev_hash": prev_hash,
-                    "prev_key_hash": prev_key_hash, "state_hash": state_hash,
-                    "target": target, "time": time, "version": version,
-                    "micro_blocks": {}
+        if let Some(val) = row.get(0) {
+            let height: i64 = val;
+            let beneficiary: String = row.get(1);
+            let hash: String = row.get(2);
+            let miner: String = row.get(3);
+            let nonce: String = row.get(4);
+            let pow: String = row.get(5);
+            let prev_hash: String = row.get(6);
+            let prev_key_hash: String = row.get(7);
+            let state_hash: String = row.get(8);
+            let target: i64 = row.get(9);
+            let time: i64 = row.get(10);
+            let version: i32 = row.get(11);
+            key_block = json!( {
+                "height": val, "beneficiary": beneficiary, "hash": hash,
+                "miner": miner, "nonce": nonce, "pow": pow, "prev_hash": prev_hash,
+                "prev_key_hash": prev_key_hash, "state_hash": state_hash,
+                "target": target, "time": time, "version": version,
+                "micro_blocks": {}
             });
-            },
-            _ => {}
         }
         let block_height: i64 = serde_json::from_value(key_block["height"].clone()).unwrap();
         let key_height: String = block_height.to_string();
         if list[&key_height] != serde_json::json!(null) {
             if micro_block["prev_key_hash"] != "" {
-                let mb_hash:String = serde_json::from_value(micro_block["hash"].clone()).unwrap();
+                let mb_hash: String = serde_json::from_value(micro_block["hash"].clone()).unwrap();
                 if list[&key_height]["micro_blocks"][&mb_hash] == serde_json::json!(null) {
-                    list[&key_height]["micro_blocks"][&mb_hash] = serde_json::to_value(micro_block).unwrap();
-                    list[&key_height]["micro_blocks"][&mb_hash]["transactions"] = serde_json::json!({});
+                    list[&key_height]["micro_blocks"][&mb_hash] =
+                        serde_json::to_value(micro_block).unwrap();
+                    list[&key_height]["micro_blocks"][&mb_hash]["transactions"] =
+                        serde_json::json!({});
                     mb_count += 1;
                 }
                 if transaction["block_hash"] != "" {
-                    let hash:String = serde_json::from_value(transaction["hash"].clone()).unwrap();
-                    list[&key_height]["micro_blocks"][mb_hash]["transactions"][hash] = serde_json::to_value(transaction).unwrap();;
+                    let hash: String = serde_json::from_value(transaction["hash"].clone()).unwrap();
+                    list[&key_height]["micro_blocks"][mb_hash]["transactions"][hash] =
+                        serde_json::to_value(transaction).unwrap();;
                 }
             }
-        }
-        else {
+        } else {
             list[&key_height] = serde_json::to_value(key_block).unwrap();
             if micro_block["prev_key_hash"] != "" {
-                let mb_hash:String = serde_json::from_value(micro_block["hash"].clone()).unwrap();
+                let mb_hash: String = serde_json::from_value(micro_block["hash"].clone()).unwrap();
                 list[&key_height]["micro_blocks"][&mb_hash] = serde_json::json!({});
-                list[&key_height]["micro_blocks"][&mb_hash] = serde_json::to_value(micro_block).unwrap();
+                list[&key_height]["micro_blocks"][&mb_hash] =
+                    serde_json::to_value(micro_block).unwrap();
                 list[&key_height]["micro_blocks"][&mb_hash]["transactions"] = serde_json::json!({});
                 mb_count += 1;
                 if transaction["block_hash"] != "" {
-                    let hash:String = serde_json::from_value(transaction["hash"].clone()).unwrap();
-                    list[&key_height]["micro_blocks"][mb_hash]["transactions"][hash] = serde_json::to_value(transaction).unwrap();;
+                    let hash: String = serde_json::from_value(transaction["hash"].clone()).unwrap();
+                    list[&key_height]["micro_blocks"][mb_hash]["transactions"][hash] =
+                        serde_json::to_value(transaction).unwrap();;
                 }
             }
         }
@@ -579,6 +582,34 @@ fn active_channels(_state: State<MiddlewareServer>) -> Json<Vec<String>> {
     )
 }
 
+#[get("/contracts/all")]
+fn all_contracts(_state: State<MiddlewareServer>) -> Json<Vec<JsonValue>> {
+    let sql = "SELECT ci.contract_identifier, t.hash, t.block_height \
+               FROM contract_identifiers ci, transactions t WHERE \
+               ci.transaction_id=t.id \
+               ORDER BY block_height DESC"
+        .to_string();
+    Json(
+        SQLCONNECTION
+            .get()
+            .unwrap()
+            .query(&sql, &[])
+            .unwrap()
+            .iter()
+            .map(|x| {
+                let contract_id: String = x.get(0);
+                let transaction_hash: String = x.get(1);
+                let block_height: i32 = x.get(2);
+                json!({
+                    "contract_id": contract_id,
+                    "transaction_hash": transaction_hash,
+                    "block_height": block_height,
+                })
+            })
+            .collect(),
+    )
+}
+
 #[get("/oracles/all?<limit>&<page>")]
 fn oracle_requests_responses(
     _state: State<MiddlewareServer>,
@@ -621,6 +652,7 @@ impl MiddlewareServer {
 
         rocket::ignite()
             .mount("/middleware", routes![active_channels])
+            .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![oracle_requests_responses])
