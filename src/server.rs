@@ -8,7 +8,6 @@ use diesel::RunQueryDsl;
 use rocket;
 use rocket::http::Method;
 use rocket::State;
-use rocket_contrib::databases::diesel;
 use rocket_contrib::json::*;
 use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
@@ -486,7 +485,7 @@ fn generations_by_range(
             let time: i64 = row.get(10);
             let version: i32 = row.get(11);
             key_block = json!( {
-                "height": val, "beneficiary": beneficiary, "hash": hash,
+                "height": height, "beneficiary": beneficiary, "hash": hash,
                 "miner": miner, "nonce": nonce, "pow": pow, "prev_hash": prev_hash,
                 "prev_key_hash": prev_key_hash, "state_hash": state_hash,
                 "target": target, "time": time, "version": version,

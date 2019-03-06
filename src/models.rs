@@ -14,7 +14,6 @@ use diesel::dsl::select;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_query;
-use rust_decimal::Decimal;
 extern crate serde_json;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
