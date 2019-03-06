@@ -53,6 +53,7 @@ OPTIONS:
 ```
 GET /middleware/channels/active
 GET /middleware/channels/transactions/address/<address>
+GET /middleware/contracts/all
 GET /middleware/contracts/transactions/address/<address>
 GET /middleware/oracles/all?<limit>&<page>
 GET /middleware/size/current
