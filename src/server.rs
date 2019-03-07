@@ -13,6 +13,7 @@ use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use rust_decimal::Decimal;
 use serde_json;
 use std::path::PathBuf;
 
@@ -655,11 +656,20 @@ fn oracle_requests_responses(
     json!(res)
 }
 
-#[get("/coinbase/height/<height>")]
-fn coinbase_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
+#[get("/reward/height/<height>")]
+fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
+    let coinbase: Decimal = (coinbase(height) as u64).into();
+    let last_reward = KeyBlock::fees(&SQLCONNECTION.get().unwrap(), (height - 1) as i32);
+    let this_reward = KeyBlock::fees(&SQLCONNECTION.get().unwrap(), height as i32);
+    let four: Decimal = 4.into();
+    let six: Decimal = 6.into();
+    let ten: Decimal = 10.into();
+    let total_reward: Decimal = (last_reward * six / ten) + (this_reward * four / ten);
     json!({
         "height": height,
-        "coinbase": coinbase(height),
+        "coinbase": coinbase,
+        "fees": total_reward,
+        "total": coinbase + total_reward,
     })
 }
 
@@ -677,7 +687,7 @@ impl MiddlewareServer {
         rocket::ignite()
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![all_contracts])
-            .mount("/middleware", routes![coinbase_at_height])
+            .mount("/middleware", routes![reward_at_height])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![oracle_requests_responses])
