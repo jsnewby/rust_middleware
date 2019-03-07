@@ -1,5 +1,6 @@
 use diesel::sql_query;
 
+use coinbase::coinbase;
 use models::*;
 use node::Node;
 
@@ -33,14 +34,17 @@ fn sanitize(s: &String) -> String {
  * GET handler for Node
  */
 #[get("/<path..>", rank = 6)]
-fn node_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
-    debug!("Fetching from node: {}", path.to_str().unwrap());
-    Json(
-        state
-            .node
-            .get_naked(&String::from("/v2/"), &String::from(path.to_str().unwrap()))
-            .unwrap(),
-    )
+fn node_get_handler(
+    state: State<MiddlewareServer>,
+    path: PathBuf,
+) -> Result<Json<serde_json::Value>, Status> {
+    match state
+        .node
+        .get_naked(&String::from("/v2/"), &String::from(path.to_str().unwrap()))
+    {
+        Ok(x) => Ok(Json(x)),
+        Err(e) => Err(Status::new(500, "JSON parse error")),
+    }
 }
 
 /*
@@ -52,7 +56,6 @@ fn node_post_handler(
     path: PathBuf,
     body: Json<String>,
 ) -> Result<Json<serde_json::Value>, Status> {
-    debug!("{:?}", body);
     let response = state
         .node
         .post_naked(
@@ -83,19 +86,24 @@ fn node_api_handler(state: State<MiddlewareServer>) -> Result<Json<serde_json::V
 }
 
 #[get("/generations/current", rank = 1)]
-fn current_generation(state: State<MiddlewareServer>) -> Json<serde_json::Value> {
+fn current_generation(state: State<MiddlewareServer>) -> Result<Json<serde_json::Value>, Status> {
     let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
     generation_at_height(state, _height)
 }
 
 #[get("/generations/height/<height>", rank = 1)]
-fn generation_at_height(state: State<MiddlewareServer>, height: i64) -> Json<serde_json::Value> {
+fn generation_at_height(
+    state: State<MiddlewareServer>,
+    height: i64,
+) -> Result<Json<serde_json::Value>, Status> {
     match JsonGeneration::get_generation_at_height(
         &SQLCONNECTION.get().unwrap(),
         &PGCONNECTION.get().unwrap(),
         height,
     ) {
-        Some(x) => Json(serde_json::from_str(&serde_json::to_string(&x).unwrap()).unwrap()),
+        Some(x) => Ok(Json(
+            serde_json::from_str(&serde_json::to_string(&x).unwrap()).unwrap(),
+        )),
         None => {
             info!("Generation not found at height {}", height);
             let mut path = std::path::PathBuf::new();
@@ -130,26 +138,30 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<Stri
 }
 
 #[get("/transactions/<hash>")]
-fn transaction_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde_json::Value> {
+fn transaction_at_hash(
+    state: State<MiddlewareServer>,
+    hash: String,
+) -> Result<Json<JsonTransaction>, Status> {
     let tx: Transaction = match Transaction::load_at_hash(&PGCONNECTION.get().unwrap(), &hash) {
         Some(x) => x,
         None => {
             info!("Transaction not found at hash {}", &hash);
             let mut path = std::path::PathBuf::new();
             path.push(format!("/transactions/hash/{}", hash));
-            return node_get_handler(state, path);
+            let jt: JsonTransaction =
+                serde_json::from_str(node_get_handler(state, path).unwrap().as_str().unwrap())
+                    .unwrap();
+            return Ok(Json(jt));
         }
     };
-    Json(
-        serde_json::from_str(
-            &serde_json::to_string(&JsonTransaction::from_transaction(&tx)).unwrap(),
-        )
-        .unwrap(),
-    )
+    Ok(Json(JsonTransaction::from_transaction(&tx)))
 }
 
 #[get("/key-blocks/hash/<hash>", rank = 1)]
-fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde_json::Value> {
+fn key_block_at_hash(
+    state: State<MiddlewareServer>,
+    hash: String,
+) -> Result<Json<serde_json::Value>, Status> {
     let key_block = match KeyBlock::load_at_hash(&PGCONNECTION.get().unwrap(), &hash) {
         Some(x) => x,
         None => {
@@ -160,12 +172,12 @@ fn key_block_at_hash(state: State<MiddlewareServer>, hash: String) -> Json<serde
         }
     };
     debug!("Serving key block {} from DB", hash);
-    Json(
+    Ok(Json(
         serde_json::from_str(
             &serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap(),
         )
         .unwrap(),
-    )
+    ))
 }
 
 #[get("/micro-blocks/hash/<hash>/transactions", rank = 1)]
@@ -643,6 +655,14 @@ fn oracle_requests_responses(
     json!(res)
 }
 
+#[get("/coinbase/height/<height>")]
+fn coinbase_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
+    json!({
+        "height": height,
+        "coinbase": coinbase(height),
+    })
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -657,6 +677,7 @@ impl MiddlewareServer {
         rocket::ignite()
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![all_contracts])
+            .mount("/middleware", routes![coinbase_at_height])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![oracle_requests_responses])

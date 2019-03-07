@@ -49,6 +49,7 @@ use clap::{App, Arg};
 
 use std::env;
 
+pub mod coinbase;
 pub mod hashing;
 pub mod loader;
 pub mod middleware_result;
