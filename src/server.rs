@@ -6,7 +6,8 @@ use node::Node;
 use chrono::prelude::*;
 use diesel::RunQueryDsl;
 use rocket;
-use rocket::http::Method;
+use rocket::http::{Method, Status};
+use rocket::response::status::Custom;
 use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
@@ -50,7 +51,7 @@ fn node_post_handler(
     state: State<MiddlewareServer>,
     path: PathBuf,
     body: Json<String>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, Status> {
     debug!("{:?}", body);
     let response = state
         .node
@@ -61,20 +62,24 @@ fn node_post_handler(
         )
         .unwrap();
     debug!("Response: {}", response);
-    Json(serde_json::from_str(response.as_str()).unwrap())
+    match serde_json::from_str(response.as_str()) {
+        Ok(x) => Ok(Json(x)),
+        Err(e) => Err(Status::new(500, "JSON parse error")),
+    }
 }
 
 /*
  * Node's only endpoint which lives outside of /v2/...
  */
 #[get("/")]
-fn node_api_handler(state: State<MiddlewareServer>) -> Json<serde_json::Value> {
-    Json(
-        state
-            .node
-            .get_naked(&String::from("/api"), &String::from(""))
-            .unwrap(),
-    )
+fn node_api_handler(state: State<MiddlewareServer>) -> Result<Json<serde_json::Value>, Status> {
+    match state
+        .node
+        .get_naked(&String::from("/api"), &String::from(""))
+    {
+        Ok(x) => Ok(Json(x)),
+        Err(x) => Err(Status::new(500, "JSON parse error")),
+    }
 }
 
 #[get("/generations/current", rank = 1)]
