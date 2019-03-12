@@ -6,6 +6,7 @@ use node::Node;
 
 use chrono::prelude::*;
 use diesel::RunQueryDsl;
+use regex::Regex;
 use rocket;
 use rocket::http::{Method, Status};
 use rocket::response::status::Custom;
@@ -20,6 +21,7 @@ use std::path::PathBuf;
 use SQLCONNECTION;
 
 use PGCONNECTION;
+
 pub struct MiddlewareServer {
     pub node: Node,
     pub dest_url: String, // address to forward to
@@ -29,6 +31,18 @@ pub struct MiddlewareServer {
 // SQL santitizing method to prevent injection attacks.
 fn sanitize(s: &String) -> String {
     s.replace("'", "\\'")
+}
+
+fn check_object(s: &str) -> () {
+    lazy_static! {
+        static ref OBJECT_REGEX: Regex = Regex::new(
+            "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{40,60}"
+        )
+        .unwrap();
+    }
+    if !OBJECT_REGEX.is_match(s) {
+        panic!("Invalid input"); // be paranoid
+    };
 }
 
 /*
@@ -186,6 +200,7 @@ fn transactions_in_micro_block_at_hash(
     _state: State<MiddlewareServer>,
     hash: String,
 ) -> Json<JsonTransactionList> {
+    check_object(&hash);
     let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(&hash));
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
@@ -200,7 +215,10 @@ fn transactions_in_micro_block_at_hash(
 }
 
 #[get("/micro-blocks/hash/<hash>/header", rank = 1)]
-fn micro_block_header_at_hash(_state: State<MiddlewareServer>, hash: String) -> Json<JsonValue> {
+fn micro_block_header_at_hash(
+    _state: State<MiddlewareServer>,
+    hash: String,
+) -> Result<Json<JsonValue>, Status> {
     let sql = "select m.hash, k.height, m.pof_hash, m.prev_hash, m.prev_key_hash, m.signature, m.state_hash, m.time_, m.txs_hash, m.version from micro_blocks m, key_blocks k where m.key_block_id=k.id and m.hash = $1";
     let rows = SQLCONNECTION.get().unwrap().query(sql, &[&hash]).unwrap();
     #[derive(Serialize)]
@@ -230,9 +248,9 @@ fn micro_block_header_at_hash(_state: State<MiddlewareServer>, hash: String) -> 
             txs_hash: r.get(8),
             version: r.get(9),
         });
-        return Json(val);
+        Ok(Json(val))
     } else {
-        return Json(json!(""));
+        Err(Status::new(404, "Block not in DB"))
     }
 }
 
@@ -282,6 +300,7 @@ fn transaction_count_for_account(
     _state: State<MiddlewareServer>,
     account: String,
 ) -> Json<JsonValue> {
+    check_object(&account);
     let s_acc = sanitize(&account);
     let sql = format!(
         "select count(1) from transactions where \
@@ -327,6 +346,7 @@ fn transactions_for_account(
     limit: Option<i32>,
     page: Option<i32>,
 ) -> Json<JsonTransactionList> {
+    check_object(&account);
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
@@ -403,6 +423,7 @@ fn transactions_for_contract_address(
     _state: State<MiddlewareServer>,
     address: String,
 ) -> Json<JsonTransactionList> {
+    check_object(&address);
     let sql = format!(
         "select t.* from transactions t where \
          t.tx_type='ContractCallTx' and \
@@ -558,6 +579,7 @@ fn transactions_for_channel_address(
     _state: State<MiddlewareServer>,
     address: String,
 ) -> Json<JsonTransactionList> {
+    check_object(&address);
     let sql = format!(
         "select t.* from transactions t where \
          t.tx->>'channel_id' = '{}' or \
