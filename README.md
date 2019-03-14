@@ -9,6 +9,7 @@ This is a caching layer for æternity. It reads the chain and records key- and m
 - Install a postgresql DB somewhere. Works with versions >= 9.5, at least.
 - as the admin user, execute `scripts/prepare-db.sql` which will create the DB and user
 - copy 'Rocket.example.toml' to 'Rocket.toml'
+- copy `.env.example` to `.env`
 - if you want to use a different DB name, edit `scripts/prepare-db.sql`, `.env` and `Rocket.toml`
 
 ## How to build
