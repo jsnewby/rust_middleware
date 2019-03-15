@@ -8,3 +8,4 @@ CREATE TABLE channel_identifiers (
 CREATE INDEX channel_identifiers_channel_identifier ON channel_identifiers(channel_identifier);
 CREATE INDEX channel_identifiers_transaction_id ON channel_identifiers(transaction_id);
 -- Your SQL goes here
+DELETE FROM key_blocks k WHERE height IN (SELECT block_height FROM transactions WHERE tx_type='ChannelCreateTx');

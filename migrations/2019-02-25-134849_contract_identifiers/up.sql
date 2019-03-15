@@ -7,3 +7,5 @@ CREATE TABLE contract_identifiers (
 
 CREATE INDEX contract_identifiers_contract_identifier ON contract_identifiers(contract_identifier);
 CREATE INDEX contract_identifiers_transaction_id ON contract_identifiers(transaction_id);
+
+DELETE FROM key_blocks k WHERE height IN (SELECT block_height FROM transactions WHERE t.tx_type='ContractCreateTx');
