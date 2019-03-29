@@ -69,7 +69,7 @@ fn node_get_handler(
 fn node_post_handler(
     state: State<MiddlewareServer>,
     path: PathBuf,
-    body: Json<String>,
+    body: Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Status> {
     let response = state
         .node
