@@ -98,7 +98,7 @@ impl Node {
         handle.post(true)?;
         handle.post_field_size(data.len() as u64)?;
         lazy_static! {
-            static ref STATUS_REGEX: Regex = Regex::new(r"HTTP/1.1 ([0-9]{3}) (.+)").unwrap();
+            static ref STATUS_REGEX: Regex = Regex::new(r"(?xi)HTTP/1.1 ([0-9]{3}) (.+)").unwrap();
         }
         let mut response = Vec::new();
         {
@@ -107,7 +107,7 @@ impl Node {
             transfer.header_function(|header| {
                 let hdr_str = String::from_utf8(header.to_vec()).unwrap();
                 if let Some(captures) = STATUS_REGEX.captures(&hdr_str) {
-                    println!("Match: {:?}", captures);
+                    debug!("Match: {:?}", captures);
                     headers.insert(
                         String::from("status"),
                         String::from(captures.get(1).unwrap().as_str()),
@@ -116,7 +116,7 @@ impl Node {
                 }
                 let hdr_str = str::from_utf8(header).unwrap().clone();
                 let hdr: Vec<&str> = hdr_str.splitn(2, ": ").collect();
-                println!("{}", hdr_str);
+                debug!("{}", hdr_str);
                 if let Some(value) = hdr.get(1) {
                     headers.insert(hdr.get(0).unwrap().to_string(), value.to_string());
                 }

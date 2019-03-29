@@ -186,7 +186,7 @@ fn main() {
     let verify = matches.is_present("verify");
 
     if verify {
-        println!("Verifying");
+        debug!("Verifying");
         let loader = BlockLoader::new(url.clone());
         match loader.verify() {
             Ok(_) => (),

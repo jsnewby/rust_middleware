@@ -75,7 +75,6 @@ pub fn gen_oracle_query_id(sender_id: &String, nonce: i64, recipient_id: &String
             break;
         }
     }
-    println!("{:?}", nonce_byte32);
     let mut all = vec![];
     all.append(&mut sender_id_bin);
     all.append(&mut nonce_byte32);
