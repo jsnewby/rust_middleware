@@ -84,8 +84,9 @@ fn node_post_handler(
         .unwrap();
 
     let mut response = Response::build();
-    response
-        .status(Status::from_code(headers.get("status").unwrap().parse::<u16>().unwrap()).unwrap());
+    if let Some(status) = headers.get("status") {
+        response.status(Status::from_code(status.parse::<u16>().unwrap()).unwrap());
+    }
     for header in headers.keys() {
         if header.eq("status") {
             continue;

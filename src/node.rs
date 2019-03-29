@@ -98,7 +98,7 @@ impl Node {
         handle.post(true)?;
         handle.post_field_size(data.len() as u64)?;
         lazy_static! {
-            static ref STATUS_REGEX: Regex = Regex::new(r"(?xi)HTTP/1.1 ([0-9]{3}) (.+)").unwrap();
+            static ref STATUS_REGEX: Regex = Regex::new(r"HTTP/1.1 ([0-9]{3}) (.+)").unwrap();
         }
         let mut response = Vec::new();
         {
