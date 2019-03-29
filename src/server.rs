@@ -10,13 +10,16 @@ use regex::Regex;
 use rocket;
 use rocket::http::{Method, Status};
 use rocket::response::status::Custom;
+use rocket::response::{Response, ResponseBuilder};
 use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rust_decimal::Decimal;
 use serde_json;
+use std::io::Cursor;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use SQLCONNECTION;
 
@@ -70,8 +73,8 @@ fn node_post_handler(
     state: State<MiddlewareServer>,
     path: PathBuf,
     body: Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, Status> {
-    let response = state
+) -> Response {
+    let (headers, body) = state
         .node
         .post_naked(
             &String::from("/v2/"),
@@ -79,11 +82,18 @@ fn node_post_handler(
             body.to_string(),
         )
         .unwrap();
-    debug!("Response: {}", response);
-    match serde_json::from_str(response.as_str()) {
-        Ok(x) => Ok(Json(x)),
-        Err(e) => Err(Status::new(500, "JSON parse error")),
+
+    let mut response = Response::build();
+    response
+        .status(Status::from_code(headers.get("status").unwrap().parse::<u16>().unwrap()).unwrap());
+    for header in headers.keys() {
+        if header.eq("status") {
+            continue;
+        }
+        response.raw_header(header.clone(), headers.get(header).unwrap().clone());
     }
+    response.sized_body(Cursor::new(body));
+    response.finalize()
 }
 
 /*

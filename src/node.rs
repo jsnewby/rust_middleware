@@ -3,7 +3,9 @@ use regex::Regex;
 use serde_json;
 use serde_json::Value;
 use std;
+use std::collections::HashMap;
 use std::io::Read;
+use std::str;
 
 use middleware_result::MiddlewareResult;
 use models::InsertableMicroBlock;
@@ -83,9 +85,10 @@ impl Node {
         prefix: &String,
         operation: &String,
         body: String,
-    ) -> MiddlewareResult<String> {
+    ) -> MiddlewareResult<(HashMap<String, String>, String)> {
         let uri = self.base_uri.clone() + prefix + operation;
         debug!("post_naked posting to URL: {}, body: {}", uri, body);
+        let mut headers = HashMap::new();
         let mut data = body.as_bytes();
         let mut handle = Easy::new();
         handle.url(&uri)?;
@@ -94,10 +97,31 @@ impl Node {
         handle.http_headers(list)?;
         handle.post(true)?;
         handle.post_field_size(data.len() as u64)?;
+        lazy_static! {
+            static ref STATUS_REGEX: Regex = Regex::new(r"HTTP/1.1 ([0-9]{3}) (.+)").unwrap();
+        }
         let mut response = Vec::new();
         {
             let mut transfer = handle.transfer();
             transfer.read_function(|buf| Ok(data.read(buf).unwrap_or(0)))?;
+            transfer.header_function(|header| {
+                let hdr_str = String::from_utf8(header.to_vec()).unwrap();
+                if let Some(captures) = STATUS_REGEX.captures(&hdr_str) {
+                    println!("Match: {:?}", captures);
+                    headers.insert(
+                        String::from("status"),
+                        String::from(captures.get(1).unwrap().as_str()),
+                    );
+                    return true;
+                }
+                let hdr_str = str::from_utf8(header).unwrap().clone();
+                let hdr: Vec<&str> = hdr_str.splitn(2, ": ").collect();
+                println!("{}", hdr_str);
+                if let Some(value) = hdr.get(1) {
+                    headers.insert(hdr.get(0).unwrap().to_string(), value.to_string());
+                }
+                true
+            })?;
             transfer.write_function(|new_data| {
                 response.extend_from_slice(new_data);
                 Ok(new_data.len())
@@ -106,7 +130,7 @@ impl Node {
         }
         let resp = String::from(std::str::from_utf8(&response)?);
         debug!("get_naked() returning {}", resp);
-        Ok(resp)
+        Ok((headers, resp))
     }
 
     pub fn get_key_block_by_hash(&self, hash: &String) -> MiddlewareResult<serde_json::Value> {
