@@ -1,3 +1,5 @@
+#![feature(plugin)]
+#![plugin(rocket_codegen)]
 use diesel::sql_query;
 
 use coinbase::coinbase;
@@ -6,11 +8,13 @@ use node::Node;
 
 use chrono::prelude::*;
 use diesel::RunQueryDsl;
+use node::HttpResponse;
 use regex::Regex;
 use rocket;
 use rocket::http::{Method, Status};
 use rocket::response::status::Custom;
 use rocket::response::{Response, ResponseBuilder};
+use rocket::Catcher;
 use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
@@ -172,6 +176,32 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<Stri
     };
     info!("Serving key block {} from DB", height);
     Json(serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap())
+}
+
+#[catch(400)]
+fn error400() -> Json<serde_json::Value> {
+    Json(
+        serde_json::from_str(
+            r#"
+{
+  "reason": "Invalid input"
+}"#,
+        )
+        .unwrap(),
+    )
+}
+
+#[catch(404)]
+fn error404() -> Json<serde_json::Value> {
+    Json(
+        serde_json::from_str(
+            r#"
+{
+  "reason": "Not found"
+}"#,
+        )
+        .unwrap(),
+    )
 }
 
 #[get("/transactions/<hash>")]
@@ -731,6 +761,7 @@ impl MiddlewareServer {
         };
 
         rocket::ignite()
+            .register(catchers![error400, error404])
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![reward_at_height])
