@@ -52,17 +52,28 @@ fn check_object(s: &str) -> () {
  * GET handler for Node
  */
 #[get("/<path..>", rank = 6)]
-fn node_get_handler(
-    state: State<MiddlewareServer>,
-    path: PathBuf,
-) -> Result<Json<serde_json::Value>, Status> {
-    match state
+fn node_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Response {
+    let (status, headers, body) = state
         .node
         .get_naked(&String::from("/v2/"), &String::from(path.to_str().unwrap()))
-    {
-        Ok(x) => Ok(Json(x)),
-        Err(e) => Err(Status::new(500, "JSON parse error")),
+        .unwrap();
+
+    let mut response = Response::build();
+    if let Some(status) = headers.get("status") {
+        response.status(Status::from_code(status.parse::<u16>().unwrap()).unwrap());
     }
+    for header in headers.keys() {
+        if header.eq("status") {
+            continue;
+        }
+        response.raw_header(header.clone(), headers.get(header).unwrap().clone());
+    }
+    response.sized_body(Cursor::new(body));
+    response.finalize()
+}
+
+fn node_get_json(state: State<MiddlewareServer>, path: PathBuf) -> Json<serde_json::Value> {
+    Json(serde_json::from_str(&node_get_handler(state, path).body_string().unwrap()).unwrap())
 }
 
 /*
@@ -102,13 +113,11 @@ fn node_post_handler(
  */
 #[get("/")]
 fn node_api_handler(state: State<MiddlewareServer>) -> Result<Json<serde_json::Value>, Status> {
-    match state
+    let (_status, _headers, body) = state
         .node
         .get_naked(&String::from("/api"), &String::from(""))
-    {
-        Ok(x) => Ok(Json(x)),
-        Err(x) => Err(Status::new(500, "JSON parse error")),
-    }
+        .unwrap();
+    Ok(Json(serde_json::from_str(&body).unwrap()))
 }
 
 #[get("/generations/current", rank = 1)]
@@ -134,7 +143,7 @@ fn generation_at_height(
             info!("Generation not found at height {}", height);
             let mut path = std::path::PathBuf::new();
             path.push(format!("generations/height/{}", height));
-            return node_get_handler(state, path);
+            return Ok(node_get_json(state, path));
         }
     }
 }
@@ -168,19 +177,21 @@ fn transaction_at_hash(
     state: State<MiddlewareServer>,
     hash: String,
 ) -> Result<Json<JsonTransaction>, Status> {
-    let tx: Transaction = match Transaction::load_at_hash(&PGCONNECTION.get().unwrap(), &hash) {
-        Some(x) => x,
-        None => {
-            info!("Transaction not found at hash {}", &hash);
-            let mut path = std::path::PathBuf::new();
-            path.push(format!("/transactions/hash/{}", hash));
-            let jt: JsonTransaction =
-                serde_json::from_str(node_get_handler(state, path).unwrap().as_str().unwrap())
-                    .unwrap();
-            return Ok(Json(jt));
-        }
-    };
-    Ok(Json(JsonTransaction::from_transaction(&tx)))
+    if let Some(tx) = Transaction::load_at_hash(&PGCONNECTION.get().unwrap(), &hash) {
+        return Ok(Json(JsonTransaction::from_transaction(&tx)));
+    }
+
+    info!("Transaction not found at hash {}", &hash);
+    let mut path = std::path::PathBuf::new();
+    path.push(format!("/transactions/hash/{}", hash));
+    let mut response = node_get_handler(state, path);
+    println!("{:?}", response);
+    if response.status() == Status::Ok {
+        let body = response.body_string().unwrap();
+        let jt: JsonTransaction = serde_json::from_str(&body).unwrap();
+        return Ok(Json(jt));
+    }
+    Err(response.status())
 }
 
 #[get("/key-blocks/hash/<hash>", rank = 1)]
@@ -194,7 +205,7 @@ fn key_block_at_hash(
             info!("Key block not found at hash {}", &hash);
             let mut path = std::path::PathBuf::new();
             path.push(format!("/key-blocks/hash/{}", hash));
-            return node_get_handler(state, path);
+            return Ok(node_get_json(state, path));
         }
     };
     debug!("Serving key block {} from DB", hash);
