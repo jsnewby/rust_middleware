@@ -7,13 +7,14 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::str;
 
+use middleware_result::MiddlewareError;
 use middleware_result::MiddlewareResult;
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
-
 use SQLCONNECTION;
 
+#[derive(Debug)]
 pub struct HttpResponse {
     pub status: Option<String>,
     pub message: Option<String>,
@@ -31,7 +32,8 @@ impl HttpResponse {
         }
     }
 
-    pub fn store_http_headers(&self) -> bool {
+    pub fn store_http_headers(&mut self, header: &String) -> bool {
+        debug!("Storing {}", header);
         if let Some((status, message)) = http_header(&header) {
             self.status = Some(status);
             self.message = Some(message);
@@ -82,38 +84,40 @@ impl Node {
     }
 
     pub fn get(&self, operation: &String) -> MiddlewareResult<serde_json::Value> {
-        let (status, headers, body) = self.get_naked(&String::from("/v2/"), operation)?;
-        Ok(serde_json::from_str(&body)?)
+        let http_response = self.get_naked(&String::from("/v2/"), operation)?;
+        match http_response.body {
+            Some(body) => Ok(serde_json::from_str(&body)?),
+            None => Err(MiddlewareError::new(&format!(
+                "GET failed, response was {:?}",
+                http_response
+            ))),
+        }
     }
 
     // Get a URL, and return the response
-    pub fn get_naked(
-        &self,
-        prefix: &String,
-        operation: &String,
-    ) -> MiddlewareResult<(String, HashMap<String, String>, String)> {
+    pub fn get_naked(&self, prefix: &String, operation: &String) -> MiddlewareResult<HttpResponse> {
         let uri = self.base_uri.clone() + prefix + operation;
         debug!("get_naked() fetching {}", uri);
+        let mut http_response = HttpResponse::new();
         let mut response = Vec::new();
         let mut handle = Easy::new();
-        let mut headers = HashMap::new();
-        let mut status: Option<String> = None;
         handle.timeout(std::time::Duration::from_secs(20))?;
         handle.url(&uri)?;
         {
             let mut transfer = handle.transfer();
             transfer.write_function(|new_data| {
+                debug!("new_data is {:?}", new_data);
                 response.extend_from_slice(new_data);
                 Ok(new_data.len())
             })?;
             transfer.header_function(|header| {
                 let hdr_str = String::from_utf8(header.to_vec()).unwrap();
-                Node::store_http_headers(&hdr_str, &mut headers, &mut status)
+                http_response.store_http_headers(&hdr_str)
             })?;
             transfer.perform()?;
         }
-        let resp = String::from(std::str::from_utf8(&response)?);
-        Ok((status?, headers, resp))
+        http_response.body = Some(String::from(std::str::from_utf8(&response)?));
+        Ok(http_response)
     }
 
     pub fn post_naked(
@@ -123,7 +127,6 @@ impl Node {
         body: String,
     ) -> MiddlewareResult<(HashMap<String, String>, String)> {
         let uri = self.base_uri.clone() + prefix + operation;
-        let mut headers = HashMap::new();
         let mut data = body.as_bytes();
         let mut handle = Easy::new();
         handle.url(&uri)?;
@@ -133,13 +136,13 @@ impl Node {
         handle.post(true)?;
         handle.post_field_size(data.len() as u64)?;
         let mut response = Vec::new();
-        let mut status: Option<String> = None;
+        let mut http_response = HttpResponse::new();
         {
             let mut transfer = handle.transfer();
             transfer.read_function(|buf| Ok(data.read(buf).unwrap_or(0)))?;
             transfer.header_function(|header| {
                 let hdr_str = String::from_utf8(header.to_vec()).unwrap();
-                Node::store_http_headers(&hdr_str, &mut headers, &mut status)
+                http_response.store_http_headers(&hdr_str)
             })?;
             transfer.write_function(|new_data| {
                 response.extend_from_slice(new_data);
@@ -148,22 +151,7 @@ impl Node {
             transfer.perform()?;
         }
         let resp = String::from(std::str::from_utf8(&response)?);
-        Ok((headers, resp))
-    }
-
-    fn store_http_headers(
-        header: &String,
-        headers: &mut HashMap<String, String>,
-        status: &mut Option<String>,
-    ) -> bool {
-        if let Some((_status, message)) = http_header(&header) {
-            status = Some(_status.clone());
-        }
-        let hdr: Vec<&str> = header.splitn(2, ": ").collect();
-        if let Some(value) = hdr.get(1) {
-            headers.insert(hdr.get(0).unwrap().to_string(), value.to_string());
-        }
-        true
+        Ok((http_response.headers, resp))
     }
 
     pub fn get_key_block_by_hash(&self, hash: &String) -> MiddlewareResult<serde_json::Value> {

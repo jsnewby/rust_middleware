@@ -53,22 +53,22 @@ fn check_object(s: &str) -> () {
  */
 #[get("/<path..>", rank = 6)]
 fn node_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Response {
-    let (status, headers, body) = state
+    let http_response = state
         .node
         .get_naked(&String::from("/v2/"), &String::from(path.to_str().unwrap()))
         .unwrap();
-
+    debug!("http_response is {:?}", http_response);
     let mut response = Response::build();
-    if let Some(status) = headers.get("status") {
+    if let Some(status) = http_response.status {
         response.status(Status::from_code(status.parse::<u16>().unwrap()).unwrap());
     }
-    for header in headers.keys() {
-        if header.eq("status") {
-            continue;
-        }
-        response.raw_header(header.clone(), headers.get(header).unwrap().clone());
+    for header in http_response.headers.keys() {
+        response.raw_header(
+            header.clone(),
+            http_response.headers.get(header).unwrap().clone(),
+        );
     }
-    response.sized_body(Cursor::new(body));
+    response.sized_body(Cursor::new(http_response.body.unwrap()));
     response.finalize()
 }
 
@@ -113,11 +113,13 @@ fn node_post_handler(
  */
 #[get("/")]
 fn node_api_handler(state: State<MiddlewareServer>) -> Result<Json<serde_json::Value>, Status> {
-    let (_status, _headers, body) = state
+    let http_response = state
         .node
         .get_naked(&String::from("/api"), &String::from(""))
         .unwrap();
-    Ok(Json(serde_json::from_str(&body).unwrap()))
+    Ok(Json(
+        serde_json::from_str(&http_response.body.unwrap()).unwrap(),
+    ))
 }
 
 #[get("/generations/current", rank = 1)]
@@ -183,7 +185,7 @@ fn transaction_at_hash(
 
     info!("Transaction not found at hash {}", &hash);
     let mut path = std::path::PathBuf::new();
-    path.push(format!("/transactions/hash/{}", hash));
+    path.push(format!("transactions/{}", hash));
     let mut response = node_get_handler(state, path);
     println!("{:?}", response);
     if response.status() == Status::Ok {
