@@ -1,6 +1,6 @@
 use base58::ToBase58;
 pub use base58check::FromBase58Check;
-use blake2::digest::{Input, VariableOutput};
+use blake2::digest::{Input, Reset, VariableOutput};
 use blake2::VarBlake2b;
 pub use blake2b::Blake2b;
 pub use byteorder::{BigEndian, WriteBytesExt};
@@ -106,6 +106,27 @@ pub fn gen_channel_id(
     let hash = blake2bdigest(&all);
     let encoded = to_base58check(&hash);
     format!("ch_{}", encoded)
+}
+
+pub fn get_name_hash(name: &String) -> Vec<u8> {
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.input([0u8; 32]);
+    let mut result = hasher.vec_result();
+    let mut split: Vec<Vec<u8>> = name.split('.').map(|s| s.as_bytes().to_vec()).collect();
+    loop {
+        if let Some(part) = split.pop() {
+            let mut hasher = VarBlake2b::new(32).unwrap();
+            hasher.input(part);
+            let hashed = hasher.vec_result();
+            let mut hasher = VarBlake2b::new(32).unwrap();
+            result.extend(hashed);
+            hasher.input(result);
+            result = hasher.vec_result();
+        } else {
+            break;
+        }
+    }
+    result
 }
 
 /*
