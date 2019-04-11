@@ -5,18 +5,20 @@ use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
 use super::schema::transactions;
 
+use chrono::prelude::*;
 use diesel::dsl::exists;
 use diesel::dsl::select;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_query;
-
+use rust_decimal::Decimal;
 extern crate serde_json;
 use serde_json::Number;
 
 use bigdecimal;
 use bigdecimal::ToPrimitive;
 use std::str::FromStr;
+use std::fmt;
 
 use middleware_result::MiddlewareResult;
 
@@ -381,6 +383,15 @@ pub struct Transaction {
     pub tx: serde_json::Value,
 }
 
+#[derive(Serialize)]
+pub struct Rate {
+    pub count: i64,
+    pub amount: rust_decimal::Decimal,
+    pub date: String,
+}
+
+
+
 impl Transaction {
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
         let sql = format!("select * from transactions where hash='{}'", _hash);
@@ -408,6 +419,27 @@ impl Transaction {
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
         Some(_transactions)
     }
+
+    pub fn rate(
+        sql_conn: &postgres::Connection,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> MiddlewareResult<Vec<Rate>> {
+        let mut v = vec!();
+        for row in &sql_conn.query(
+            "select count(1), sum(cast(tx->>'amount' as decimal)), date(to_timestamp(time_/1000)) as _date from \
+             transactions t, micro_blocks m where \
+             m.id=t.micro_block_id and tx_type = 'SpendTx' and \
+             date(to_timestamp(time_/1000)) > $1 and \
+             date(to_timestamp(time_/1000)) < $2 \
+             group by _date order by _date",
+            &[&from, &to])?
+        {
+            let dt: NaiveDate = row.get(2);
+            v.push(Rate {count: row.get(0), amount: row.get(1), date: dt.format("%Y-%m-%d").to_string() });
+        }
+        Ok(v)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -434,7 +466,6 @@ impl JsonTransaction {
             tx: t.tx.clone(),
         }
     }
-
 }
 
 #[derive(Serialize, Deserialize)]
@@ -502,4 +533,45 @@ impl InsertableTransaction {
             tx: serde_json::from_str(&jt.tx.to_string())?,
         })
     }
+}
+
+pub fn size_at_height(
+    sql_conn: &postgres::Connection,
+    _height: i32,
+) -> MiddlewareResult<Option<i64>>
+{
+    for row in &sql_conn.query("select sum(size) from transactions where block_height <= $1", &[&_height])?
+    {
+        let result: i64 = row.get(0);
+        return Ok(Some(result));
+    }
+    Ok(None)
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WsOp {
+    subscribe,
+    unsubscribe,
+}
+
+#[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum WsPayload {
+    key_blocks,
+    micro_blocks,
+    transactions,
+    tx_update
+}
+
+impl fmt::Display for WsPayload {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WsMessage{
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub op: Option<WsOp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<WsPayload>,
 }

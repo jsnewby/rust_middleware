@@ -9,6 +9,7 @@ extern crate blake2;
 extern crate blake2b;
 extern crate byteorder;
 extern crate chashmap;
+extern crate chrono;
 extern crate crypto;
 extern crate curl;
 #[macro_use]
@@ -31,6 +32,7 @@ extern crate rocket;
 extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
+extern crate rust_decimal;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
@@ -40,6 +42,7 @@ extern crate itertools;
 
 extern crate futures;
 extern crate postgres;
+extern crate ws;
 
 extern crate clap;
 use clap::{App, Arg};
@@ -52,6 +55,7 @@ pub mod loader;
 pub mod schema;
 pub mod server;
 pub mod middleware_result;
+pub mod websocket;
 
 pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
@@ -215,6 +219,7 @@ fn main() {
             dest_url: url.to_string(),
             port: 3013,
         };
+        websocket::start_ws(); //start the websocket server
         ms.start();
     }
     if !populate && !serve {
