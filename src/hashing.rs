@@ -7,6 +7,8 @@ pub use byteorder::{BigEndian, WriteBytesExt};
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 
+use middleware_result::MiddlewareResult;
+
 /*
  * taken from https://github.com/dotcypress/base58check
  * reproduced with kind permission of the author
@@ -108,25 +110,41 @@ pub fn gen_channel_id(
     format!("ch_{}", encoded)
 }
 
-pub fn get_name_hash(name: &String) -> Vec<u8> {
-    let mut hasher = VarBlake2b::new(32).unwrap();
-    hasher.input([0u8; 32]);
-    let mut result = hasher.vec_result();
-    let mut split: Vec<Vec<u8>> = name.split('.').map(|s| s.as_bytes().to_vec()).collect();
+pub fn get_name_hash(name: &str) -> Vec<u8> {
+    let mut result = [0u8; 32].to_vec();
+    let mut split: Vec<&[u8]> = name.split('.').rev().map(|s| s.as_bytes()).collect();
     loop {
         if let Some(part) = split.pop() {
+            println!("{}", String::from_utf8(part.to_vec()).unwrap());
             let mut hasher = VarBlake2b::new(32).unwrap();
             hasher.input(part);
             let hashed = hasher.vec_result();
-            let mut hasher = VarBlake2b::new(32).unwrap();
             result.extend(hashed);
+            let mut hasher = VarBlake2b::new(32).unwrap();
             hasher.input(result);
             result = hasher.vec_result();
         } else {
             break;
         }
     }
+    println!("hash: {:?}", result);
     result
+}
+
+pub fn get_name_id(name: &str) -> MiddlewareResult<String> {
+    Ok(format!("nm_{}", to_base58check(&get_name_hash(name))))
+}
+
+#[test]
+fn test_name_hash() {
+    assert_eq!(
+        get_name_id("welghmolql.test").unwrap(),
+        "nm_Ziiq3M9ASEHXCV71qUNde6SsomqwZjYPFvnJSvTkpSUDiXqH3"
+    );
+    assert_ne!(
+        get_name_id("abc.test").unwrap(),
+        "nm_2KrC4asc6fdv82uhXDwfiqB1TY2htjhnzwzJJKLxidyMymJRUQ"
+    );
 }
 
 /*
@@ -163,7 +181,7 @@ fn min_b(val: i64) -> Vec<u8> {
             result.push(byte);
         }
     }
-    result.clone()
+    result
 }
 
 #[test]

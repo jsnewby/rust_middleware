@@ -8,6 +8,7 @@ client = [ ]
 
 [dependencies]
 futures = "0.1"
+backtrace = "0.2"
 chashmap = "2.2.0"
 chrono = "0.4.6"
 clap = "~2.32"
@@ -44,7 +45,7 @@ bigdecimal = "0.0.14"
 ws = "0.7.9"
 itertools = "0.7.8"
 tokio-core = "0.1.17"
-
+reqwest = "0.9.14"
 base58="0.1.0"
 base58check = "0.0.1"
 blake2b = "0.7.0"

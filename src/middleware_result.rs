@@ -11,8 +11,10 @@ pub struct MiddlewareError {
 
 impl MiddlewareError {
     pub fn new(msg: &str) -> MiddlewareError {
+        let bt = backtrace::Backtrace::new();
+
         MiddlewareError {
-            details: msg.to_string(),
+            details: format!("{}\n{:?}", msg.to_string(), bt),
         }
     }
 }
@@ -95,6 +97,24 @@ impl std::convert::From<std::sync::mpsc::SendError<i64>> for MiddlewareError {
 
 impl std::convert::From<WsError> for MiddlewareError {
     fn from(err: WsError) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::string::FromUtf8Error> for MiddlewareError {
+    fn from(err: std::string::FromUtf8Error) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<curl::FormError> for MiddlewareError {
+    fn from(err: curl::FormError) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<reqwest::Error> for MiddlewareError {
+    fn from(err: reqwest::Error) -> Self {
         MiddlewareError::new(&err.to_string())
     }
 }
