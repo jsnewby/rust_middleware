@@ -421,6 +421,36 @@ fn transactions_for_account(
 }
 
 /*
+ * Gets all transactions for an account to an account
+ */
+#[get("/transactions/account/<sender>/to/<receiver>")]
+fn transactions_for_account_to_account(
+    _state: State<MiddlewareServer>,
+    sender: String,
+    receiver: String
+) -> Json<JsonTransactionList> {
+    check_object(&sender);
+    check_object(&receiver);
+    let s_acc = sanitize(&sender);
+    let r_acc = sanitize(&receiver);
+    let sql = format!(
+        "select * from transactions where \
+         tx->>'sender_id'='{}' and \
+         tx->>'recipient_id' = '{}' \
+         order by id desc",
+        s_acc, r_acc
+    );
+    info!("{}", sql);
+    let transactions: Vec<Transaction> =
+        sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
+}
+
+/*
  * Gets transactions between blocks
  */
 #[get("/transactions/interval/<from>/<to>?<limit>&<page>")]
@@ -757,6 +787,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
+            .mount("/middleware", routes![transactions_for_account_to_account])
             .mount("/middleware", routes![transactions_for_interval])
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_channel_address])
