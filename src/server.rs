@@ -258,14 +258,11 @@ fn transactions_in_micro_block_at_hash(
     let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(&hash));
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for i in 0..transactions.len() {
-        trans.push(JsonTransaction::from_transaction(&transactions[i]));
-    }
-    let list = JsonTransactionList {
-        transactions: trans,
-    };
-    Json(list)
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
 }
 
 #[get("/micro-blocks/hash/<hash>/header", rank = 1)]
@@ -416,14 +413,11 @@ fn transactions_for_account(
     info!("{}", sql);
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for i in 0..transactions.len() {
-        trans.push(JsonTransaction::from_transaction(&transactions[i]));
-    }
-    let list = JsonTransactionList {
-        transactions: trans,
-    };
-    Json(list)
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
 }
 
 /*
@@ -449,14 +443,11 @@ fn transactions_for_interval(
     );
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for i in 0..transactions.len() {
-        trans.push(JsonTransaction::from_transaction(&transactions[i]));
-    }
-    let list = JsonTransactionList {
-        transactions: trans,
-    };
-    Json(list)
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
 }
 
 #[get("/micro-blocks/hash/<hash>/transactions/count")]
@@ -489,14 +480,11 @@ fn transactions_for_contract_address(
     );
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for i in 0..transactions.len() {
-        trans.push(JsonTransaction::from_transaction(&transactions[i]));
-    }
-    let list = JsonTransactionList {
-        transactions: trans,
-    };
-    Json(list)
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
 }
 
 // TODO: Lot of refactoring in the below method
@@ -645,12 +633,10 @@ fn transactions_for_channel_address(
     debug!("{}", sql);
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for tx in transactions {
-        trans.push(JsonTransaction::from_transaction(&tx));
-    }
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
     Json(JsonTransactionList {
-        transactions: trans,
+        transactions: json_transactions
     })
 }
 
