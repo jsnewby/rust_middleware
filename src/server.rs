@@ -396,28 +396,42 @@ fn transactions_for_account(
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<JsonTransactionList> {
+) -> Json<Vec<JsonValue>> {
     check_object(&account);
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        "select * from transactions where \
-         tx->>'sender_id'='{}' or \
-         tx->>'account_id' = '{}' or \
-         tx->>'recipient_id'='{}' or \
-         tx->>'owner_id' = '{}' \
+        "SELECT m.time_, t.* FROM transactions t, micro_blocks m WHERE \
+         m.id = t.micro_block_id AND \
+         (t.tx->>'sender_id'='{}' OR \
+         t.tx->>'account_id' = '{}' OR \
+         t.tx->>'recipient_id'='{}' or \
+         t.tx->>'owner_id' = '{}' )\
          order by id desc \
          limit {} offset {} ",
         s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql
     );
     info!("{}", sql);
-    let transactions: Vec<Transaction> =
-        sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
-    Json(JsonTransactionList {
-        transactions: json_transactions
-    })
+  let mut results: Vec<JsonValue> = Vec::new();
+    for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
+        let time: i64 = row.get(0);
+        let block_height: i32 = row.get(3);
+        let block_hash: String = row.get(4);
+        let hash: String = row.get(5);
+        let sig: String = row.get(6);
+        let signatures: Vec<String> = sig.split(' ').map(|s| s.to_string()).collect();
+        let tx: serde_json::Value = row.get(8);
+        results.push(json!({
+            "time" : time,
+            "block_height": block_height,
+            "block_hash": block_hash,
+            "hash": hash,
+            "signatures": signatures,
+            "tx": tx,
+        }));
+    }
+    Json(results)
 }
 
 /*
@@ -515,6 +529,34 @@ fn transactions_for_contract_address(
     Json(JsonTransactionList {
         transactions: json_transactions
     })
+}
+
+#[get("/contracts/calls/address/<address>")]
+fn calls_for_contract_address(
+    _state: State<MiddlewareServer>,
+    address: String,
+) -> Json<Vec<JsonValue>> {
+    check_object(&address);
+    let sql = "SELECT contract_id, caller_id, arguments FROM \
+               contract_calls WHERE \
+               contract_id = $1";
+    let mut calls = Vec::new();
+    for row in &SQLCONNECTION
+        .get()
+        .unwrap()
+        .query(&sql, &[&address])
+        .unwrap()
+    {
+        let contract_id: String = row.get(0);
+        let caller_id: String = row.get(1);
+        let arguments: serde_json::Value = row.get(2);
+        calls.push(json!({
+            "contract_id": contract_id,
+            "caller_id": caller_id,
+            "arguments": arguments,
+        }));
+    }
+    Json(calls)
 }
 
 // TODO: Lot of refactoring in the below method
@@ -765,6 +807,27 @@ fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
     })
 }
 
+#[get("/names/active?<limit>&<page>")]
+fn active_names(
+    _state: State<MiddlewareServer>,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<Name>> {
+    let connection = PGCONNECTION.get().unwrap();
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "select * from \
+         names where \
+         expires_at <= {} \
+         limit {} offset {} ",
+        KeyBlock::top_height(&*connection).unwrap(),
+        limit_sql,
+        offset_sql
+    );
+    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    Json(names)
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -782,11 +845,13 @@ impl MiddlewareServer {
         rocket::ignite()
             .register(catchers![error400, error404])
             .mount("/middleware", routes![active_channels])
+            .mount("/middleware", routes![active_names])
             .mount("/middleware", routes![all_contracts])
-            .mount("/middleware", routes![reward_at_height])
+            .mount("/middleware", routes![calls_for_contract_address])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![oracle_requests_responses])
+            .mount("/middleware", routes![reward_at_height])
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])

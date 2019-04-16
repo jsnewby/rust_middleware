@@ -50,13 +50,21 @@ OPTIONS:
 
 ```
 
+## Environment variables
+
+`NODE_URL` - the URL of the æternity node
+`AESOPHIA_URL` - if present, the middleware will attempt to use this to decode contract calls, storing the function called, and its parameters
+
 ## Supported queries
 ```
 GET /middleware/channels/active
 GET /middleware/channels/transactions/address/<address>
 GET /middleware/contracts/all
+GET /middleware/contracts/calls/address/<address>
 GET /middleware/contracts/transactions/address/<address>
+GET /middleware/names/active?<limit>&<page>
 GET /middleware/oracles/all?<limit>&<page>
+GET /middleware/reward/height/<height>
 GET /middleware/size/current
 GET /middleware/size/height/<height>
 GET /middleware/transactions/account/<account>/count

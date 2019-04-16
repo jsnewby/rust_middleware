@@ -34,7 +34,6 @@ impl HttpResponse {
     }
 
     pub fn store_http_headers(&mut self, header: &String) -> bool {
-        debug!("Storing {}", header);
         if let Some((status, message)) = http_header(&header) {
             self.status = Some(status);
             self.message = Some(message);
@@ -85,6 +84,7 @@ impl Node {
     }
 
     pub fn get(&self, operation: &String) -> MiddlewareResult<serde_json::Value> {
+        debug!("Fetching {}", operation);
         let http_response = self.get_naked(&String::from("/v2/"), operation)?;
         match http_response.body {
             Some(body) => Ok(serde_json::from_str(&body)?),
@@ -98,7 +98,7 @@ impl Node {
     // Get a URL, and return the response
     pub fn get_naked(&self, prefix: &String, operation: &String) -> MiddlewareResult<HttpResponse> {
         let uri = self.base_uri.clone() + prefix + operation;
-        debug!("get_naked() fetching {}", uri);
+        debug!("Fetching {}", uri);
         let mut http_response = HttpResponse::new();
         let mut response = Vec::new();
         let mut handle = Easy::new();
@@ -107,7 +107,6 @@ impl Node {
         {
             let mut transfer = handle.transfer();
             transfer.write_function(|new_data| {
-                debug!("new_data is {:?}", new_data);
                 response.extend_from_slice(new_data);
                 Ok(new_data.len())
             })?;
@@ -118,7 +117,14 @@ impl Node {
             transfer.perform()?;
         }
         http_response.body = Some(String::from(std::str::from_utf8(&response)?));
-        Ok(http_response)
+        if http_response.status != Some("200".to_string()) {
+            Err(MiddlewareError::new(&format!(
+                "Non-200 response received, error is {}, body:\n{}",
+                http_response.status?, http_response.body?
+            )))
+        } else {
+            Ok(http_response)
+        }
     }
 
     pub fn post_naked(
@@ -226,7 +232,6 @@ fn http_header(header: &String) -> Option<(String, String)> {
         static ref STATUS_REGEX: Regex = Regex::new(r"HTTP/1.[01]\s+([0-9]{3})\s+(.+)").unwrap();
     }
     if let Some(captures) = STATUS_REGEX.captures(&header) {
-        debug!("Match: {:?}", captures);
         return Some((
             String::from(captures.get(1)?.as_str()),
             String::from(captures.get(2)?.as_str()),

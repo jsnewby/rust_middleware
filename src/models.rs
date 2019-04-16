@@ -1,14 +1,17 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 
 use super::schema::channel_identifiers;
+use super::schema::contract_calls;
 use super::schema::contract_identifiers;
 use super::schema::key_blocks;
 use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
+use super::schema::names;
+use super::schema::names::dsl::*;
 use super::schema::oracle_queries;
 use super::schema::transactions;
-
 use chrono::prelude::*;
+use curl::easy::{Easy2, Form, Handler, List, WriteError};
 use diesel::dsl::exists;
 use diesel::dsl::select;
 use diesel::pg::PgConnection;
@@ -17,12 +20,17 @@ use diesel::sql_query;
 extern crate serde_json;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT};
+use reqwest::*;
 use rust_decimal::Decimal;
 use serde_json::Number;
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-use middleware_result::MiddlewareResult;
+use middleware_result::{MiddlewareError, MiddlewareResult};
+
+use SQLCONNECTION;
 
 #[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
 #[table_name = "key_blocks"]
@@ -109,6 +117,7 @@ impl KeyBlock {
         let sql =
             "select COALESCE(sum(t.fee),0) from transactions t where block_height=$1".to_string();
         for row in &sql_conn.query(&sql, &[&_height]).unwrap() {
+            // TODO
             return row.get(0);
         }
         0.into()
@@ -444,7 +453,7 @@ impl Transaction {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct JsonTransaction {
     pub block_height: i32,
     pub block_hash: String,
@@ -477,8 +486,22 @@ impl JsonTransaction {
         self.tx["type"].as_str() == Some("ContractCreateTx")
     }
 
+    pub fn is_contract_call(&self) -> bool {
+        self.tx["type"].as_str() == Some("ContractCallTx")
+    }
+
     pub fn is_channel_creation(&self) -> bool {
         self.tx["type"].as_str() == Some("ChannelCreateTx")
+    }
+
+    pub fn is_name_transaction(&self) -> bool {
+        if let Some(ttype) = self.tx["type"].as_str() {
+            return ttype == "NameClaimTx"
+                || ttype == "NameRevokeTx"
+                || ttype == "NameTransferTx"
+                || ttype == "NameUpdateTx";
+        }
+        false
     }
 }
 
@@ -654,6 +677,22 @@ impl InsertableContractIdentifier {
     }
 }
 
+pub fn get_contract_bytecode(contract_id: &str) -> MiddlewareResult<Option<String>> {
+    let rows = SQLCONNECTION.get()?.query(
+        "SELECT CAST(t.tx->>'code' AS VARCHAR) AS CODE FROM \
+         transactions t, contract_identifiers ci WHERE \
+         ci.transaction_id=t.id AND \
+         ci.contract_identifier=$1",
+        &[&contract_id.to_string()],
+    )?;
+    if rows.len() == 0 {
+        return Ok(None);
+    }
+    let bytecode = rows.get(0).get(0);
+    debug!("bytecode: {:?}", bytecode);
+    Ok(Some(bytecode))
+}
+
 #[derive(Insertable)]
 #[table_name = "channel_identifiers"]
 pub struct InsertableChannelIdentifier {
@@ -681,6 +720,181 @@ impl InsertableChannelIdentifier {
             .values(self)
             .returning(id)
             .get_results(&*conn)?;
+        Ok(generated_ids[0])
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "names"]
+pub struct InsertableName {
+    pub name: String,
+    pub name_hash: String,
+    pub created_at_height: i64,
+    pub owner: String,
+    pub expires_at: i64,
+    pub pointers: Option<serde_json::Value>,
+}
+
+impl InsertableName {
+    pub fn new(
+        _name: &String,
+        _name_hash: &String,
+        _created_at_height: i64,
+        _owner: &str,
+        _expires_at: i64,
+    ) -> Self {
+        InsertableName {
+            name: _name.to_string(),
+            name_hash: _name_hash.to_string(),
+            created_at_height: _created_at_height,
+            owner: _owner.to_string(),
+            expires_at: _expires_at,
+            pointers: None,
+        }
+    }
+
+    pub fn new_from_transaction(transaction: &JsonTransaction) -> Option<Self> {
+        let ttype = transaction.tx["type"].as_str()?;
+        if ttype != "NameClaimTx" {
+            return None;
+        }
+        let _name = transaction.tx["name"].as_str()?;
+        let _name_hash = super::hashing::get_name_id(&_name).unwrap(); // TODO
+        let _account_id = transaction.tx["account_id"].as_str()?;
+        let _expires_at = transaction.tx["ttl"].as_i64()? + transaction.block_height as i64;
+        Some(InsertableName::new(
+            &_name.to_string(),
+            &_name_hash,
+            transaction.block_height as i64,
+            &_account_id,
+            _expires_at,
+        ))
+    }
+
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        use diesel::dsl::insert_into;
+        use diesel::RunQueryDsl;
+        use schema::names::dsl::*;
+        let generated_ids: Vec<i32> = insert_into(names)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)
+            .unwrap();
+        Ok(generated_ids[0])
+    }
+}
+
+#[derive(AsChangeset, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
+#[table_name = "names"]
+pub struct Name {
+    pub id: i32,
+    pub name: String,
+    pub name_hash: String,
+    pub created_at_height: i64,
+    pub owner: String,
+    pub expires_at: i64,
+    pub pointers: Option<serde_json::Value>,
+}
+
+impl Name {
+    pub fn load_for_hash(connection: &PgConnection, _name_hash: &str) -> Option<Self> {
+        let sql = format!("select * from names where name_hash='{}'", _name_hash);
+        let mut _names: Vec<Name> = sql_query(sql).load(connection).unwrap();
+        Some(_names.pop()?)
+    }
+
+    pub fn update(&self, connection: &PgConnection) -> MiddlewareResult<usize> {
+        match diesel::update(names::table)
+            .filter(name_hash.eq(self.name_hash.clone()))
+            .set(self)
+            .execute(connection)
+        {
+            Ok(x) => Ok(x),
+            Err(e) => Err(MiddlewareError::new(&e.to_string())),
+        }
+    }
+    pub fn delete(&self, connection: &PgConnection) -> MiddlewareResult<usize> {
+        use diesel::dsl::insert_into;
+        use diesel::RunQueryDsl;
+        use schema::names::dsl::*;
+        match diesel::delete(names.filter(id.eq(self.id))).execute(connection) {
+            Ok(x) => Ok(x),
+            Err(e) => Err(MiddlewareError::new(&e.to_string())),
+        }
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "contract_calls"]
+pub struct InsertableContractCall {
+    pub transaction_id: i32,
+    pub contract_id: String,
+    pub caller_id: String,
+    pub arguments: serde_json::Value,
+}
+
+impl InsertableContractCall {
+    pub fn request(
+        url: &str,
+        source: &JsonTransaction,
+        transaction_id: i32,
+    ) -> MiddlewareResult<Option<Self>> {
+        match source.tx["type"].as_str() {
+            Some(x) => {
+                if x != "ContractCallTx" {
+                    return Err(MiddlewareError::new(
+                        format!("Wrong tx_type in {:?}", source).as_str(),
+                    ));
+                }
+            }
+            None => {
+                return Err(MiddlewareError::new(
+                    format!("No tx_type in {:?}", source).as_str(),
+                ))
+            }
+        }
+        let calldata = source.tx["call_data"].as_str()?;
+        let contract_id = source.tx["contract_id"].as_str()?;
+        let caller_id = source.tx["caller_id"].as_str()?;
+        let full_url = format!("{}/decode-calldata/bytecode", url);
+        debug!(
+            "calldata={}, contract_id={}, caller_id={}",
+            calldata, contract_id, caller_id
+        );
+        let mut params: HashMap<String, String> = HashMap::new();
+        params.insert("calldata".to_string(), calldata.to_string());
+        match get_contract_bytecode(&contract_id)? {
+            Some(x) => params.insert("bytecode".to_string(), x),
+            None => {
+                info!("No bytecode found for contract with id {}", contract_id);
+                return Ok(None); // not found. happens.
+            }
+        };
+        debug!("Params: {:?}", params);
+        let client = reqwest::Client::new();
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        let mut result = client.post(&full_url).json(&params).send()?;
+        let output = result.text()?;
+        debug!("Return from aesophia: {}", output);
+        let result = serde_json::from_str(&output)?;
+        Ok(Some(Self {
+            transaction_id,
+            contract_id: contract_id.to_string(),
+            caller_id: caller_id.to_string(),
+            arguments: result,
+        }))
+    }
+
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        use diesel::dsl::insert_into;
+        use diesel::RunQueryDsl;
+        use schema::contract_calls::dsl::*;
+        let generated_ids: Vec<i32> = insert_into(contract_calls)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)
+            .unwrap();
         Ok(generated_ids[0])
     }
 }

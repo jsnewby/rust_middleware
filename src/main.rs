@@ -3,6 +3,7 @@
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(try_trait)]
+extern crate backtrace;
 extern crate base58;
 extern crate base58check;
 extern crate bigdecimal;
@@ -27,6 +28,7 @@ extern crate r2d2_diesel;
 extern crate r2d2_postgres;
 extern crate rand;
 extern crate regex;
+extern crate reqwest;
 #[macro_use]
 extern crate rocket;
 #[macro_use]
