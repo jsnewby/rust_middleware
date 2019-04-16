@@ -613,11 +613,14 @@ impl MiddlewareServer {
         let allowed_origins = AllowedOrigins::all();
         let options = rocket_cors::Cors {
             allowed_origins,
-            allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+            allowed_methods: vec![Method::Get ].into_iter().map(From::from).collect(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             ..Default::default()
         };
+
+        use rocket::fairing::AdHoc;
+        use rocket::http::Header;
 
         rocket::ignite()
             .mount("/middleware", routes![active_channels])
@@ -643,6 +646,15 @@ impl MiddlewareServer {
             .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transaction_count_in_micro_block])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
+            .attach(AdHoc::on_request("Handle null origin", |request, _| {
+                let mut headers = request.headers().to_owned();
+                for mut header in headers.get("Origin") {
+                    match header {
+                        "null" => request.replace_header(Header::new("Origin", "http://null")),
+                        _ => (),
+                    }
+                }
+            }))
             .attach(options)
             .manage(self)
             .launch();
