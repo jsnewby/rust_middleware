@@ -68,6 +68,7 @@ GET /middleware/reward/height/<height>
 GET /middleware/size/current
 GET /middleware/size/height/<height>
 GET /middleware/transactions/account/<account>/count
+GET /middleware/transactions/account/<sender>/to/<receiver>
 GET /middleware/transactions/account/<account>?<limit>&<page>
 GET /middleware/transactions/<hash>
 GET /middleware/transactions/interval/<from>/<to>?<limit>&<page>

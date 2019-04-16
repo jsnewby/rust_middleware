@@ -258,14 +258,11 @@ fn transactions_in_micro_block_at_hash(
     let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(&hash));
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for i in 0..transactions.len() {
-        trans.push(JsonTransaction::from_transaction(&transactions[i]));
-    }
-    let list = JsonTransactionList {
-        transactions: trans,
-    };
-    Json(list)
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
 }
 
 #[get("/micro-blocks/hash/<hash>/header", rank = 1)]
@@ -415,7 +412,8 @@ fn transactions_for_account(
         s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql
     );
     info!("{}", sql);
-    let mut results: Vec<JsonValue> = Vec::new();
+
+  let mut results: Vec<JsonValue> = Vec::new();
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
         let time: i64 = row.get(0);
         let block_height: i32 = row.get(3);
@@ -434,6 +432,36 @@ fn transactions_for_account(
         }));
     }
     Json(results)
+}
+
+/*
+ * Gets all transactions for an account to an account
+ */
+#[get("/transactions/account/<sender>/to/<receiver>")]
+fn transactions_for_account_to_account(
+    _state: State<MiddlewareServer>,
+    sender: String,
+    receiver: String
+) -> Json<JsonTransactionList> {
+    check_object(&sender);
+    check_object(&receiver);
+    let s_acc = sanitize(&sender);
+    let r_acc = sanitize(&receiver);
+    let sql = format!(
+        "select * from transactions where \
+         tx->>'sender_id'='{}' and \
+         tx->>'recipient_id' = '{}' \
+         order by id desc",
+        s_acc, r_acc
+    );
+    info!("{}", sql);
+    let transactions: Vec<Transaction> =
+        sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
 }
 
 /*
@@ -459,14 +487,11 @@ fn transactions_for_interval(
     );
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for i in 0..transactions.len() {
-        trans.push(JsonTransaction::from_transaction(&transactions[i]));
-    }
-    let list = JsonTransactionList {
-        transactions: trans,
-    };
-    Json(list)
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
 }
 
 #[get("/micro-blocks/hash/<hash>/transactions/count")]
@@ -499,14 +524,11 @@ fn transactions_for_contract_address(
     );
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for i in 0..transactions.len() {
-        trans.push(JsonTransaction::from_transaction(&transactions[i]));
-    }
-    let list = JsonTransactionList {
-        transactions: trans,
-    };
-    Json(list)
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    Json(JsonTransactionList {
+        transactions: json_transactions
+    })
 }
 
 #[get("/contracts/calls/address/<address>")]
@@ -683,12 +705,10 @@ fn transactions_for_channel_address(
     debug!("{}", sql);
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    let mut trans: Vec<JsonTransaction> = vec![];
-    for tx in transactions {
-        trans.push(JsonTransaction::from_transaction(&tx));
-    }
+
+    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
     Json(JsonTransactionList {
-        transactions: trans,
+        transactions: json_transactions
     })
 }
 
@@ -813,11 +833,14 @@ impl MiddlewareServer {
         let allowed_origins = AllowedOrigins::all();
         let options = rocket_cors::Cors {
             allowed_origins,
-            allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+            allowed_methods: vec![Method::Get ].into_iter().map(From::from).collect(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             ..Default::default()
         };
+
+        use rocket::fairing::AdHoc;
+        use rocket::http::Header;
 
         rocket::ignite()
             .register(catchers![error400, error404])
@@ -832,6 +855,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
+            .mount("/middleware", routes![transactions_for_account_to_account])
             .mount("/middleware", routes![transactions_for_interval])
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_channel_address])
@@ -848,6 +872,15 @@ impl MiddlewareServer {
             .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transaction_count_in_micro_block])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
+            .attach(AdHoc::on_request("Handle null origin", |request, _| {
+                let mut headers = request.headers().to_owned();
+                for mut header in headers.get("Origin") {
+                    match header {
+                        "null" => request.replace_header(Header::new("Origin", "http://null")),
+                        _ => (),
+                    }
+                }
+            }))
             .attach(options)
             .manage(self)
             .launch();
