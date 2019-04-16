@@ -14,11 +14,11 @@ use diesel::dsl::select;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_query;
-use rust_decimal::Decimal;
 extern crate serde_json;
-use serde_json::Number;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
+use rust_decimal::Decimal;
+use serde_json::Number;
 use std::fmt;
 use std::str::FromStr;
 
@@ -103,6 +103,15 @@ impl KeyBlock {
             Ok(result) => result,
             _ => false,
         }
+    }
+
+    pub fn fees(sql_conn: &postgres::Connection, _height: i32) -> Decimal {
+        let sql =
+            "select COALESCE(sum(t.fee),0) from transactions t where block_height=$1".to_string();
+        for row in &sql_conn.query(&sql, &[&_height]).unwrap() {
+            return row.get(0);
+        }
+        0.into()
     }
 }
 
@@ -256,7 +265,9 @@ impl MicroBlock {
         kb_hash: &String,
     ) -> Option<Vec<String>> {
         let sql = format!(
-            "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE mb.key_block_id=kb.id and kb.hash='{}' ORDER BY mb.time_ ASC",
+            "SELECT mb.hash FROM micro_blocks mb, key_blocks kb WHERE \
+             mb.key_block_id=kb.id and kb.hash='{}' \
+             ORDER BY mb.time_ ASC",
             kb_hash
         );
         let mut micro_block_hashes = Vec::new();

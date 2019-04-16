@@ -1,6 +1,5 @@
 use super::models::{WsMessage, WsOp, WsPayload};
 use super::serde_json;
-use chashmap::*;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -8,8 +7,6 @@ use std::env;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::thread::sleep;
-use std::time::Duration;
 use ws::{listen, CloseCode, Handler, Handshake, Message, Result, Sender};
 
 use crate::middleware_result::MiddlewareResult;

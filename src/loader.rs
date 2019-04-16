@@ -490,7 +490,7 @@ impl BlockLoader {
                         return Ok(self.compare_key_blocks(conn, x, y)? == 0);
                     }
                     None => {
-                        println!("{} missing from DB", _height);
+                        debug!("{} missing from DB", _height);
                         return Ok(false);
                     }
                 };
@@ -498,11 +498,11 @@ impl BlockLoader {
             Err(_) => {
                 match block_db {
                     Some(_) => {
-                        println!("{} present in DB not in chain", _height);
+                        debug!("{} present in DB not in chain", _height);
                         return Ok(false);
                     }
                     None => {
-                        println!("Not found at either, something weird happened");
+                        debug!("Not found at either, something weird happened");
                         return Ok(false);
                     }
                 };
@@ -533,7 +533,7 @@ impl BlockLoader {
         let mut chain_mb_hashes = chain_gen["micro_blocks"].as_array()?.clone();
         chain_mb_hashes.sort_by(|a, b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
         if db_mb_hashes.len() != chain_mb_hashes.len() {
-            println!(
+            debug!(
                 "{} Microblock array size differs: {} chain vs {} db",
                 block_db.height,
                 chain_mb_hashes.len(),
@@ -552,12 +552,12 @@ impl BlockLoader {
                     chain_mb_hash,
                 )?;
                 if differences.len() != 0 {
-                    println!("Transactions differ: {:?}", differences);
+                    debug!("Transactions differ: {:?}", differences);
                     all_good = false;
                 }
             }
             if all_good {
-                println!("{} OK", block_db.height);
+                debug!("{} OK", block_db.height);
             }
         }
         Ok(block_db.height)

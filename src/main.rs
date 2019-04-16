@@ -1,3 +1,4 @@
+#![feature(plugin)]
 #![feature(slice_concat_ext)]
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
@@ -49,6 +50,7 @@ use clap::{App, Arg};
 
 use std::env;
 
+pub mod coinbase;
 pub mod hashing;
 pub mod loader;
 pub mod middleware_result;
@@ -185,7 +187,7 @@ fn main() {
     let verify = matches.is_present("verify");
 
     if verify {
-        println!("Verifying");
+        debug!("Verifying");
         let loader = BlockLoader::new(url.clone());
         match loader.verify() {
             Ok(_) => (),
