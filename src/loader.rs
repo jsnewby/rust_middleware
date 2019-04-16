@@ -537,7 +537,11 @@ impl BlockLoader {
         let top_max = std::cmp::max(top_chain, top_db);
         let mut i = top_max;
         loop {
-            self.compare_chain_and_db(i, &conn)?;
+            if (self.compare_chain_and_db(i, &conn)?) {
+                println!("Height {} OK", i);
+            } else {
+                println!("Height {} not OK", i);
+            }
             i -= 1;
             _verified += 1;
         }
@@ -554,7 +558,7 @@ impl BlockLoader {
             Ok(x) => {
                 match block_db {
                     Some(y) => {
-                        return Ok(self.compare_key_blocks(conn, x, y)? == 0);
+                        return Ok(self.compare_key_blocks(conn, x, y)? == _height);
                     }
                     None => {
                         debug!("{} missing from DB", _height);

@@ -127,7 +127,6 @@ pub fn get_name_hash(name: &str) -> Vec<u8> {
             break;
         }
     }
-    println!("hash: {:?}", result);
     result
 }
 

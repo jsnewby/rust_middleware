@@ -856,6 +856,7 @@ impl InsertableContractCall {
         let calldata = source.tx["call_data"].as_str()?;
         let contract_id = source.tx["contract_id"].as_str()?;
         let caller_id = source.tx["caller_id"].as_str()?;
+        let full_url = format!("{}/decode-calldata/bytecode", url);
         debug!(
             "calldata={}, contract_id={}, caller_id={}",
             calldata, contract_id, caller_id
@@ -873,7 +874,7 @@ impl InsertableContractCall {
         let client = reqwest::Client::new();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let mut result = client.post(url).json(&params).send()?;
+        let mut result = client.post(&full_url).json(&params).send()?;
         let output = result.text()?;
         debug!("Return from aesophia: {}", output);
         let result = serde_json::from_str(&output)?;
