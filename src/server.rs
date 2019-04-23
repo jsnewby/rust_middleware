@@ -18,7 +18,7 @@ use rocket::Catcher;
 use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
-use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, CorsOptions};
 use rust_decimal::Decimal;
 use serde_json;
 use std::io::Cursor;
@@ -344,6 +344,23 @@ fn size(_state: State<MiddlewareServer>, height: i32) -> Json<JsonValue> {
 fn current_size(_state: State<MiddlewareServer>) -> Json<JsonValue> {
     let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
     size(_state, _height as i32)
+}
+
+/*
+ * Gets this size of the chain at some height
+ */
+#[get("/count/height/<height>")]
+fn count(_state: State<MiddlewareServer>, height: i32) -> Json<JsonValue> {
+    let count = count_at_height(&SQLCONNECTION.get().unwrap(), height).unwrap();
+    Json(json!({
+        "count": count,
+    }))
+}
+
+#[get("/count/current")]
+fn current_count(_state: State<MiddlewareServer>) -> Json<JsonValue> {
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    count(_state, _height as i32)
 }
 
 /*
@@ -872,13 +889,15 @@ fn reverse_names(
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
-        let options = rocket_cors::Cors {
+        let options = rocket_cors::CorsOptions {
             allowed_origins,
             allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             ..Default::default()
-        };
+        }
+        .to_cors()
+        .unwrap(); // TODO
 
         use rocket::fairing::AdHoc;
         use rocket::http::Header;
@@ -889,6 +908,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![active_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![calls_for_contract_address])
+            .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![oracle_requests_responses])
@@ -914,15 +934,6 @@ impl MiddlewareServer {
             .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transaction_count_in_micro_block])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
-            .attach(AdHoc::on_request("Handle null origin", |request, _| {
-                let mut headers = request.headers().to_owned();
-                for mut header in headers.get("Origin") {
-                    match header {
-                        "null" => request.replace_header(Header::new("Origin", "http://null")),
-                        _ => (),
-                    }
-                }
-            }))
             .attach(options)
             .manage(self)
             .launch();
