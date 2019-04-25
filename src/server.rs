@@ -43,7 +43,7 @@ fn sanitize(s: &String) -> String {
 fn check_object(s: &str) -> () {
     lazy_static! {
         static ref OBJECT_REGEX: Regex = Regex::new(
-            "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{40,60}"
+            "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{38,60}"
         )
         .unwrap();
     }
