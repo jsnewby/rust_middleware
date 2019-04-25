@@ -18,7 +18,7 @@ use rocket::Catcher;
 use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
-use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, CorsOptions};
 use rust_decimal::Decimal;
 use serde_json;
 use std::io::Cursor;
@@ -259,9 +259,12 @@ fn transactions_in_micro_block_at_hash(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -344,6 +347,23 @@ fn current_size(_state: State<MiddlewareServer>) -> Json<JsonValue> {
 }
 
 /*
+ * Gets this size of the chain at some height
+ */
+#[get("/count/height/<height>")]
+fn count(_state: State<MiddlewareServer>, height: i32) -> Json<JsonValue> {
+    let count = count_at_height(&SQLCONNECTION.get().unwrap(), height).unwrap();
+    Json(json!({
+        "count": count,
+    }))
+}
+
+#[get("/count/current")]
+fn current_count(_state: State<MiddlewareServer>) -> Json<JsonValue> {
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    count(_state, _height as i32)
+}
+
+/*
  * Gets count of transactions for an account
  */
 #[get("/transactions/account/<account>/count")]
@@ -413,7 +433,7 @@ fn transactions_for_account(
     );
     info!("{}", sql);
 
-  let mut results: Vec<JsonValue> = Vec::new();
+    let mut results: Vec<JsonValue> = Vec::new();
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
         let time: i64 = row.get(0);
         let block_height: i32 = row.get(3);
@@ -441,7 +461,7 @@ fn transactions_for_account(
 fn transactions_for_account_to_account(
     _state: State<MiddlewareServer>,
     sender: String,
-    receiver: String
+    receiver: String,
 ) -> Json<JsonTransactionList> {
     check_object(&sender);
     check_object(&receiver);
@@ -458,9 +478,12 @@ fn transactions_for_account_to_account(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -488,9 +511,12 @@ fn transactions_for_interval(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -525,9 +551,12 @@ fn transactions_for_contract_address(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -706,9 +735,12 @@ fn transactions_for_channel_address(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -828,16 +860,44 @@ fn active_names(
     Json(names)
 }
 
+/*
+ * Gets the names which point to something
+ */
+#[get("/names/reverse/<account>?<limit>&<page>")]
+fn reverse_names(
+    _state: State<MiddlewareServer>,
+    account: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<Name>> {
+    let connection = PGCONNECTION.get().unwrap();
+    check_object(&account);
+    let s_acc = sanitize(&account);
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        r#"SELECT * FROM names WHERE pointers @> '[{{"id": "{}"}}]' AND expires_at < {} ORDER BY name limit {} offset {}"#,
+        s_acc,
+        KeyBlock::top_height(&*connection).unwrap(),
+        limit_sql,
+        offset_sql
+    );
+    debug!("{}", sql);
+    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    Json(names)
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
-        let options = rocket_cors::Cors {
+        let options = rocket_cors::CorsOptions {
             allowed_origins,
-            allowed_methods: vec![Method::Get ].into_iter().map(From::from).collect(),
+            allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             ..Default::default()
-        };
+        }
+        .to_cors()
+        .unwrap(); // TODO
 
         use rocket::fairing::AdHoc;
         use rocket::http::Header;
@@ -848,9 +908,11 @@ impl MiddlewareServer {
             .mount("/middleware", routes![active_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![calls_for_contract_address])
+            .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![oracle_requests_responses])
+            .mount("/middleware", routes![reverse_names])
             .mount("/middleware", routes![reward_at_height])
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![transaction_rate])
@@ -872,15 +934,6 @@ impl MiddlewareServer {
             .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transaction_count_in_micro_block])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
-            .attach(AdHoc::on_request("Handle null origin", |request, _| {
-                let mut headers = request.headers().to_owned();
-                for mut header in headers.get("Origin") {
-                    match header {
-                        "null" => request.replace_header(Header::new("Origin", "http://null")),
-                        _ => (),
-                    }
-                }
-            }))
             .attach(options)
             .manage(self)
             .launch();
