@@ -875,7 +875,7 @@ fn reverse_names(
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        r#"SELECT * FROM names WHERE pointers @> '[{{"id": "{}"}}]' AND expires_at > {} ORDER BY name limit {} offset {}"#,
+        r#"SELECT * FROM names WHERE pointers @> '[{{"id": "{}"}}]' AND expires_at >= {} ORDER BY name limit {} offset {}"#,
         s_acc,
         KeyBlock::top_height(&*connection).unwrap(),
         limit_sql,
