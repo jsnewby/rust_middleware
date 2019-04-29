@@ -326,7 +326,7 @@ impl BlockLoader {
      * to grab the block and all of its microblocks.
      */
 
-    fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
+    pub fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
         let connection = PGCONNECTION.get()?;
         let result = connection.transaction::<(i32, i32), MiddlewareError, _>(|| {
             self.internal_load_block(&connection, _height)
@@ -436,8 +436,8 @@ impl BlockLoader {
                     debug!("NameUpdateTx: {:?}", transaction);
                     if let Some(name_id) = transaction.tx["name_id"].as_str() {
                         if let Some(mut name) = Name::load_for_hash(connection, name_id) {
-                            name.expires_at =
-                                transaction.tx["name_ttl"].as_i64()? + transaction.block_height as i64;
+                            name.expires_at = transaction.tx["name_ttl"].as_i64()?
+                                + transaction.block_height as i64;
                             name.pointers = Some(transaction.tx["pointers"].clone());
                             name.update(connection)?;
                         }

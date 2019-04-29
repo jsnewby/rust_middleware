@@ -559,6 +559,10 @@ impl InsertableTransaction {
                 std::i64::MAX
             }
         };
+
+        let tx: serde_json::Value =
+            serde_json::from_str(&jt.tx.to_string().replace("\\u0000", "-"))?;
+        println!("{}", tx.to_string());
         Ok(InsertableTransaction {
             micro_block_id,
             block_height: jt.block_height,
@@ -568,7 +572,7 @@ impl InsertableTransaction {
             tx_type,
             fee,
             size: jt.tx.to_string().len() as i32,
-            tx: serde_json::from_str(&jt.tx.to_string())?,
+            tx,
         })
     }
 }
