@@ -548,12 +548,9 @@ impl InsertableTransaction {
             }
             signatures.push_str(&jt.signatures[i].clone());
         }
-        // TODO (urgent): make this handle big numbers.
-        debug!("tx: {:?}", jt.tx);
         let fee_number: serde_json::Number =
             serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
         let fee_str = fee_number.to_string();
-        debug!("fee: {}", fee_str);
         let fee = bigdecimal::BigDecimal::from_str(&fee_str)?;
         Ok(InsertableTransaction {
             micro_block_id,
