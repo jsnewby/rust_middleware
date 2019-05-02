@@ -11,7 +11,6 @@ use super::schema::names::dsl::*;
 use super::schema::oracle_queries;
 use super::schema::transactions;
 use chrono::prelude::*;
-use curl::easy::{Easy2, Form, Handler, List, WriteError};
 use diesel::dsl::exists;
 use diesel::dsl::select;
 use diesel::pg::PgConnection;
@@ -20,8 +19,7 @@ use diesel::sql_query;
 extern crate serde_json;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT};
-use reqwest::*;
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use rust_decimal::Decimal;
 use serde_json::Number;
 use std::collections::HashMap;
@@ -144,7 +142,6 @@ pub struct InsertableKeyBlock {
 impl InsertableKeyBlock {
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::key_blocks::dsl::*;
         let generated_ids: Vec<i32> = insert_into(key_blocks)
             .values(self)
@@ -317,7 +314,6 @@ pub struct InsertableMicroBlock {
 impl InsertableMicroBlock {
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::micro_blocks::dsl::*;
         let generated_ids: Vec<i32> = insert_into(micro_blocks)
             .values(self)
@@ -394,7 +390,7 @@ pub struct Transaction {
     pub block_hash: String,
     pub hash: String,
     pub signatures: String,
-    pub fee: i64,
+    pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub tx: serde_json::Value,
 }
@@ -519,7 +515,7 @@ pub struct InsertableTransaction {
     pub hash: String,
     pub signatures: String,
     pub tx_type: String,
-    pub fee: i64,
+    pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub tx: serde_json::Value,
 }
@@ -527,7 +523,6 @@ pub struct InsertableTransaction {
 impl InsertableTransaction {
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::transactions::dsl::*;
         let generated_ids: Vec<i32> = insert_into(transactions)
             .values(self)
@@ -548,21 +543,11 @@ impl InsertableTransaction {
             }
             signatures.push_str(&jt.signatures[i].clone());
         }
-        // TODO (urgent): make this handle big numbers.
-        let fee = match jt.tx["fee"].as_i64() {
-            Some(x) => x,
-            None => {
-                error!(
-                    "Fee too high for i64, setting to i64::MAX, hash is {}",
-                    jt.hash
-                );
-                std::i64::MAX
-            }
-        };
 
-        let tx: serde_json::Value =
-            serde_json::from_str(&jt.tx.to_string().replace("\\u0000", "-"))?;
-        println!("{}", tx.to_string());
+        let fee_number: serde_json::Number =
+            serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
+        let fee_str = fee_number.to_string();
+        let fee = bigdecimal::BigDecimal::from_str(&fee_str)?;
         Ok(InsertableTransaction {
             micro_block_id,
             block_height: jt.block_height,
@@ -655,7 +640,6 @@ impl InsertableOracleQuery {
     }
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::oracle_queries::dsl::*;
         let generated_ids: Vec<i32> = insert_into(oracle_queries)
             .values(self)
@@ -685,7 +669,6 @@ impl InsertableContractIdentifier {
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         debug!("Saving contract info");
         use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::contract_identifiers::dsl::*;
         let generated_ids: Vec<i32> = insert_into(contract_identifiers)
             .values(self)
@@ -732,7 +715,6 @@ impl InsertableChannelIdentifier {
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         debug!("Saving channel info");
         use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::channel_identifiers::dsl::*;
         let generated_ids: Vec<i32> = insert_into(channel_identifiers)
             .values(self)
@@ -791,7 +773,6 @@ impl InsertableName {
 
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::names::dsl::*;
         let generated_ids: Vec<i32> = insert_into(names)
             .values(self)
@@ -832,8 +813,6 @@ impl Name {
         }
     }
     pub fn delete(&self, connection: &PgConnection) -> MiddlewareResult<usize> {
-        use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::names::dsl::*;
         match diesel::delete(names.filter(id.eq(self.id))).execute(connection) {
             Ok(x) => Ok(x),
@@ -906,7 +885,6 @@ impl InsertableContractCall {
 
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
         use diesel::dsl::insert_into;
-        use diesel::RunQueryDsl;
         use schema::contract_calls::dsl::*;
         let generated_ids: Vec<i32> = insert_into(contract_calls)
             .values(self)

@@ -135,4 +135,10 @@ impl
     }
 }
 
+impl std::convert::From<bigdecimal::ParseBigDecimalError> for MiddlewareError {
+    fn from(err: bigdecimal::ParseBigDecimalError) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
 pub type MiddlewareResult<T> = Result<T, MiddlewareError>;
