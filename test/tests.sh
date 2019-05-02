@@ -13,6 +13,7 @@
 ./reset-database.sh
 
 RUST_LOG=info AESOPHIA_URL=https://compiler.aepps.com NODE_URL=https://sdk-mainnet.aepps.com RUST_BACKTRACE=full cargo run --  -H26093,28153
+# spawn a server middleware, but do not permit it to contact mainnet...
 RUST_LOG=info AESOPHIA_URL=https://compiler.aepps.com NODE_URL=https://sdk-testnet.aepps.com RUST_BACKTRACE=full cargo run --  -s >& afile &
 ID=$!
 curl -q https://sdk-mainnet.aepps.com/v2/generations/height/26093 > a.json
