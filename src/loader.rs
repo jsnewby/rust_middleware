@@ -326,7 +326,7 @@ impl BlockLoader {
      * to grab the block and all of its microblocks.
      */
 
-    fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
+    pub fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
         let connection = PGCONNECTION.get()?;
         let result = connection.transaction::<(i32, i32), MiddlewareError, _>(|| {
             self.internal_load_block(&connection, _height)

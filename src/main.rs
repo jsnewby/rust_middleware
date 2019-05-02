@@ -179,6 +179,13 @@ fn main() {
                 .help("Verify DB integrity against chain")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("heights")
+                .short("H")
+                .long("heights")
+                .help("Load specific heights, values separated by comma, ranges with from-to accepted")
+                .takes_value(true),
+            )
         .get_matches();
 
     let url = env::var("NODE_URL")
@@ -187,6 +194,7 @@ fn main() {
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
     let verify = matches.is_present("verify");
+    let heights = matches.is_present("heights");
 
     if verify {
         debug!("Verifying");
@@ -196,6 +204,29 @@ fn main() {
             Err(x) => error!("Blockloader::verify() returned an error: {}", x),
         };
         return;
+    }
+
+    /*
+     * The `heights` argument is of this form: 1,10-15,1000 which would cause blocks 1, 10,11,12,13,14,15 and 1000
+     *to be loaded.
+     */
+    if heights {
+        let to_load = matches.value_of("heights").unwrap();
+        let loader = BlockLoader::new(url.clone());
+        for h in to_load.split(',') {
+            let s = String::from(h);
+            match s.find("-") {
+                Some(_) => {
+                    let fromto: Vec<String> = s.split('-').map(|x| String::from(x)).collect();
+                    for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap() {
+                        loader.load_blocks(i);
+                    }
+                }
+                None => {
+                    loader.load_blocks(s.parse::<i64>().unwrap());
+                }
+            }
+        }
     }
 
     /*
@@ -224,11 +255,12 @@ fn main() {
         };
         websocket::start_ws(); //start the websocket server
         ms.start();
+        loop {
+            // just to stop main() thread exiting.
+            thread::sleep(std::time::Duration::new(40, 0));
+        }
     }
-    if !populate && !serve {
+    if !populate && !serve && !heights {
         warn!("Nothing to do!");
-    }
-    loop {
-        thread::sleep(std::time::Duration::new(40, 0));
     }
 }

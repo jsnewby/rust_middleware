@@ -39,14 +39,12 @@ NB: The diesel framework causes many many compiler warnings. It can be good to s
 ```
 FLAGS:
         --help        Prints help information
+    -H, --heights     Adds or replaces a set of heights, or ranges of heights, separated by
+    		      commas to the database.
     -p, --populate    Populate DB
     -s, --server      Start server
     -v, --verify      Check the DB against the chain
     -V, --version     Prints version information
-
-OPTIONS:
-    -h, --start <START_HASH>    Hash to start from.
-    -u, --url <URL>             URL of æternity node.
 
 ```
 

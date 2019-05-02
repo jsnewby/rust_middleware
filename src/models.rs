@@ -543,6 +543,7 @@ impl InsertableTransaction {
             }
             signatures.push_str(&jt.signatures[i].clone());
         }
+
         let fee_number: serde_json::Number =
             serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
         let fee_str = fee_number.to_string();
@@ -556,7 +557,7 @@ impl InsertableTransaction {
             tx_type,
             fee,
             size: jt.tx.to_string().len() as i32,
-            tx: serde_json::from_str(&jt.tx.to_string())?,
+            tx,
         })
     }
 }
