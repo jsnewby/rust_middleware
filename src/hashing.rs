@@ -1,6 +1,6 @@
 use base58::ToBase58;
 pub use base58check::FromBase58Check;
-use blake2::digest::{Input, Reset, VariableOutput};
+use blake2::digest::{Input, VariableOutput};
 use blake2::VarBlake2b;
 pub use blake2b::Blake2b;
 pub use byteorder::{BigEndian, WriteBytesExt};

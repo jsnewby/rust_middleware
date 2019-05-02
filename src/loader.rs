@@ -31,34 +31,34 @@ pub struct BlockLoader {
 pub static BACKLOG_CLEARED: i64 = -1;
 
 lazy_static! {
-    static ref tx_queue: CHashMap<i64, bool> = CHashMap::<i64, bool>::new();
+    static ref TX_QUEUE: CHashMap<i64, bool> = CHashMap::<i64, bool>::new();
 }
 
 fn is_in_queue(_height: i64) -> bool {
-    match tx_queue.get(&_height) {
+    match TX_QUEUE.get(&_height) {
         None => false,
         _ => true,
     }
 }
 
 fn remove_from_queue(_height: i64) {
-    info!("tx_queue -> {}", _height);
-    tx_queue.remove(&_height);
-    info!("tx_queue len={}", tx_queue.len());
+    info!("TX_QUEUE -> {}", _height);
+    TX_QUEUE.remove(&_height);
+    info!("TX_QUEUE len={}", TX_QUEUE.len());
 }
 fn add_to_queue(_height: i64) {
-    info!("tx_queue <- {}", _height);
-    tx_queue.insert(_height, true);
+    info!("TX_QUEUE <- {}", _height);
+    TX_QUEUE.insert(_height, true);
 }
 
 pub fn queue(
     _height: i64,
     _tx: &std::sync::mpsc::Sender<i64>,
 ) -> Result<(), std::sync::mpsc::SendError<i64>> {
-    info!("tx_queue len={}", tx_queue.len());
+    info!("TX_QUEUE len={}", TX_QUEUE.len());
 
     if is_in_queue(_height) {
-        info!("tx_queue already has {}", _height);
+        info!("TX_QUEUE already has {}", _height);
         return Ok(());
     }
     _tx.send(_height)?;
@@ -436,8 +436,8 @@ impl BlockLoader {
                     debug!("NameUpdateTx: {:?}", transaction);
                     if let Some(name_id) = transaction.tx["name_id"].as_str() {
                         if let Some(mut name) = Name::load_for_hash(connection, name_id) {
-                            name.expires_at =
-                                transaction.tx["name_ttl"].as_i64()? + transaction.block_height as i64;
+                            name.expires_at = transaction.tx["name_ttl"].as_i64()?
+                                + transaction.block_height as i64;
                             name.pointers = Some(transaction.tx["pointers"].clone());
                             name.update(connection)?;
                         }
@@ -465,14 +465,13 @@ impl BlockLoader {
             &trans.hash
         );
         debug!("{}", sql);
-        let mut results: Vec<Transaction> = sql_query(sql).
-            // bind::<diesel::sql_types::Text, _>(trans.hash.clone()).
-            // TODO: fix ^^^^^^^^^^^^^^
-            get_results(conn)?;
+        let mut results: Vec<Transaction> = sql_query(sql).get_results(conn)?;
         match results.pop() {
             Some(x) => {
                 debug!("Updating transaction with hash {}", &trans.hash);
-                diesel::update(&x).set(micro_block_id.eq(_micro_block_id));
+                diesel::update(&x)
+                    .set(micro_block_id.eq(_micro_block_id))
+                    .execute(conn)?;
                 websocket::broadcast_ws(WsPayload::tx_update, &json!(&x))?; //broadcast updated transaction
                 Ok(x.id)
             }
@@ -538,7 +537,7 @@ impl BlockLoader {
         let top_max = std::cmp::max(top_chain, top_db);
         let mut i = top_max;
         loop {
-            if (self.compare_chain_and_db(i, &conn)?) {
+            if self.compare_chain_and_db(i, &conn)? {
                 println!("Height {} OK", i);
             } else {
                 println!("Height {} not OK", i);

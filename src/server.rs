@@ -1,5 +1,3 @@
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
 use diesel::sql_query;
 
 use coinbase::coinbase;
@@ -8,22 +6,18 @@ use node::Node;
 
 use chrono::prelude::*;
 use diesel::RunQueryDsl;
-use node::HttpResponse;
 use regex::Regex;
 use rocket;
 use rocket::http::{Method, Status};
-use rocket::response::status::Custom;
-use rocket::response::{Response, ResponseBuilder};
-use rocket::Catcher;
+use rocket::response::Response;
 use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
-use rocket_cors::{AllowedHeaders, AllowedOrigins, CorsOptions};
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rust_decimal::Decimal;
 use serde_json;
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use SQLCONNECTION;
 
@@ -898,9 +892,6 @@ impl MiddlewareServer {
         }
         .to_cors()
         .unwrap(); // TODO
-
-        use rocket::fairing::AdHoc;
-        use rocket::http::Header;
 
         rocket::ignite()
             .register(catchers![error400, error404])
