@@ -394,7 +394,7 @@ pub struct Transaction {
     pub block_hash: String,
     pub hash: String,
     pub signatures: String,
-    pub fee: i64,
+    pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub tx: serde_json::Value,
 }
@@ -519,7 +519,7 @@ pub struct InsertableTransaction {
     pub hash: String,
     pub signatures: String,
     pub tx_type: String,
-    pub fee: i64,
+    pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub tx: serde_json::Value,
 }
@@ -549,16 +549,12 @@ impl InsertableTransaction {
             signatures.push_str(&jt.signatures[i].clone());
         }
         // TODO (urgent): make this handle big numbers.
-        let fee = match jt.tx["fee"].as_i64() {
-            Some(x) => x,
-            None => {
-                error!(
-                    "Fee too high for i64, setting to i64::MAX, hash is {}",
-                    jt.hash
-                );
-                std::i64::MAX
-            }
-        };
+        debug!("tx: {:?}", jt.tx);
+        let fee_number: serde_json::Number =
+            serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
+        let fee_str = fee_number.to_string();
+        debug!("fee: {}", fee_str);
+        let fee = bigdecimal::BigDecimal::from_str(&fee_str)?;
         Ok(InsertableTransaction {
             micro_block_id,
             block_height: jt.block_height,

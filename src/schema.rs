@@ -81,7 +81,7 @@ table! {
         signatures -> Text,
         tx_type -> Varchar,
         tx -> Jsonb,
-        fee -> Int8,
+        fee -> Numeric,
         size -> Int4,
         valid -> Bool,
     }
