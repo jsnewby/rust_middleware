@@ -27,6 +27,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use middleware_result::{MiddlewareError, MiddlewareResult};
+use node::Node;
 
 use SQLCONNECTION;
 
@@ -406,18 +407,6 @@ impl Transaction {
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
         let sql = format!("select * from transactions where hash='{}'", _hash);
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
-        /*
-        let mut _transactions = match transactions::table
-            .filter(hash.eq(_hash))
-            .limit(1)
-            .load::<Transaction>(conn) {
-                Ok(x) => x,
-                Err(y) => {
-                    error!("Error loading key block: {:?}", y);
-                    return None;
-                },
-            };
-         */
         Some(_transactions.pop()?)
     }
 
@@ -548,8 +537,7 @@ impl InsertableTransaction {
             serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
         let fee_str = fee_number.to_string();
         let fee = bigdecimal::BigDecimal::from_str(&fee_str)?.with_scale(0);
-	// the above with_scale(0) seems to suppress a weird bug, should not be necessary
-	debug!("fee: {:?}", fee);
+        // the above with_scale(0) seems to suppress a weird bug, should not be necessary
         Ok(InsertableTransaction {
             micro_block_id,
             block_height: jt.block_height,
@@ -830,6 +818,7 @@ pub struct InsertableContractCall {
     pub contract_id: String,
     pub caller_id: String,
     pub arguments: serde_json::Value,
+    pub callinfo: Option<serde_json::Value>,
 }
 
 impl InsertableContractCall {
@@ -877,11 +866,16 @@ impl InsertableContractCall {
         let output = result.text()?;
         debug!("Return from aesophia: {}", output);
         let result = serde_json::from_str(&output)?;
+        // TODO -- clean up this hacky shit
+        let node = Node::new(std::env::var("NODE_URL").unwrap());
+        // ^^^^^ should be safe here, but this needs to be fixed ASAP
+        let callinfo = Some(node.transaction_info(&source.hash)?);
         Ok(Some(Self {
             transaction_id,
             contract_id: contract_id.to_string(),
             caller_id: caller_id.to_string(),
             arguments: result,
+            callinfo,
         }))
     }
 

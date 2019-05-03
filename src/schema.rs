@@ -94,6 +94,7 @@ table! {
         contract_id -> Varchar,
         caller_id -> Varchar,
         arguments -> Jsonb,
+        callinfo -> Nullable<Jsonb>,
     }
 }
 

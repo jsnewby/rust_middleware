@@ -82,6 +82,13 @@ impl Node {
         self.get(&String::from("key-blocks/current"))
     }
 
+    pub fn transaction_info(
+        &self,
+        transaction_hash: &String,
+    ) -> MiddlewareResult<serde_json::Value> {
+        self.get(&format!("transactions/{}/info", transaction_hash))
+    }
+
     pub fn get(&self, operation: &String) -> MiddlewareResult<serde_json::Value> {
         debug!("Fetching {}", operation);
         let http_response = self.get_naked(&String::from("/v2/"), operation)?;
