@@ -547,7 +547,9 @@ impl InsertableTransaction {
         let fee_number: serde_json::Number =
             serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
         let fee_str = fee_number.to_string();
-        let fee = bigdecimal::BigDecimal::from_str(&fee_str)?;
+        let fee = bigdecimal::BigDecimal::from_str(&fee_str)?.with_scale(0);
+	// the above with_scale(0) seems to suppress a weird bug, should not be necessary
+	debug!("fee: {:?}", fee);
         Ok(InsertableTransaction {
             micro_block_id,
             block_height: jt.block_height,
@@ -557,7 +559,7 @@ impl InsertableTransaction {
             tx_type,
             fee,
             size: jt.tx.to_string().len() as i32,
-            tx,
+            tx: serde_json::from_str(&jt.tx.to_string())?,
         })
     }
 }
