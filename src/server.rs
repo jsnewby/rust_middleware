@@ -792,7 +792,7 @@ fn all_contracts(_state: State<MiddlewareServer>) -> Json<Vec<JsonValue>> {
 }
 
 #[get("/oracles/all?<limit>&<page>")]
-fn oracle_requests_responses(
+fn oracle_all_requests_responses(
     _state: State<MiddlewareServer>,
     limit: Option<i32>,
     page: Option<i32>,
@@ -805,6 +805,38 @@ fn oracle_requests_responses(
          left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
          limit {} offset {} ",
         limit_sql, offset_sql
+    );
+    debug!("{}", sql);
+    let mut res: Vec<JsonValue> = vec![];
+    for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
+        let query_id: String = row.get(0);
+        let request: serde_json::Value = row.get(1);
+        let response: Option<serde_json::Value> = row.get(2);
+        res.push(json!({
+            "query_id": query_id,
+            "request": json!(request),
+            "response": json!(response),
+        }));
+    }
+    json!(res)
+}
+
+#[get("/oracles/<hash>?<limit>&<page>")]
+fn oracle_requests_responses(
+    _state: State<MiddlewareServer>,
+    hash: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> JsonValue {
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "select oq.query_id, t1.tx, t2.tx from \
+         oracle_queries oq \
+         join transactions t1 on oq.transaction_id=t1.id \
+         left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
+         where oq.oracle_id='{}' \
+         limit {} offset {} ",
+        hash, limit_sql, offset_sql
     );
     let mut res: Vec<JsonValue> = vec![];
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
@@ -906,6 +938,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
+            .mount("/middleware", routes![oracle_all_requests_responses])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
             .mount("/middleware", routes![reward_at_height])
