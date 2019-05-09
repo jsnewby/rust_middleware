@@ -18,7 +18,7 @@ A set of queries will list, for example, all transactions for a given account, a
 
 ### Contracts
 
-The middleware unpacks and stores all contract calls, with the function called and the arguments. In the near future we will also store the return type and value. You can see all contract calls for a given contract.
+The middleware unpacks and stores all contract calls for which it has the bytecode, with the function called and the arguments. In the near future we will also store the return type and value. You can see all contract calls for a given contract.
 
 ### State channels
 
@@ -44,6 +44,7 @@ The middleware permits you to subscribe to events via a websocket, and receive u
 
 There is a hosted middleware for the æternity mainnet at http://mdw.aepps.com/, and one for the testnet at https://testnet.mdw.aepps.com.
 
+### Install your own
 
 - Install a postgresql DB somewhere. Version 11.2 or greater are supported.
 - as the postgresql admin user, execute `scripts/prepare-db.sql` which will create the DB and user
