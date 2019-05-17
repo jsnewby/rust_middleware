@@ -95,6 +95,7 @@ table! {
         caller_id -> Varchar,
         arguments -> Jsonb,
         callinfo -> Nullable<Jsonb>,
+        result -> Nullable<Jsonb>,
     }
 }
 

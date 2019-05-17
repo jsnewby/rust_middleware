@@ -819,9 +819,16 @@ pub struct InsertableContractCall {
     pub caller_id: String,
     pub arguments: serde_json::Value,
     pub callinfo: Option<serde_json::Value>,
+    pub result: Option<serde_json::Value>,
 }
 
 impl InsertableContractCall {
+    /**
+     * This function fills in the InsertableContractCall from values returned by the
+     * node and standalone compiler.
+     *
+     * TODO: refactor, massively.
+     */
     pub fn request(
         url: &str,
         source: &JsonTransaction,
@@ -865,17 +872,35 @@ impl InsertableContractCall {
         let mut result = client.post(&full_url).json(&params).send()?;
         let output = result.text()?;
         debug!("Return from aesophia: {}", output);
-        let result = serde_json::from_str(&output)?;
+        let arguments: serde_json::Value = serde_json::from_str(&output)?;
         // TODO -- clean up this hacky shit
         let node = Node::new(std::env::var("NODE_URL").unwrap());
         // ^^^^^ should be safe here, but this needs to be fixed ASAP
-        let callinfo = Some(node.transaction_info(&source.hash)?);
+        let callinfo = node.transaction_info(&source.hash)?;
+        debug!("callinfo: {:?}", callinfo);
+        debug!("arguments: {:?}", arguments);
+        params.remove(&"calldata".to_string())?;
+        params.insert(
+            "function".to_string(),
+            String::from(arguments["function"].as_str()?),
+        );
+        params.insert(
+            "return".to_string(),
+            String::from(callinfo["return_value"].as_str()?),
+        );
+        debug!("returndata input: {:?}", params);
+        result = client
+            .post(&format!("{}/decode-returndata/bytecode", url))
+            .json(&params)
+            .send()?;
+        let result = serde_json::from_str(&result.text()?)?;
         Ok(Some(Self {
             transaction_id,
             contract_id: contract_id.to_string(),
             caller_id: caller_id.to_string(),
-            arguments: result,
-            callinfo,
+            arguments,
+            callinfo: Some(callinfo),
+            result: Some(result),
         }))
     }
 

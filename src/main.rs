@@ -276,6 +276,10 @@ fn main() {
     if !populate && !serve && !heights {
         warn!("Nothing to do!");
     }
+
+    /*
+     * If we have a populate thread running, wait for it to exit.
+     */
     match populate_thread {
         Some(x) => {
             x.join();
