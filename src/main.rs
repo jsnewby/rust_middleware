@@ -39,8 +39,10 @@ extern crate rust_decimal;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-
+use std::fs::File;
+use std::io::Write;
 use std::thread;
+use std::thread::JoinHandle;
 extern crate itertools;
 
 extern crate futures;
@@ -191,6 +193,15 @@ fn main() {
     let url = env::var("NODE_URL")
         .expect("NODE_URL must be set")
         .to_string();
+    match env::var("PID_FILE") {
+        Ok(x) => {
+            let mut f = File::create(x).unwrap();
+            f.write_all(format!("{}\n", std::process::id()).as_bytes())
+                .unwrap();
+        }
+        Err(_) => (),
+    }
+
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
     let verify = matches.is_present("verify");
@@ -229,6 +240,8 @@ fn main() {
         }
     }
 
+    let mut populate_thread: Option<JoinHandle<()>> = None;
+
     /*
      * We start 3 populate processes--one queries for missing heights
      * and works through that list, then exits. Another polls for
@@ -242,9 +255,9 @@ fn main() {
             Ok(_) => (),
             Err(x) => error!("fill_missing_heights() returned an error: {}", x),
         };
-        thread::spawn(move || {
+        populate_thread = Some(thread::spawn(move || {
             loader.start();
-        });
+        }));
     }
 
     if serve {
@@ -262,5 +275,12 @@ fn main() {
     }
     if !populate && !serve && !heights {
         warn!("Nothing to do!");
+    }
+    match populate_thread {
+        Some(x) => {
+            x.join();
+            ()
+        }
+        None => (),
     }
 }
