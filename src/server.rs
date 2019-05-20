@@ -211,7 +211,6 @@ fn transaction_at_hash(
     let mut path = std::path::PathBuf::new();
     path.push(format!("transactions/{}", hash));
     let mut response = node_get_handler(state, path);
-    println!("{:?}", response);
     if response.status() == Status::Ok {
         let body = response.body_string().unwrap();
         let jt: JsonTransaction = serde_json::from_str(&body).unwrap();

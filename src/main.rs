@@ -18,6 +18,7 @@ extern crate curl;
 extern crate diesel;
 extern crate dotenv;
 extern crate env_logger;
+extern crate flexi_logger;
 extern crate hex;
 #[macro_use]
 extern crate lazy_static;
@@ -155,7 +156,19 @@ fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i
 }
 
 fn main() {
-    env_logger::init();
+    match env::var("LOG_DIR") {
+        Ok(x) => {
+            flexi_logger::Logger::with_env()
+                .log_to_file()
+                .directory(x)
+                .start()
+                .unwrap();
+            ()
+        }
+        Err(x) => env_logger::Builder::from_default_env()
+            .target(env_logger::Target::Stdout)
+            .init(),
+    }
     let matches = App::new("æternity middleware")
         .version(VERSION)
         .author("John Newby <john@newby.org>")
