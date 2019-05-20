@@ -47,6 +47,7 @@ pub struct KeyBlock {
     pub target: i64,
     pub time: i64,
     pub version: i32,
+    pub info: String,
 }
 
 impl KeyBlock {
@@ -59,6 +60,7 @@ impl KeyBlock {
             id: -1, // TODO
             hash: jb.hash.clone(),
             height: jb.height,
+            info: jb.info.to_owned(),
             miner: jb.miner.clone(),
             nonce: bigdecimal::BigDecimal::from(n),
             beneficiary: jb.beneficiary.clone(),
@@ -128,6 +130,7 @@ impl KeyBlock {
 pub struct InsertableKeyBlock {
     pub hash: String,
     pub height: i64,
+    pub info: String,
     pub miner: String,
     pub nonce: bigdecimal::BigDecimal,
     pub beneficiary: String,
@@ -170,6 +173,7 @@ impl InsertableKeyBlock {
             target: jb.target.clone(),
             time: jb.time,
             version: jb.version,
+            info: jb.info.to_owned(),
         })
     }
 }
@@ -186,6 +190,7 @@ for these missing methods.
 pub struct JsonKeyBlock {
     pub hash: String,
     pub height: i64,
+    pub info: String,
     pub miner: String,
     pub beneficiary: String,
     #[serde(default = "zero")]
@@ -203,8 +208,9 @@ pub struct JsonKeyBlock {
 impl JsonKeyBlock {
     pub fn eq(&self, other: &JsonKeyBlock) -> bool {
         (self.hash.eq(&other.hash) &&
-                self.height == other.height &&
-                self.miner.eq(&other.miner) &&
+         self.height == other.height &&
+         self.miner.eq(&other.miner) &&
+         self.info.eq(&other.info) &&
                 self.beneficiary.eq(&other.beneficiary) &&
 //                self.nonce == other.nonce && // These don't compare well. TODO -- fix
                 self.pow.len() == other.pow.len() && // TODO <-- fix
@@ -225,6 +231,7 @@ impl JsonKeyBlock {
         JsonKeyBlock {
             hash: kb.hash.clone(),
             height: kb.height,
+            info: kb.info.to_owned(),
             miner: kb.miner.clone(),
             beneficiary: kb.beneficiary.clone(),
             nonce: serde_json::Number::from_f64(kb.nonce.to_f64().unwrap()).unwrap(),

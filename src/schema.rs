@@ -30,6 +30,7 @@ table! {
         #[sql_name="time_"]
         time -> Int8,
         version -> Int4,
+        info -> Varchar,
     }
 }
 

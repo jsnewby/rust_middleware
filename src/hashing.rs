@@ -115,7 +115,6 @@ pub fn get_name_hash(name: &str) -> Vec<u8> {
     let mut split: Vec<&[u8]> = name.split('.').rev().map(|s| s.as_bytes()).collect();
     loop {
         if let Some(part) = split.pop() {
-            println!("{}", String::from_utf8(part.to_vec()).unwrap());
             let mut hasher = VarBlake2b::new(32).unwrap();
             hasher.input(part);
             let hashed = hasher.vec_result();
