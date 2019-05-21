@@ -89,6 +89,9 @@ FLAGS:
 
 `NODE_URL` - the URL of the æternity node
 `AESOPHIA_URL` - if present, the middleware will attempt to use this to decode contract calls, storing the function called, and its parameters
+`PID_FILE` - if present, the middleware stores its pid in this file
+`LOG_DIR` - if present, this directory is used for logs, otherwise stdout is used
+`DATABASE_URL` - PostgreSQL connection URL
 
 ## Supported queries
 ```
