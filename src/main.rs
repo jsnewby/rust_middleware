@@ -106,6 +106,28 @@ lazy_static! {
     };
 }
 
+#[derive(PartialEq)]
+enum ParanoiaLevel {
+    Normal,
+    High,
+}
+
+lazy_static! {
+    static ref PARANOIA_LEVEL: ParanoiaLevel = {
+        let paranoia_level = env::var("PARANOIA_LEVEL");
+        match paranoia_level {
+            Ok(x) => {
+                if x.eq(&String::from("high")) {
+                    ParanoiaLevel::High
+                } else {
+                    ParanoiaLevel::Normal
+                }
+            }
+            _ => ParanoiaLevel::Normal,
+        }
+    };
+}
+
 /*
  * This function does two things--initially it asks the DB for the
 * heights not present between 0 and the height returned by
