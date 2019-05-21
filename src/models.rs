@@ -883,8 +883,8 @@ impl InsertableContractCall {
         // TODO -- clean up this hacky shit
         let node = Node::new(std::env::var("NODE_URL").unwrap());
         // ^^^^^ should be safe here, but this needs to be fixed ASAP
-        let callinfo = node.transaction_info(&source.hash)?;
-        debug!("callinfo: {:?}", callinfo);
+        let callinfo = node.transaction_info(&source.hash)?["call_info"].to_owned();
+        debug!("callinfo: {:?}", callinfo.to_string());
         debug!("arguments: {:?}", arguments);
         params.remove(&"calldata".to_string())?;
         params.insert(

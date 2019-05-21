@@ -17,8 +17,11 @@ use std::slice::SliceConcatExt;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
+use PARANOIA_LEVEL;
 use PGCONNECTION;
 use SQLCONNECTION;
+
+use crate::ParanoiaLevel;
 
 use super::websocket;
 
@@ -478,11 +481,19 @@ impl BlockLoader {
             None => {
                 debug!("Inserting transaction with hash {}", &trans.hash);
                 let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
-                let _tx: InsertableTransaction = InsertableTransaction::from_json_transaction(
+                let _tx: InsertableTransaction = match InsertableTransaction::from_json_transaction(
                     &trans,
                     _tx_type,
                     _micro_block_id,
-                )?;
+                ) {
+                    Ok(x) => x,
+                    Err(e) => match *PARANOIA_LEVEL {
+                        ParanoiaLevel::High => {
+                            panic!("Error loading blocks, and paranoia level is high: {:?}", e)
+                        }
+                        _ => return Err(MiddlewareError::from(e)),
+                    },
+                };
                 websocket::broadcast_ws(WsPayload::transactions, &json!(&trans))?; //broadcast updated transaction
                 _tx.save(conn)
             }
