@@ -52,6 +52,17 @@ There is a hosted middleware for the æternity mainnet at http://mdw.aepps.com/,
 - copy `.env.example` to `.env`
 - if you want to use a different DB name, edit `scripts/prepare-db.sql`, `.env` and `Rocket.toml`
 
+### Tips and tricks
+
+You can run several instances of the middleware simultaneously, with different options. A sensible way of doing this would be one or more using the `-s` option to serve clients, and one (and only one) with the `-p` option, populating the database.
+
+If you don't want to interrupt service, want to update the database with new features, and can live with short-term (possible) inconsistencies, use the `-H` option with the whole chain to force a reload, but serve from the old version soon.
+
+**DON'T USE `diesel migration run`!
+**
+
+The generated `src/schema.rs` does not work, and `diesel migration run` insists on over-writing it. We have made a `run-migrations.rs` in the root directory which moves the old `schema.rs` out of the way and replaces it after use.
+
 ## How to build
 
 You need a nightly rust build
@@ -66,7 +77,7 @@ and to install the database
 
 ```
 cargo install diesel_cli
-diesel database reset
+./reset-database.sh # important because the generated src/schema.rs is not correct.
 ```
 
 ## How to run
@@ -76,8 +87,8 @@ diesel database reset
 ```
 FLAGS:
         --help        Prints help information
-    -H, --heights     Adds or replaces a set of heights, or ranges of heights, separated by
-    		      commas to the database.
+    -H, --heights     Adds or replaces a set of heights, or ranges of heights separated by
+    		      commas to the database. i.e. -H1,3-4,6,100-200
     -p, --populate    Populate DB
     -s, --server      Start server
     -v, --verify      Check the DB against the chain
