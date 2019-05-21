@@ -30,6 +30,7 @@ table! {
         #[sql_name="time_"]
         time -> Int8,
         version -> Int4,
+        info -> Varchar,
     }
 }
 
@@ -47,6 +48,18 @@ table! {
         state_hash -> Varchar,
         txs_hash -> Varchar,
         version -> Int4,
+    }
+}
+
+table! {
+    names (id) {
+        id -> Int4,
+        name -> Varchar,
+        name_hash -> Varchar,
+        created_at_height -> Int8,
+        owner -> Varchar,
+        expires_at -> Int8,
+        pointers -> Nullable<Jsonb>,
     }
 }
 
@@ -69,22 +82,38 @@ table! {
         signatures -> Text,
         tx_type -> Varchar,
         tx -> Jsonb,
-        fee -> Int8,
+        fee -> Numeric,
         size -> Int4,
         valid -> Bool,
     }
 }
 
-joinable!(micro_blocks -> key_blocks (key_block_id));
-joinable!(transactions -> micro_blocks (micro_block_id));
+table! {
+    contract_calls (id) {
+        id -> Int4,
+        transaction_id -> Int4,
+        contract_id -> Varchar,
+        caller_id -> Varchar,
+        arguments -> Jsonb,
+        callinfo -> Nullable<Jsonb>,
+        result -> Nullable<Jsonb>,
+    }
+}
+
 joinable!(channel_identifiers -> transactions (transaction_id));
+joinable!(contract_calls -> transactions (transaction_id));
 joinable!(contract_identifiers -> transactions (transaction_id));
+joinable!(micro_blocks -> key_blocks (key_block_id));
 joinable!(oracle_queries -> transactions (transaction_id));
+joinable!(transactions -> micro_blocks (micro_block_id));
 
 allow_tables_to_appear_in_same_query!(
+    channel_identifiers,
+    contract_calls,
     contract_identifiers,
     key_blocks,
     micro_blocks,
+    names,
     oracle_queries,
     transactions,
 );

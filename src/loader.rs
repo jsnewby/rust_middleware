@@ -17,8 +17,11 @@ use std::slice::SliceConcatExt;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
+use PARANOIA_LEVEL;
 use PGCONNECTION;
 use SQLCONNECTION;
+
+use crate::ParanoiaLevel;
 
 use super::websocket;
 
@@ -31,34 +34,34 @@ pub struct BlockLoader {
 pub static BACKLOG_CLEARED: i64 = -1;
 
 lazy_static! {
-    static ref tx_queue: CHashMap<i64, bool> = CHashMap::<i64, bool>::new();
+    static ref TX_QUEUE: CHashMap<i64, bool> = CHashMap::<i64, bool>::new();
 }
 
 fn is_in_queue(_height: i64) -> bool {
-    match tx_queue.get(&_height) {
+    match TX_QUEUE.get(&_height) {
         None => false,
         _ => true,
     }
 }
 
 fn remove_from_queue(_height: i64) {
-    info!("tx_queue -> {}", _height);
-    tx_queue.remove(&_height);
-    info!("tx_queue len={}", tx_queue.len());
+    info!("TX_QUEUE -> {}", _height);
+    TX_QUEUE.remove(&_height);
+    info!("TX_QUEUE len={}", TX_QUEUE.len());
 }
 fn add_to_queue(_height: i64) {
-    info!("tx_queue <- {}", _height);
-    tx_queue.insert(_height, true);
+    info!("TX_QUEUE <- {}", _height);
+    TX_QUEUE.insert(_height, true);
 }
 
 pub fn queue(
     _height: i64,
     _tx: &std::sync::mpsc::Sender<i64>,
 ) -> Result<(), std::sync::mpsc::SendError<i64>> {
-    info!("tx_queue len={}", tx_queue.len());
+    info!("TX_QUEUE len={}", TX_QUEUE.len());
 
     if is_in_queue(_height) {
-        info!("tx_queue already has {}", _height);
+        info!("TX_QUEUE already has {}", _height);
         return Ok(());
     }
     _tx.send(_height)?;
@@ -326,7 +329,7 @@ impl BlockLoader {
      * to grab the block and all of its microblocks.
      */
 
-    fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
+    pub fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
         let connection = PGCONNECTION.get()?;
         let result = connection.transaction::<(i32, i32), MiddlewareError, _>(|| {
             self.internal_load_block(&connection, _height)
@@ -366,20 +369,88 @@ impl BlockLoader {
                     &transaction,
                     Some(_micro_block_id),
                 )?;
-                if transaction.is_oracle_query() {
-                    InsertableOracleQuery::from_tx(tx_id, &transaction)?.save(&connection)?;
-                } else if transaction.is_contract_creation() {
-                    InsertableContractIdentifier::from_tx(tx_id, &transaction)?
-                        .save(&connection)?;
-                } else if transaction.is_channel_creation() {
-                    InsertableChannelIdentifier::from_tx(tx_id, &transaction)?.save(&connection)?;
-                }
+                BlockLoader::update_auxiliary_tables(&connection, tx_id, &transaction)?;
             }
             count += 1;
         }
         Ok((key_block_id, count))
     }
 
+    /*
+     * Does what is says on the tin: updates the contracts, oracles,
+     * state channels, and names auxiliary tables.
+     */
+    fn update_auxiliary_tables(
+        connection: &PgConnection,
+        tx_id: i32,
+        transaction: &JsonTransaction,
+    ) -> MiddlewareResult<()> {
+        if transaction.is_oracle_query() {
+            InsertableOracleQuery::from_tx(tx_id, &transaction)?.save(&connection)?;
+        } else if transaction.is_contract_call() {
+            if let Ok(contract_url) = std::env::var("AESOPHIA_URL") {
+                if let Some(icc) =
+                    InsertableContractCall::request(&contract_url, &transaction, tx_id)?
+                {
+                    icc.save(connection)?;
+                }
+            }
+        } else if transaction.is_contract_creation() {
+            InsertableContractIdentifier::from_tx(tx_id, &transaction)?.save(&connection)?;
+        } else if transaction.is_channel_creation() {
+            InsertableChannelIdentifier::from_tx(tx_id, &transaction)?.save(&connection)?;
+        } else if transaction.is_name_transaction() {
+            Self::handle_name_transaction(connection, transaction)?;
+        }
+        Ok(())
+    }
+
+    pub fn handle_name_transaction(
+        connection: &PgConnection,
+        transaction: &JsonTransaction,
+    ) -> MiddlewareResult<()> {
+        debug!("Name tx: {:?}", transaction);
+        if let Some(ttype) = transaction.tx["type"].as_str() {
+            match ttype {
+                "NameClaimTx" => {
+                    debug!("NameClaimTx: {:?}", transaction);
+                    if let Some(name) = InsertableName::new_from_transaction(transaction) {
+                        name.save(connection)?;
+                    }
+                }
+                "NameRevokeTx" => {
+                    if let Some(name_id) = transaction.tx["name_id"].as_str() {
+                        if let Some(name) = Name::load_for_hash(connection, name_id) {
+                            name.delete(connection)?;
+                        }
+                    }
+                }
+                "NameTransferTx" => {
+                    if let Some(name_id) = transaction.tx["name_id"].as_str() {
+                        if let Some(recipient_id) = transaction.tx["recipient_id"].as_str() {
+                            if let Some(mut name) = Name::load_for_hash(connection, name_id) {
+                                name.owner = recipient_id.to_string();
+                                name.update(connection)?;
+                            }
+                        }
+                    }
+                }
+                "NameUpdateTx" => {
+                    debug!("NameUpdateTx: {:?}", transaction);
+                    if let Some(name_id) = transaction.tx["name_id"].as_str() {
+                        if let Some(mut name) = Name::load_for_hash(connection, name_id) {
+                            name.expires_at = transaction.tx["name_ttl"].as_i64()?
+                                + transaction.block_height as i64;
+                            name.pointers = Some(transaction.tx["pointers"].clone());
+                            name.update(connection)?;
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+        Ok(())
+    }
     /*
      * transactions in the mempool won't have a micro_block_id, so as we scan the chain we may
      * need to insert them, or update them with the id of the micro block with which they're
@@ -397,25 +468,32 @@ impl BlockLoader {
             &trans.hash
         );
         debug!("{}", sql);
-        let mut results: Vec<Transaction> = sql_query(sql).
-            // bind::<diesel::sql_types::Text, _>(trans.hash.clone()).
-            // TODO: fix ^^^^^^^^^^^^^^
-            get_results(conn)?;
+        let mut results: Vec<Transaction> = sql_query(sql).get_results(conn)?;
         match results.pop() {
             Some(x) => {
                 debug!("Updating transaction with hash {}", &trans.hash);
-                diesel::update(&x).set(micro_block_id.eq(_micro_block_id));
+                diesel::update(&x)
+                    .set(micro_block_id.eq(_micro_block_id))
+                    .execute(conn)?;
                 websocket::broadcast_ws(WsPayload::tx_update, &json!(&x))?; //broadcast updated transaction
                 Ok(x.id)
             }
             None => {
                 debug!("Inserting transaction with hash {}", &trans.hash);
                 let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
-                let _tx: InsertableTransaction = InsertableTransaction::from_json_transaction(
+                let _tx: InsertableTransaction = match InsertableTransaction::from_json_transaction(
                     &trans,
                     _tx_type,
                     _micro_block_id,
-                )?;
+                ) {
+                    Ok(x) => x,
+                    Err(e) => match *PARANOIA_LEVEL {
+                        ParanoiaLevel::High => {
+                            panic!("Error loading blocks, and paranoia level is high: {:?}", e)
+                        }
+                        _ => return Err(MiddlewareError::from(e)),
+                    },
+                };
                 websocket::broadcast_ws(WsPayload::transactions, &json!(&trans))?; //broadcast updated transaction
                 _tx.save(conn)
             }
@@ -470,7 +548,11 @@ impl BlockLoader {
         let top_max = std::cmp::max(top_chain, top_db);
         let mut i = top_max;
         loop {
-            self.compare_chain_and_db(i, &conn)?;
+            if self.compare_chain_and_db(i, &conn)? {
+                println!("Height {} OK", i);
+            } else {
+                println!("Height {} not OK", i);
+            }
             i -= 1;
             _verified += 1;
         }
@@ -487,7 +569,7 @@ impl BlockLoader {
             Ok(x) => {
                 match block_db {
                     Some(y) => {
-                        return Ok(self.compare_key_blocks(conn, x, y)? == 0);
+                        return Ok(self.compare_key_blocks(conn, x, y)? == _height);
                     }
                     None => {
                         debug!("{} missing from DB", _height);

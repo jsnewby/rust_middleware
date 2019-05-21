@@ -2,13 +2,53 @@
 
 ## Overview
 
-This is a caching layer for æternity. It reads the chain and records key- and micro-blocks, and transactions in a PostgreSQL database.
+The middleware is a caching and reporting layer which sits in front of the nodesof the [aeternity blockchain](https://www.aeternity.com). Its purpose is to respond to queries faster than the node can do, and to support queries that for reasons of efficiency the node cannot or will not support itself.
 
-## How to use
+On startup, the middleware reads the entirety of the blockchain, and stores a denormalized version of the data in a PostgreSQL database.
 
-- Install a postgresql DB somewhere. Works with versions >= 9.5, at least.
-- as the admin user, execute `scripts/prepare-db.sql` which will create the DB and user
-- copy 'Rocket.example.toml' to 'Rocket.toml'
+## Features
+
+### Caching
+
+The middleware answers a set of queries (listed below) on behalf of the node. Everything it doesn't itself answer it will forward to the node to handle. The goal here is to answer more quickly than the node, without sacrificing correctness.
+
+### Aggregation
+
+A set of queries will list, for example, all transactions for a given account, all which transfer from one user to another, all between certain block heights, and so on
+
+### Contracts
+
+The middleware unpacks and stores all contract calls for which it has the bytecode, with the function called and the arguments. In the near future we will also store the return type and value. You can see all contract calls for a given contract.
+
+### State channels
+
+You can see all active state channels, and for a given state channel, all of the related on-chain transactions
+
+### Names
+
+You can see all names registered, and also which names refer to a given address (reverse lookup).
+
+### Oracles
+
+You can see all active oracles. In the near future we will create an endpoint which lists all questions and responses from an oracle
+
+### Websocket
+
+(see below for more information).
+
+The middleware permits you to subscribe to events via a websocket, and receive updates when the chain state changes. Currently you can subscribe to key blocks, micro blocks, and soon to all events involving a particular on-chain object (contract, account, ...).
+
+## How to use the middleware
+
+### Use ours!
+
+There is a hosted middleware for the æternity mainnet at http://mdw.aepps.com/, and one for the testnet at https://testnet.mdw.aepps.com.
+
+### Install your own
+
+- Install a postgresql DB somewhere. Version 11.2 or greater are supported.
+- as the postgresql admin user, execute `scripts/prepare-db.sql` which will create the DB and user
+- copy 'Rocket.example.toml' to 'Rocket.toml' and edit as you see fit
 - copy `.env.example` to `.env`
 - if you want to use a different DB name, edit `scripts/prepare-db.sql`, `.env` and `Rocket.toml`
 
@@ -29,9 +69,6 @@ cargo install diesel_cli
 diesel database reset
 ```
 
-NB: The diesel framework causes many many compiler warnings. It can be good to suppress them with
-`export RUSTFLAGS="-Aproc-macro-derive-resolution-fallback"`so that you can see what's actually going on.
-
 ## How to run
 
 `cargo run -- ` + flags below
@@ -39,24 +76,33 @@ NB: The diesel framework causes many many compiler warnings. It can be good to s
 ```
 FLAGS:
         --help        Prints help information
+    -H, --heights     Adds or replaces a set of heights, or ranges of heights, separated by
+    		      commas to the database.
     -p, --populate    Populate DB
     -s, --server      Start server
     -v, --verify      Check the DB against the chain
     -V, --version     Prints version information
 
-OPTIONS:
-    -h, --start <START_HASH>    Hash to start from.
-    -u, --url <URL>             URL of æternity node.
-
 ```
+
+## Environment variables
+
+`NODE_URL` - the URL of the æternity node
+`AESOPHIA_URL` - if present, the middleware will attempt to use this to decode contract calls, storing the function called, and its parameters
+`PID_FILE` - if present, the middleware stores its pid in this file
+`LOG_DIR` - if present, this directory is used for logs, otherwise stdout is used
+`DATABASE_URL` - PostgreSQL connection URL
 
 ## Supported queries
 ```
 GET /middleware/channels/active
 GET /middleware/channels/transactions/address/<address>
 GET /middleware/contracts/all
+GET /middleware/contracts/calls/address/<address>
 GET /middleware/contracts/transactions/address/<address>
+GET /middleware/names/active?<limit>&<page>
 GET /middleware/oracles/all?<limit>&<page>
+GET /middleware/reward/height/<height>
 GET /middleware/size/current
 GET /middleware/size/height/<height>
 GET /middleware/transactions/account/<account>/count

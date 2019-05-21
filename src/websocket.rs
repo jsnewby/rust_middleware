@@ -152,7 +152,7 @@ pub fn unpack_message(msg: Message) -> MiddlewareResult<WsMessage> {
 }
 
 pub fn start_ws() {
-    let server = thread::spawn(move || {
+    let _server = thread::spawn(move || {
         let ws_address = env::var("WEBSOCKET_ADDRESS").unwrap_or("0.0.0.0:3020".to_string());
         listen(ws_address, |out| Client { out }).expect("Unable to start the websocket server");
     });

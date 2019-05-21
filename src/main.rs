@@ -3,6 +3,7 @@
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(try_trait)]
+extern crate backtrace;
 extern crate base58;
 extern crate base58check;
 extern crate bigdecimal;
@@ -17,6 +18,7 @@ extern crate curl;
 extern crate diesel;
 extern crate dotenv;
 extern crate env_logger;
+extern crate flexi_logger;
 extern crate hex;
 #[macro_use]
 extern crate lazy_static;
@@ -27,6 +29,7 @@ extern crate r2d2_diesel;
 extern crate r2d2_postgres;
 extern crate rand;
 extern crate regex;
+extern crate reqwest;
 #[macro_use]
 extern crate rocket;
 #[macro_use]
@@ -37,8 +40,10 @@ extern crate rust_decimal;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-
+use std::fs::File;
+use std::io::Write;
 use std::thread;
+use std::thread::JoinHandle;
 extern crate itertools;
 
 extern crate futures;
@@ -101,6 +106,28 @@ lazy_static! {
     };
 }
 
+#[derive(PartialEq)]
+enum ParanoiaLevel {
+    Normal,
+    High,
+}
+
+lazy_static! {
+    static ref PARANOIA_LEVEL: ParanoiaLevel = {
+        let paranoia_level = env::var("PARANOIA_LEVEL");
+        match paranoia_level {
+            Ok(x) => {
+                if x.eq(&String::from("high")) {
+                    ParanoiaLevel::High
+                } else {
+                    ParanoiaLevel::Normal
+                }
+            }
+            _ => ParanoiaLevel::Normal,
+        }
+    };
+}
+
 /*
  * This function does two things--initially it asks the DB for the
 * heights not present between 0 and the height returned by
@@ -151,7 +178,19 @@ fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i
 }
 
 fn main() {
-    env_logger::init();
+    match env::var("LOG_DIR") {
+        Ok(x) => {
+            flexi_logger::Logger::with_env()
+                .log_to_file()
+                .directory(x)
+                .start()
+                .unwrap();
+            ()
+        }
+        Err(x) => env_logger::Builder::from_default_env()
+            .target(env_logger::Target::Stdout)
+            .init(),
+    }
     let matches = App::new("æternity middleware")
         .version(VERSION)
         .author("John Newby <john@newby.org>")
@@ -177,14 +216,31 @@ fn main() {
                 .help("Verify DB integrity against chain")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("heights")
+                .short("H")
+                .long("heights")
+                .help("Load specific heights, values separated by comma, ranges with from-to accepted")
+                .takes_value(true),
+            )
         .get_matches();
 
     let url = env::var("NODE_URL")
         .expect("NODE_URL must be set")
         .to_string();
+    match env::var("PID_FILE") {
+        Ok(x) => {
+            let mut f = File::create(x).unwrap();
+            f.write_all(format!("{}\n", std::process::id()).as_bytes())
+                .unwrap();
+        }
+        Err(_) => (),
+    }
+
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
     let verify = matches.is_present("verify");
+    let heights = matches.is_present("heights");
 
     if verify {
         debug!("Verifying");
@@ -195,6 +251,31 @@ fn main() {
         };
         return;
     }
+
+    /*
+     * The `heights` argument is of this form: 1,10-15,1000 which would cause blocks 1, 10,11,12,13,14,15 and 1000
+     *to be loaded.
+     */
+    if heights {
+        let to_load = matches.value_of("heights").unwrap();
+        let loader = BlockLoader::new(url.clone());
+        for h in to_load.split(',') {
+            let s = String::from(h);
+            match s.find("-") {
+                Some(_) => {
+                    let fromto: Vec<String> = s.split('-').map(|x| String::from(x)).collect();
+                    for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap() {
+                        loader.load_blocks(i);
+                    }
+                }
+                None => {
+                    loader.load_blocks(s.parse::<i64>().unwrap());
+                }
+            }
+        }
+    }
+
+    let mut populate_thread: Option<JoinHandle<()>> = None;
 
     /*
      * We start 3 populate processes--one queries for missing heights
@@ -209,9 +290,9 @@ fn main() {
             Ok(_) => (),
             Err(x) => error!("fill_missing_heights() returned an error: {}", x),
         };
-        thread::spawn(move || {
+        populate_thread = Some(thread::spawn(move || {
             loader.start();
-        });
+        }));
     }
 
     if serve {
@@ -222,11 +303,23 @@ fn main() {
         };
         websocket::start_ws(); //start the websocket server
         ms.start();
+        loop {
+            // just to stop main() thread exiting.
+            thread::sleep(std::time::Duration::new(40, 0));
+        }
     }
-    if !populate && !serve {
+    if !populate && !serve && !heights {
         warn!("Nothing to do!");
     }
-    loop {
-        thread::sleep(std::time::Duration::new(40, 0));
+
+    /*
+     * If we have a populate thread running, wait for it to exit.
+     */
+    match populate_thread {
+        Some(x) => {
+            x.join();
+            ()
+        }
+        None => (),
     }
 }

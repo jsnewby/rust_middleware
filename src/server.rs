@@ -1,5 +1,3 @@
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
 use diesel::sql_query;
 
 use coinbase::coinbase;
@@ -8,13 +6,10 @@ use node::Node;
 
 use chrono::prelude::*;
 use diesel::RunQueryDsl;
-use node::HttpResponse;
 use regex::Regex;
 use rocket;
 use rocket::http::{Method, Status};
-use rocket::response::status::Custom;
-use rocket::response::{Response, ResponseBuilder};
-use rocket::Catcher;
+use rocket::response::Response;
 use rocket::State;
 use rocket_contrib::json::*;
 use rocket_cors;
@@ -23,7 +18,6 @@ use rust_decimal::Decimal;
 use serde_json;
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use SQLCONNECTION;
 
@@ -43,7 +37,7 @@ fn sanitize(s: &String) -> String {
 fn check_object(s: &str) -> () {
     lazy_static! {
         static ref OBJECT_REGEX: Regex = Regex::new(
-            "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{40,60}"
+            "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{38,60}"
         )
         .unwrap();
     }
@@ -217,7 +211,6 @@ fn transaction_at_hash(
     let mut path = std::path::PathBuf::new();
     path.push(format!("transactions/{}", hash));
     let mut response = node_get_handler(state, path);
-    println!("{:?}", response);
     if response.status() == Status::Ok {
         let body = response.body_string().unwrap();
         let jt: JsonTransaction = serde_json::from_str(&body).unwrap();
@@ -259,9 +252,12 @@ fn transactions_in_micro_block_at_hash(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -344,6 +340,23 @@ fn current_size(_state: State<MiddlewareServer>) -> Json<JsonValue> {
 }
 
 /*
+ * Gets this size of the chain at some height
+ */
+#[get("/count/height/<height>")]
+fn count(_state: State<MiddlewareServer>, height: i32) -> Json<JsonValue> {
+    let count = count_at_height(&SQLCONNECTION.get().unwrap(), height).unwrap();
+    Json(json!({
+        "count": count,
+    }))
+}
+
+#[get("/count/current")]
+fn current_count(_state: State<MiddlewareServer>) -> Json<JsonValue> {
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    count(_state, _height as i32)
+}
+
+/*
  * Gets count of transactions for an account
  */
 #[get("/transactions/account/<account>/count")]
@@ -396,28 +409,42 @@ fn transactions_for_account(
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<JsonTransactionList> {
+) -> Json<Vec<JsonValue>> {
     check_object(&account);
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        "select * from transactions where \
-         tx->>'sender_id'='{}' or \
-         tx->>'account_id' = '{}' or \
-         tx->>'recipient_id'='{}' or \
-         tx->>'owner_id' = '{}' \
+        "SELECT m.time_, t.* FROM transactions t, micro_blocks m WHERE \
+         m.id = t.micro_block_id AND \
+         (t.tx->>'sender_id'='{}' OR \
+         t.tx->>'account_id' = '{}' OR \
+         t.tx->>'recipient_id'='{}' or \
+         t.tx->>'owner_id' = '{}' )\
          order by id desc \
          limit {} offset {} ",
         s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql
     );
     info!("{}", sql);
-    let transactions: Vec<Transaction> =
-        sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
-    Json(JsonTransactionList {
-        transactions: json_transactions
-    })
+    let mut results: Vec<JsonValue> = Vec::new();
+    for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
+        let time: i64 = row.get(0);
+        let block_height: i32 = row.get(3);
+        let block_hash: String = row.get(4);
+        let hash: String = row.get(5);
+        let sig: String = row.get(6);
+        let signatures: Vec<String> = sig.split(' ').map(|s| s.to_string()).collect();
+        let tx: serde_json::Value = row.get(8);
+        results.push(json!({
+            "time" : time,
+            "block_height": block_height,
+            "block_hash": block_hash,
+            "hash": hash,
+            "signatures": signatures,
+            "tx": tx,
+        }));
+    }
+    Json(results)
 }
 
 /*
@@ -427,7 +454,7 @@ fn transactions_for_account(
 fn transactions_for_account_to_account(
     _state: State<MiddlewareServer>,
     sender: String,
-    receiver: String
+    receiver: String,
 ) -> Json<JsonTransactionList> {
     check_object(&sender);
     check_object(&receiver);
@@ -444,9 +471,12 @@ fn transactions_for_account_to_account(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -474,9 +504,12 @@ fn transactions_for_interval(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -511,10 +544,45 @@ fn transactions_for_contract_address(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
+}
+
+#[get("/contracts/calls/address/<address>")]
+fn calls_for_contract_address(
+    _state: State<MiddlewareServer>,
+    address: String,
+) -> Json<Vec<JsonValue>> {
+    check_object(&address);
+    let sql = "SELECT t.hash, contract_id, caller_id, arguments, callinfo FROM \
+               contract_calls c join transactions t on t.id=c.transaction_id WHERE \
+               contract_id = $1";
+    let mut calls = Vec::new();
+    for row in &SQLCONNECTION
+        .get()
+        .unwrap()
+        .query(&sql, &[&address])
+        .unwrap()
+    {
+        let transaction_id: String = row.get(0);
+        let contract_id: String = row.get(1);
+        let caller_id: String = row.get(2);
+        let arguments: serde_json::Value = row.get(3);
+        let callinfo: serde_json::Value = row.get(4);
+        calls.push(json!({
+            "transaction_id": transaction_id,
+            "contract_id": contract_id,
+            "caller_id": caller_id,
+            "arguments": arguments,
+            "callinfo": callinfo
+        }));
+    }
+    Json(calls)
 }
 
 // TODO: Lot of refactoring in the below method
@@ -664,9 +732,12 @@ fn transactions_for_channel_address(
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
 
-    let json_transactions = transactions.iter().map(JsonTransaction::from_transaction).collect();
+    let json_transactions = transactions
+        .iter()
+        .map(JsonTransaction::from_transaction)
+        .collect();
     Json(JsonTransactionList {
-        transactions: json_transactions
+        transactions: json_transactions,
     })
 }
 
@@ -720,7 +791,7 @@ fn all_contracts(_state: State<MiddlewareServer>) -> Json<Vec<JsonValue>> {
 }
 
 #[get("/oracles/all?<limit>&<page>")]
-fn oracle_requests_responses(
+fn oracle_all_requests_responses(
     _state: State<MiddlewareServer>,
     limit: Option<i32>,
     page: Option<i32>,
@@ -733,6 +804,38 @@ fn oracle_requests_responses(
          left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
          limit {} offset {} ",
         limit_sql, offset_sql
+    );
+    debug!("{}", sql);
+    let mut res: Vec<JsonValue> = vec![];
+    for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
+        let query_id: String = row.get(0);
+        let request: serde_json::Value = row.get(1);
+        let response: Option<serde_json::Value> = row.get(2);
+        res.push(json!({
+            "query_id": query_id,
+            "request": json!(request),
+            "response": json!(response),
+        }));
+    }
+    json!(res)
+}
+
+#[get("/oracles/<hash>?<limit>&<page>")]
+fn oracle_requests_responses(
+    _state: State<MiddlewareServer>,
+    hash: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> JsonValue {
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "select oq.query_id, t1.tx, t2.tx from \
+         oracle_queries oq \
+         join transactions t1 on oq.transaction_id=t1.id \
+         left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
+         where oq.oracle_id='{}' \
+         limit {} offset {} ",
+        hash, limit_sql, offset_sql
     );
     let mut res: Vec<JsonValue> = vec![];
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
@@ -765,28 +868,79 @@ fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
     })
 }
 
+#[get("/names/active?<limit>&<page>")]
+fn active_names(
+    _state: State<MiddlewareServer>,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<Name>> {
+    let connection = PGCONNECTION.get().unwrap();
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "select * from \
+         names where \
+         expires_at <= {} \
+         limit {} offset {} ",
+        KeyBlock::top_height(&*connection).unwrap(),
+        limit_sql,
+        offset_sql
+    );
+    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    Json(names)
+}
+
+/*
+ * Gets the names which point to something
+ */
+#[get("/names/reverse/<account>?<limit>&<page>")]
+fn reverse_names(
+    _state: State<MiddlewareServer>,
+    account: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<Name>> {
+    let connection = PGCONNECTION.get().unwrap();
+    check_object(&account);
+    let s_acc = sanitize(&account);
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        r#"SELECT * FROM names WHERE pointers @> '[{{"id": "{}"}}]' AND expires_at >= {} ORDER BY name limit {} offset {}"#,
+        s_acc,
+        KeyBlock::top_height(&*connection).unwrap(),
+        limit_sql,
+        offset_sql
+    );
+    debug!("{}", sql);
+    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    Json(names)
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
-        let options = rocket_cors::Cors {
+        let options = rocket_cors::CorsOptions {
             allowed_origins,
-            allowed_methods: vec![Method::Get ].into_iter().map(From::from).collect(),
+            allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             ..Default::default()
-        };
-
-        use rocket::fairing::AdHoc;
-        use rocket::http::Header;
+        }
+        .to_cors()
+        .unwrap(); // TODO
 
         rocket::ignite()
             .register(catchers![error400, error404])
             .mount("/middleware", routes![active_channels])
+            .mount("/middleware", routes![active_names])
             .mount("/middleware", routes![all_contracts])
-            .mount("/middleware", routes![reward_at_height])
+            .mount("/middleware", routes![calls_for_contract_address])
+            .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
+            .mount("/middleware", routes![oracle_all_requests_responses])
             .mount("/middleware", routes![oracle_requests_responses])
+            .mount("/middleware", routes![reverse_names])
+            .mount("/middleware", routes![reward_at_height])
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
@@ -807,15 +961,6 @@ impl MiddlewareServer {
             .mount("/v2", routes![transaction_at_hash])
             .mount("/v2", routes![transaction_count_in_micro_block])
             .mount("/v2", routes![transactions_in_micro_block_at_hash])
-            .attach(AdHoc::on_request("Handle null origin", |request, _| {
-                let mut headers = request.headers().to_owned();
-                for mut header in headers.get("Origin") {
-                    match header {
-                        "null" => request.replace_header(Header::new("Origin", "http://null")),
-                        _ => (),
-                    }
-                }
-            }))
             .attach(options)
             .manage(self)
             .launch();

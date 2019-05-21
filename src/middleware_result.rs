@@ -11,8 +11,10 @@ pub struct MiddlewareError {
 
 impl MiddlewareError {
     pub fn new(msg: &str) -> MiddlewareError {
+        let bt = backtrace::Backtrace::new();
+
         MiddlewareError {
-            details: msg.to_string(),
+            details: format!("{}\n{:?}", msg.to_string(), bt),
         }
     }
 }
@@ -99,6 +101,24 @@ impl std::convert::From<WsError> for MiddlewareError {
     }
 }
 
+impl std::convert::From<std::string::FromUtf8Error> for MiddlewareError {
+    fn from(err: std::string::FromUtf8Error) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<curl::FormError> for MiddlewareError {
+    fn from(err: curl::FormError) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<reqwest::Error> for MiddlewareError {
+    fn from(err: reqwest::Error) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
 impl
     std::convert::From<
         std::sync::PoisonError<
@@ -111,6 +131,12 @@ impl
             std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>,
         >,
     ) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<bigdecimal::ParseBigDecimalError> for MiddlewareError {
+    fn from(err: bigdecimal::ParseBigDecimalError) -> Self {
         MiddlewareError::new(&err.to_string())
     }
 }
