@@ -1,0 +1,49 @@
+#! /bin/bash
+
+##### Middleware specific stuff
+export ROCKET_PORT=8000
+export RUST_LOG=info
+export DATABASE_URL=postgres://middleware:middleware@localhost/middleware
+export AESOPHIA_URL=https://compiler.aepps.com
+export NODE_URL=http://ns3142739.ip-51-89-6.eu:3013
+export LOG_DIR=/var/log/aeternity
+export PID_FILE=/var/run/aeternity/aepp-middleware.pid
+# Author: John Newby <john@newby.org>
+
+USER=newby
+DESC="The æternity middleware"
+NAME=aepp-middleware
+DAEMON=/usr/local/sbin/$NAME
+DAEMON_ARGS="-s -p -d"
+PIDFILE=$PID_FILE
+SCRIPTNAME=/etc/init.d/$NAME
+
+### BEGIN INIT INFO
+# Provides:          foo
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: foo service
+# Description:       Run Foo service
+### END INIT INFO
+
+# Carry out specific functions when asked to by the system
+case "$1" in
+    start)
+	echo "Starting $NAME..."
+	sudo -E -u $USER bash -c "$DAEMON $DAEMON_ARGS"
+	;;
+    stop)
+	echo "Stopping $NAME..."
+	PID=`cat $PIDFILE`
+	sudo -u $USER bash -c "kill -TERM $PID"
+	sleep 2
+	;;
+    *)
+	echo "Usage: /etc/init.d/foo {start|stop}"
+	exit 1
+	;;
+esac
+
+exit 0
