@@ -25,8 +25,8 @@
         </svg>
       </div>
       <span class="bold">
-        æpp-middleware
-      </span>Frontend
+        æpp-
+      </span>middleware
     </div>
   </RouterLink>
 </template>
