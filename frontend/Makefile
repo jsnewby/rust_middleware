@@ -2,12 +2,10 @@ GIT_DESCR = $(shell git describe --always)
 # build output folder
 OUTPUTFOLDER = dist
 # docker image
-DOCKER_REGISTRY = 166568770115.dkr.ecr.eu-central-1.amazonaws.com
-DOCKER_IMAGE = aepp-explorer
+DOCKER_REGISTRY = 166568770115.dkr.ecr.eu-central-1.amazonaws.com/aeternity
+DOCKER_IMAGE = aepp-middleware-frontend
 DOCKER_TAG = $(shell git describe --always)
-# epoch url used at build time
-VUE_APP_EPOCH_URL='//sdk-mainnet.aepps.com/'
-
+K8S_NAMESPACE=mainnet
 
 .PHONY: list
 list:
@@ -20,19 +18,22 @@ clean:
 
 build:
 	@echo build release
-	npm install && VUE_APP_EPOCH_URL='$(VUE_APP_EPOCH_URL)' npm run build
+	npm install && npm run build
 	@echo done
 
-docker-build: build
+docker-build:
 	@echo build image
 	docker build -t $(DOCKER_IMAGE) -f Dockerfile .
-	docker tag $(DOCKER_IMAGE) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
 	@echo done
 
 docker-push:
 	@echo push image
-	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
+	docker tag $(DOCKER_IMAGE) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(K8S_NAMESPACE)-$(DOCKER_TAG)
+	aws ecr get-login --no-include-email --region eu-central-1 --profile aeternity-sdk | sh
+	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(K8S_NAMESPACE)-$(DOCKER_TAG)
 	@echo done
 
-debug-start:
-	npm install && VUE_APP_EPOCH_URL='$(VUE_APP_EPOCH_URL)' npm run serve
+deploy-k8s:
+	@echo deploy k8s
+	kubectl -n $(K8S_NAMESPACE) patch deployment $(DOCKER_IMAGE) --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"$(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(K8S_NAMESPACE)-$(DOCKER_TAG)"}]'
+	@echo deploy k8s done
