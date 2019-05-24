@@ -17,6 +17,8 @@ extern crate curl;
 extern crate daemonize;
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 extern crate dotenv;
 extern crate env_logger;
 extern crate flexi_logger;
@@ -80,6 +82,8 @@ use r2d2_postgres::PostgresConnectionManager;
 use std::sync::Arc;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
+embed_migrations!("migrations/");
 
 lazy_static! {
     static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
@@ -262,6 +266,16 @@ fn main() {
         };
         return;
     }
+
+    // Run migrations
+    let connection = PGCONNECTION.get().unwrap();
+    let mut migration_output = Vec::new();
+    let migration_result =
+        embedded_migrations::run_with_output(&*connection, &mut migration_output);
+    for line in migration_output.iter() {
+        info!("migration out: {}", line);
+    }
+    migration_result.unwrap();
 
     /*
      * The `heights` argument is of this form: 1,10-15,1000 which would cause blocks 1, 10,11,12,13,14,15 and 1000
