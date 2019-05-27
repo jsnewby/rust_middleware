@@ -10,11 +10,16 @@
           title="Generations"
         />
         <Generations>
-          <Generation
-            v-for="(generation, index) in localGenerations.slice(0,5)"
-            :key="index"
-            :data="generation"
-          />
+          <nuxt-link
+            v-for="(generation, number) in localGenerations.slice(0,5)"
+            :key="number"
+            :to="`/generations/${generation.height}`"
+            class="generation-link"
+          >
+            <Generation
+              :data="generation"
+            />
+          </nuxt-link>
         </Generations>
       </div>
       <div
@@ -108,8 +113,12 @@ export default {
         }
       }
     },
-    updateTxList (tx) {
+    async updateTxList (tx) {
       this.localTransactions.splice(0, 0, tx)
+      this.$store.commit('transactions/setTransactions', [tx])
+      if (this.$store.state.height < tx.block_height) {
+        await this.$store.dispatch('height')
+      }
     },
     updateMicroBlocks (mb) {
       this.microBlocks.push({ ...{}, ...mb })
@@ -117,6 +126,7 @@ export default {
     updateGenList (gen) {
       if (!Object.keys(this.currentGen).length) {
         this.currentGen = { ...{}, ...gen, micro_blocks: [] }
+        this.$store.commit('generations/setGenerations', [Object.assign({}, this.currentGen)])
       } else {
         // this.currentGen.micro_blocks = this.localTransactions.filter(tx => tx.block_height === this.currentGen.height)
         this.currentGen.micro_blocks = this.microBlocks
@@ -125,6 +135,7 @@ export default {
             return { ...{}, ...mb, transactions: this.localTransactions.filter(tx => tx.block_hash === mb.hash) }
           })
         this.localGenerations.splice(0, 0, this.currentGen)
+        this.$store.commit('generations/setGenerations', [Object.assign({}, this.currentGen)])
         this.microBlocks = []
         this.currentGen = { ...{}, ...gen, micro_blocks: [] }
       }
