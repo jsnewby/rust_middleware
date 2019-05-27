@@ -1,6 +1,6 @@
 <template>
   <div class="app-transactions">
-    <PageHeader title="Dashboard">
+    <PageHeader title="Transactions">
       <BreadCrumbs />
     </PageHeader>
     <TxList>
@@ -35,7 +35,7 @@ export default {
   },
   data () {
     return {
-      page: 0
+      page: 1
     }
   },
   computed: {
