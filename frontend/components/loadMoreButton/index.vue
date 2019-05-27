@@ -4,7 +4,7 @@
       face="round"
       fill="neutral"
       extend
-      @click="loadMore()"
+      @click.native="loadMore()"
     >
       Load More
     </AppButton>
