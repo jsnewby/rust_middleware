@@ -36,7 +36,7 @@ export default {
   background-color: #D3DCE6;
   min-height: 30vh;
   @media (min-width:765px) {
-    margin-bottom: -7rem;
+    margin-bottom: -20rem;
   }
   @media (min-width: 769px) {
     min-height: 60vh;
