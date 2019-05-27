@@ -420,7 +420,7 @@ fn transactions_for_account(
          t.tx->>'account_id' = '{}' OR \
          t.tx->>'recipient_id'='{}' or \
          t.tx->>'owner_id' = '{}' )\
-         order by id desc \
+         order by m.time_ desc \
          limit {} offset {} ",
         s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql
     );
