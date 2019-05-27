@@ -14,8 +14,11 @@ extern crate chashmap;
 extern crate chrono;
 extern crate crypto;
 extern crate curl;
+extern crate daemonize;
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 extern crate dotenv;
 extern crate env_logger;
 extern crate flexi_logger;
@@ -70,6 +73,7 @@ use middleware_result::MiddlewareResult;
 use server::MiddlewareServer;
 pub mod models;
 
+use daemonize::Daemonize;
 use diesel::PgConnection;
 use dotenv::dotenv;
 use r2d2::Pool;
@@ -78,6 +82,8 @@ use r2d2_postgres::PostgresConnectionManager;
 use std::sync::Arc;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
+embed_migrations!("migrations/");
 
 lazy_static! {
     static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
@@ -210,6 +216,13 @@ fn main() {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("daemonize")
+                .short("-d")
+                .long("daemonize")
+                .help("Daemonize process")
+                .takes_value(false),
+            )
+        .arg(
             Arg::with_name("verify")
                 .short("v")
                 .long("verify")
@@ -228,19 +241,21 @@ fn main() {
     let url = env::var("NODE_URL")
         .expect("NODE_URL must be set")
         .to_string();
-    match env::var("PID_FILE") {
-        Ok(x) => {
-            let mut f = File::create(x).unwrap();
-            f.write_all(format!("{}\n", std::process::id()).as_bytes())
-                .unwrap();
-        }
-        Err(_) => (),
-    }
 
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
     let verify = matches.is_present("verify");
     let heights = matches.is_present("heights");
+    let daemonize = matches.is_present("daemonize");
+
+    if daemonize {
+        let daemonize = Daemonize::new();
+        if let Ok(x) = env::var("PID_FILE") {
+            daemonize.pid_file(x).start();
+        } else {
+            daemonize.start();
+        }
+    }
 
     if verify {
         debug!("Verifying");
@@ -251,6 +266,16 @@ fn main() {
         };
         return;
     }
+
+    // Run migrations
+    let connection = PGCONNECTION.get().unwrap();
+    let mut migration_output = Vec::new();
+    let migration_result =
+        embedded_migrations::run_with_output(&*connection, &mut migration_output);
+    for line in migration_output.iter() {
+        info!("migration out: {}", line);
+    }
+    migration_result.unwrap();
 
     /*
      * The `heights` argument is of this form: 1,10-15,1000 which would cause blocks 1, 10,11,12,13,14,15 and 1000
