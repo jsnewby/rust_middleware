@@ -3,7 +3,8 @@ import axios from 'axios'
 
 export const state = () => ({
   generations: {},
-  hashToHeight: {}
+  hashToHeight: {},
+  lastFetchedGen: 0
 })
 
 export const mutations = {
@@ -15,17 +16,22 @@ export const mutations = {
         Vue.set(state.generations, generation.height, generation)
       }
     }
+  },
+  setLastFetched (state, last) {
+    state.lastFetchedGen = last
   }
 }
 
 export const actions = {
   getLatestGenerations: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, maxBlocks) {
     try {
-      const generations = await axios.get(nodeUrl + '/middleware/generations/' + (height - maxBlocks).toString() + '/' + height.toString())
+      const { start, end } = calculateBlocksToFetch(height, maxBlocks)
+      const generations = await axios.get(nodeUrl + '/middleware/generations/' + start + '/' + end)
       commit('setGenerations', generations.data.data)
-      // console.log('test' + generations.data.data)
+      commit('setLastFetched', start)
       return generations.data.data
     } catch (e) {
+      console.log(e)
       commit('catchError', 'Error', { root: true })
     }
   },
@@ -33,5 +39,24 @@ export const actions = {
     return (
       dispatch('getLatestGenerations', 10)
     )
+  },
+  updateMicroBlocks: async function ({ state, commit, dispatch }, microBlock) {
+
+  },
+  updateTransactions: async function ({ state, commit, dispatch }, microBlock) {
+
   }
+}
+
+function calculateBlocksToFetch (height, maxBlocks) {
+  let start = 0
+  let end = 0
+  if (!state.lastFetchedGen) {
+    start = height - maxBlocks
+    end = height
+  } else {
+    start = state.lastFetchedGen - maxBlocks - 1
+    end = state.lastFetchedGen - 1
+  }
+  return { start, end }
 }
