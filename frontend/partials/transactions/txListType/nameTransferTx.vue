@@ -40,8 +40,8 @@
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item " />
-      <div class="transaction-type-info-item ">
+      <div class="transaction-type-info-item" />
+      <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.fee"
           title="Tx fee"

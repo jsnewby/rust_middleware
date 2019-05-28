@@ -39,7 +39,7 @@
           title="Amount"
         >
           <FormatAeUnit
-            :value="transaction.amount "
+            :value="transaction.amount"
           />
         </AppDefinition>
         <AppDefinition
@@ -51,7 +51,7 @@
           />
         </AppDefinition>
       </div>
-      <div class="transaction-type-info-item ">
+      <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.fee"
           title="tx fee"

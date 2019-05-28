@@ -33,17 +33,17 @@
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item ">
+      <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.amount"
           title="Amount"
         >
           <FormatAeUnit
-            :value="transaction.amount "
+            :value="transaction.amount"
           />
         </AppDefinition>
       </div>
-      <div class="transaction-type-info-item ">
+      <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.fee"
           title="tx fee"
