@@ -25,8 +25,8 @@ export const mutations = {
 export const actions = {
   getLatestGenerations: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, maxBlocks) {
     try {
-      const { start, end } = calculateBlocksToFetch(height, maxBlocks)
-      const generations = await axios.get(nodeUrl + '/middleware/generations/' + start + '/' + end)
+      const { start, end } = calculateBlocksToFetch(height, state.lastFetchedGen, maxBlocks)
+      const generations = await axios.get(nodeUrl + 'middleware/generations/' + start + '/' + end)
       commit('setGenerations', generations.data.data)
       commit('setLastFetched', start)
       return generations.data.data
@@ -48,15 +48,15 @@ export const actions = {
   }
 }
 
-function calculateBlocksToFetch (height, maxBlocks) {
+function calculateBlocksToFetch (height, lastFetchedGen, maxBlocks) {
   let start = 0
   let end = 0
-  if (!state.lastFetchedGen) {
+  if (!lastFetchedGen) {
     start = height - maxBlocks
     end = height
   } else {
-    start = state.lastFetchedGen - maxBlocks - 1
-    end = state.lastFetchedGen - 1
+    start = lastFetchedGen - maxBlocks - 1
+    end = lastFetchedGen - 1
   }
   return { start, end }
 }
