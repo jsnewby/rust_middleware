@@ -73,22 +73,27 @@ then
 
 `cargo build`
 
-and to install the database
-
-```
-cargo install diesel_cli
-./reset-database.sh # important because the generated src/schema.rs is not correct.
-```
+The middleware will automatically set up its DB on initialization, and run migrations after an update, if they are necessary.
 
 ## How to run
 
+### Development mode
+
 `cargo run -- ` + flags below
 
+### Release mode
+
 ```
-FLAGS:
+cargo build --release # make a release build--this will take a long long time
+./target/release/aepp-middleware # + flags below
+```
+
+### Flags
+```
         --help        Prints help information
     -H, --heights     Adds or replaces a set of heights, or ranges of heights separated by
     		      commas to the database. i.e. -H1,3-4,6,100-200
+    -d, --daemonize   If set, the middleware will daemonize on startup
     -p, --populate    Populate DB
     -s, --server      Start server
     -v, --verify      Check the DB against the chain
@@ -100,7 +105,7 @@ FLAGS:
 
 `NODE_URL` - the URL of the æternity node
 `AESOPHIA_URL` - if present, the middleware will attempt to use this to decode contract calls, storing the function called, and its parameters
-`PID_FILE` - if present, the middleware stores its pid in this file
+`PID_FILE` - if present, and the `-d` option is set, the middleware stores its pid in this file
 `LOG_DIR` - if present, this directory is used for logs, otherwise stdout is used
 `DATABASE_URL` - PostgreSQL connection URL
 
@@ -119,7 +124,6 @@ GET /middleware/size/height/<height>
 GET /middleware/transactions/account/<account>/count
 GET /middleware/transactions/account/<sender>/to/<receiver>
 GET /middleware/transactions/account/<account>?<limit>&<page>
-GET /middleware/transactions/<hash>
 GET /middleware/transactions/interval/<from>/<to>?<limit>&<page>
 GET /middleware/transactions/rate/<from>/<to>
 
@@ -131,6 +135,7 @@ GET /v2/key-blocks/height/<height>
 GET /v2/micro-blocks/hash/<hash>/header
 GET /v2/micro-blocks/hash/<hash>/transactions
 GET /v2/micro-blocks/hash/<hash>/transactions/count
+GET /v2/middleware/transactions/<hash>
 ```
 
 ## Websocket support
