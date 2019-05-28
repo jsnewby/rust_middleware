@@ -4,34 +4,34 @@
       <div class="transaction-main-info-inner">
         <div class="transaction-label">
           <LabelType
-            :title="data.type.replace(/([A-Z])/g, ' $1')"
+            :title="transaction.type.replace(/([A-Z])/g, ' $1')"
             fill="red"
           />
         </div>
         <AppDefinition
-          v-if="data.time"
+          v-if="transaction.time"
           title="Age"
         >
-          <Age :time="data.time" />
+          <Age :time="transaction.time" />
         </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="data.account_id"
-            :value="data.account_id"
+            v-if="transaction.account_id"
+            :value="transaction.account_id"
             title="account"
             icon
           />
           <Account
-            v-if="data.sender_id"
-            :value="data.sender_id"
+            v-if="transaction.sender_id"
+            :value="transaction.sender_id"
             title="Sender"
             icon
           />
           <Account
-            v-if="data.recipient_id"
-            :value="data.recipient_id"
+            v-if="transaction.recipient_id"
+            :value="transaction.recipient_id"
             title="recipient"
             icon
           />
@@ -42,19 +42,19 @@
       <div class="transaction-type-info-item " />
       <div class="transaction-type-info-item ">
         <AppDefinition
-          v-if="data.fee"
+          v-if="transaction.fee"
           title="tx fee"
         >
           <FormatAeUnit
-            :value="data.fee"
+            :value="transaction.fee"
           />
         </AppDefinition>
         <AppDefinition
-          v-if="data.cost"
+          v-if="transaction.cost"
           title="tx cost"
         >
           <FormatAeUnit
-            :value="data.cost"
+            :value="transaction.cost"
           />
         </AppDefinition>
       </div>
