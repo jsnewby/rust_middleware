@@ -4,7 +4,7 @@
       <div class="transaction-main-info-inner">
         <div class="transaction-label">
           <LabelType
-            :title="data.type.replace(/([A-Z])/g, ' $1')"
+            :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
             fill="red"
           />
         </div>
@@ -18,24 +18,24 @@
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.account_id"
-            :value="transaction.account_id"
+            v-if="transaction.tx.account_id"
+            :value="transaction.tx.account_id"
             title="account"
             icon
           />
           <Account
-            v-if="transaction.commitment_id"
-            :value="transaction.commitment_id"
+            v-if="transaction.tx.commitment_id"
+            :value="transaction.tx.commitment_id"
             title="commitment"
             icon
           />
         </AccountGroup>
         <AppDefinition
-          v-if="transaction.name"
+          v-if="transaction.tx.name"
           title="name"
           class="name"
         >
-          {{ transaction.name }}
+          {{ transaction.tx.name }}
         </AppDefinition>
       </div>
     </div>
@@ -43,11 +43,11 @@
       <div class="transaction-type-info-item" />
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.fee"
+          v-if="transaction.tx.fee"
           title="Tx fee"
         >
           <FormatAeUnit
-            :value="transaction.fee"
+            :value="transaction.tx.fee"
           />
         </AppDefinition>
       </div>

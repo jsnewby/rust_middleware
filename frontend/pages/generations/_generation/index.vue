@@ -22,7 +22,7 @@
         <TXListItem
           v-for="(transaction, index) in microBlock.transactions"
           :key="index"
-          :data="transaction.tx"
+          :data="transaction"
         />
       </MicroBlock>
     </MicroBlocks>
@@ -76,28 +76,3 @@ export default {
   }
 }
 </script>
-<style scoped >
-  /*.currency {
-    font-size: .7em;
-    margin-left: -.5em;
-    text-decoration: none;
-  }
-  .app-block-height {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    &-num {
-      margin-left: .6rem;
-      @media (max-width: 449px) {
-        margin-top: .6rem;
-        font-weight: 500;
-      }
-      @media (min-width: 450px) {
-      font-size: 1.7rem;
-    }
-    }
-    &-wrapper {
-      display: flex;
-    }
-  }*/
-</style>

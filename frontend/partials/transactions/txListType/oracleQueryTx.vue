@@ -4,34 +4,34 @@
       <div class="transaction-main-info-inner">
         <div class="transaction-label">
           <LabelType
-            :title="transaction.type.replace(/([A-Z])/g, ' $1')"
+            :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
             fill="red"
           />
         </div>
         <AppDefinition
-          v-if="transaction.time"
+          v-if="transaction.tx.time"
           title="Age"
         >
-          <Age :time="transaction.time" />
+          <Age :time="transaction.tx.time" />
         </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.account_id"
-            :value="transaction.account_id"
+            v-if="transaction.tx.account_id"
+            :value="transaction.tx.account_id"
             title="account"
             icon
           />
           <Account
-            v-if="transaction.sender_id"
-            :value="transaction.sender_id"
+            v-if="transaction.tx.sender_id"
+            :value="transaction.tx.sender_id"
             title="Sender"
             icon
           />
           <Account
-            v-if="transaction.recipient_id"
-            :value="transaction.recipient_id"
+            v-if="transaction.tx.recipient_id"
+            :value="transaction.tx.recipient_id"
             title="recipient"
             icon
           />
@@ -42,19 +42,19 @@
       <div class="transaction-type-info-item" />
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.fee"
+          v-if="transaction.tx.fee"
           title="tx fee"
         >
           <FormatAeUnit
-            :value="transaction.fee"
+            :value="transaction.tx.fee"
           />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.cost"
+          v-if="transaction.tx.cost"
           title="tx cost"
         >
           <FormatAeUnit
-            :value="transaction.cost"
+            :value="transaction.tx.cost"
           />
         </AppDefinition>
       </div>

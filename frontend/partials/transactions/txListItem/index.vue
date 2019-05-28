@@ -1,7 +1,7 @@
 <template>
   <Component
-    :is="data.type"
-    v-if="data.type"
+    :is="data.tx.type"
+    v-if="data.tx.type"
     :transaction="data"
   />
 </template>

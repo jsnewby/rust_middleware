@@ -4,28 +4,28 @@
       <div class="transaction-main-info-inner">
         <div class="transaction-label">
           <LabelType
-            :title="transaction.type.replace(/([A-Z])/g, ' $1')"
+            :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
             fill="red"
           />
         </div>
         <AppDefinition
-          v-if="transaction.time"
+          v-if="transaction.tx.time"
           title="Age"
         >
-          <Age :time="transaction.time" />
+          <Age :time="transaction.tx.time" />
         </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.caller_id"
-            :value="transaction.caller_id"
+            v-if="transaction.tx.caller_id"
+            :value="transaction.tx.caller_id"
             title="caller"
             icon
           />
           <Account
-            v-if="transaction.contract_id"
-            :value="transaction.contract_id"
+            v-if="transaction.tx.contract_id"
+            :value="transaction.tx.contract_id"
             title="contract"
             icon
           />
@@ -33,32 +33,26 @@
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item ">
+      <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.amount"
+          v-if="transaction.tx.amount"
           title="Amount"
         >
-          <FormatAeUnit
-            :value="transaction.amount"
-          />
+          <FormatAeUnit :value="transaction.tx.amount" />
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.fee"
+          v-if="transaction.tx.fee"
           title="tx fee"
         >
-          <FormatAeUnit
-            :value="transaction.fee"
-          />
+          <FormatAeUnit :value="transaction.tx.fee" />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.cost"
+          v-if="transaction.tx.cost"
           title="tx cost"
         >
-          <FormatAeUnit
-            :value="transaction.cost"
-          />
+          <FormatAeUnit :value="transaction.tx.cost" />
         </AppDefinition>
       </div>
     </div>

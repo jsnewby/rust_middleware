@@ -7,7 +7,7 @@
       <TXListItem
         v-for="(item, index) in transactions"
         :key="index"
-        :data="item.tx"
+        :data="item"
       />
     </TxList>
     <LoadMoreButton @update="loadmore" />
