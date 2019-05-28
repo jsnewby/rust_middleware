@@ -31,9 +31,9 @@
         />
         <TxList>
           <TXListItem
-            v-for="(transaction, index) in transactions.slice(0,5)"
+            v-for="(transaction, index) in transactions.reverse().slice(0,5)"
             :key="index"
-            :data="transaction.tx"
+            :data="transaction"
           />
         </TxList>
       </div>
