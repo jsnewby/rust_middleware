@@ -18,5 +18,6 @@ export default {
   .block-height {
     font-size: 1.7rem;
     margin-left: .6rem;
+    font-family: "Inter UI", sans-serif;
   }
 </style>
