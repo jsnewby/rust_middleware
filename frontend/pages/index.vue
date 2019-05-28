@@ -2,7 +2,7 @@
   <div>
     <no-ssr>
       <div
-        v-if="localGenerations.length"
+        v-if="generations.length"
         class="generations-wrapper"
       >
         <PageHeader
@@ -11,7 +11,7 @@
         />
         <Generations>
           <nuxt-link
-            v-for="(generation, number) in localGenerations.slice(0,5)"
+            v-for="(generation, number) in generations.slice(0,5)"
             :key="number"
             :to="`/generations/${generation.height}`"
             class="generation-link"
@@ -31,7 +31,7 @@
         />
         <TxList>
           <TXListItem
-            v-for="(transaction, index) in localTransactions.slice(0,5)"
+            v-for="(transaction, index) in transactions.slice(0,5)"
             :key="index"
             :data="transaction.tx"
           />
@@ -62,9 +62,7 @@ export default {
     return {
       data: {},
       currentGen: {},
-      microBlocks: [],
-      localGenerations: [],
-      localTransactions: []
+      microBlocks: []
     }
   },
   computed: {
@@ -78,10 +76,6 @@ export default {
         return Object.values(state.transactions)
       }
     })
-  },
-  beforeMount () {
-    this.localGenerations = this.generations
-    this.localTransactions = this.transactions
   },
   mounted () {
     const mdwWebsocket = new WebSocket(this.$store.state.wsUrl)
@@ -114,7 +108,6 @@ export default {
       }
     },
     async updateTxList (tx) {
-      this.localTransactions.splice(0, 0, tx)
       this.$store.commit('transactions/setTransactions', [tx])
       if (this.$store.state.height < tx.block_height) {
         await this.$store.dispatch('height')
@@ -132,9 +125,8 @@ export default {
         this.currentGen.micro_blocks = this.microBlocks
           .filter(mb => mb.prev_key_hash === this.currentGen.hash)
           .map(mb => {
-            return { ...{}, ...mb, transactions: this.localTransactions.filter(tx => tx.block_hash === mb.hash) }
+            return { ...{}, ...mb, transactions: this.transactions.filter(tx => tx.block_hash === mb.hash) }
           })
-        this.localGenerations.splice(0, 0, this.currentGen)
         this.$store.commit('generations/setGenerations', [Object.assign({}, this.currentGen)])
         this.microBlocks = []
         this.currentGen = { ...{}, ...gen, micro_blocks: [] }
