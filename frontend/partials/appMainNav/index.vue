@@ -24,6 +24,9 @@
         <AppNavLink to="/transactions">
           Transactions
         </AppNavLink>
+        <AppNavLink to="/contracts">
+          Contracts
+        </AppNavLink>
       </AppNav>
     </AppNavAccordion>
   </div>
