@@ -73,8 +73,9 @@ export const actions = {
     try {
       if (!state.hashToHeight[mb.prev_key_hash]) {
         await dispatch('getGenerationByHash', mb.prev_key_hash)
+      } else {
+        commit('setMicroBlockGen', mb)
       }
-      commit('setMicroBlockGen', mb)
     } catch (e) {
       console.log(e)
       commit('catchError', 'Error', {
