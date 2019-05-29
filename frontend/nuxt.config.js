@@ -31,7 +31,7 @@ module.exports = {
   ],
   env: {
     middlewareURL: process.env.NUXT_APP_NODE_URL || 'https://testnet.mdw.aepps.com',
-    middlewareWS: process.env.NUXT_APP_NODE_WS || 'ws://testnet.mdw.aepps.com:3021',
+    middlewareWS: process.env.NUXT_APP_NODE_WS || 'wss://testnet.mdw.aepps.com/websocket',
     networkName: process.env.NUXT_APP_NETWORK_NAME || 'TEST NET'
   },
   /*
