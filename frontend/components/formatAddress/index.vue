@@ -106,7 +106,7 @@ export default {
     }
     &.v-copied-to-clipboard:before {
       @extend %face-mono-base;
-      content: 'address copied';
+      content: 'copied to clipboard';
       display: flex;
       justify-content: center;
       align-items: center;
