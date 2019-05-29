@@ -45,8 +45,8 @@ export default {
   },
   methods: {
     loadmore () {
-      this.page += 1
       this.$store.dispatch('transactions/getLatestTransactions', { 'page': this.page, 'numTransactions': 10 })
+      this.page += 1
     }
   }
 }
