@@ -58,13 +58,6 @@ export default {
     TXListItem,
     PageHeader
   },
-  data () {
-    return {
-      data: {},
-      currentGen: {},
-      microBlocks: []
-    }
-  },
   computed: {
     ...mapState('generations', {
       generations (state) {
@@ -93,44 +86,32 @@ export default {
   methods: {
     getWsData (resp) {
       if (resp.includes('payload')) {
-        this.data = JSON.parse(resp).payload
-        if (this.data.tx) {
-          this.updateTxList(this.data)
+        const data = JSON.parse(resp).payload
+        if (data.tx) {
+          this.updateTxList(data)
         }
 
-        if (this.data.beneficiary) {
-          this.updateGenList(this.data)
+        if (data.beneficiary) {
+          this.updateGenList(data)
         }
 
-        if (this.data.key_block_id) {
-          this.updateMicroBlocks(this.data)
+        if (data.key_block_id) {
+          this.updateMicroBlocks(data)
         }
       }
     },
     async updateTxList (tx) {
       this.$store.commit('transactions/setTransactions', [tx])
+      this.$store.dispatch('generations/updateTx', tx)
       if (this.$store.state.height < tx.block_height) {
         await this.$store.dispatch('height')
       }
     },
     updateMicroBlocks (mb) {
-      this.microBlocks.push({ ...{}, ...mb })
+      this.$store.dispatch('generations/updateMicroBlock', mb)
     },
     updateGenList (gen) {
-      if (!Object.keys(this.currentGen).length) {
-        this.currentGen = { ...{}, ...gen, micro_blocks: [] }
-        this.$store.commit('generations/setGenerations', [Object.assign({}, this.currentGen)])
-      } else {
-        // this.currentGen.micro_blocks = this.localTransactions.filter(tx => tx.block_height === this.currentGen.height)
-        this.currentGen.micro_blocks = this.microBlocks
-          .filter(mb => mb.prev_key_hash === this.currentGen.hash)
-          .map(mb => {
-            return { ...{}, ...mb, transactions: this.transactions.filter(tx => tx.block_hash === mb.hash) }
-          })
-        this.$store.commit('generations/setGenerations', [Object.assign({}, this.currentGen)])
-        this.microBlocks = []
-        this.currentGen = { ...{}, ...gen, micro_blocks: [] }
-      }
+      this.$store.commit('generations/setGenerations', [gen])
     }
   }
 }
