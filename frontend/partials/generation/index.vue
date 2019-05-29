@@ -82,12 +82,13 @@ export default {
   },
   computed: {
     numTransactions () {
-      return (this.$props.data.micro_blocks.length === 0) ? 0 : Object.values(this.$props.data.micro_blocks).reduce((previousValue, currentValue) => {
-        return previousValue + Object.keys(currentValue.transactions).length
+      return Object.values(this.$props.data.micro_blocks).reduce((previousValue, currentValue) => {
+        const tx = currentValue.transactions ? Object.keys(currentValue.transactions).length : 0
+        return previousValue + tx
       }, 0)
     },
     numMicroBlocks () {
-      return (this.$props.data.micro_blocks.length === 0) ? 0 : Object.keys(this.$props.data.micro_blocks).length
+      return Object.keys(this.$props.data.micro_blocks).length
     }
   }
 }
