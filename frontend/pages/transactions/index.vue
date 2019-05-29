@@ -5,7 +5,7 @@
     </PageHeader>
     <TxList>
       <TXListItem
-        v-for="(item, index) in transactions"
+        v-for="(item, index) in Object.values(transactions).reverse()"
         :key="index"
         :data="item"
       />
