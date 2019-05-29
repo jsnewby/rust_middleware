@@ -32,7 +32,7 @@ module.exports = {
   env: {
     middlewareURL: process.env.NUXT_APP_NODE_URL || 'https://testnet.mdw.aepps.com',
     middlewareWS: process.env.NUXT_APP_NODE_WS || 'ws://testnet.mdw.aepps.com:3021',
-    networkName: process.env.NUXT_APP_NETWORK_NAME || 'MAIN NET'
+    networkName: process.env.NUXT_APP_NETWORK_NAME || 'TEST NET'
   },
   /*
   ** Plugins to load before mounting the App
