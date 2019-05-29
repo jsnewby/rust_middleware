@@ -762,13 +762,20 @@ fn active_channels(_state: State<MiddlewareServer>) -> Json<Vec<String>> {
     )
 }
 
-#[get("/contracts/all")]
-fn all_contracts(_state: State<MiddlewareServer>) -> Json<Vec<JsonValue>> {
-    let sql = "SELECT ci.contract_identifier, t.hash, t.block_height \
-               FROM contract_identifiers ci, transactions t WHERE \
-               ci.transaction_id=t.id \
-               ORDER BY block_height DESC"
-        .to_string();
+#[get("/contracts/all?<limit>&<page>")]
+fn all_contracts(
+    _state: State<MiddlewareServer>,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<JsonValue>> {
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "SELECT ci.contract_identifier, t.hash, t.block_height \
+         FROM contract_identifiers ci, transactions t WHERE \
+         ci.transaction_id=t.id \
+         ORDER BY block_height DESC LIMIT {} OFFSET {}",
+        limit_sql, offset_sql
+    );
     Json(
         SQLCONNECTION
             .get()
