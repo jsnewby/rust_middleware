@@ -922,6 +922,25 @@ fn reverse_names(
     Json(names)
 }
 
+/*
+ * Gets the names which point to something
+ */
+#[get("/heights/date/<date>")]
+fn height_by_date(_state: State<MiddlewareServer>, date: String) -> Json<JsonValue> {
+    let sql_date = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d").unwrap(); // check it's a valid date.
+    let sql = r#"select min(t.block_height), max(t.block_height) from transactions t join micro_blocks m on t.micro_block_id=m.id where date(to_timestamp(m.time_/1000)) = $1"#;
+    let rows = SQLCONNECTION
+        .get()
+        .unwrap()
+        .query(sql, &[&sql_date])
+        .unwrap();
+    let from: i32 = rows.get(0).get(0);
+    let to: i32 = rows.get(0).get(1);
+    Json(json!({
+        "from": from,
+        "to": to,
+    }))
+}
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -944,6 +963,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
+            .mount("/middleware", routes![height_by_date])
             .mount("/middleware", routes![oracle_all_requests_responses])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
