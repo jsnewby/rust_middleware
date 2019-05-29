@@ -2,7 +2,7 @@ FROM node:10.15.1-alpine as frontend-build
 WORKDIR /app
 RUN apk add make gcc g++ python git
 COPY package*.json ./
-RUN npm install --only=prod
+RUN npm install
 COPY . .
 RUN npm run build
 
@@ -10,7 +10,7 @@ RUN npm run build
 FROM node:10.15.1-alpine as frontend
 WORKDIR /app
 COPY --from=frontend-build /app/.nuxt /app/.nuxt
-RUN npm install nuxt@2.4.5 @nuxtjs/axios@5.0.0 @download/blockies@1.0.3 clipboard-copy@2.0.1 && \
+RUN npm install nuxt@2.4.5 @nuxtjs/axios@5.0.0 @download/blockies@1.0.3 clipboard-copy@2.0.1 bignumber.js@8.1.1 && \
     npm cache clean --force
 COPY package.json package.json
 COPY LICENSE.md LICENSE.md
