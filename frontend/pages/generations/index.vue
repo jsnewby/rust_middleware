@@ -51,7 +51,7 @@ export default {
     ])
   },
   methods: {
-    async loadMoreGen () {
+    loadMoreGen () {
       this.$store.dispatch('generations/getLatestGenerations', this.limitGen)
     }
   }
