@@ -88,30 +88,19 @@ export default {
       if (resp.includes('payload')) {
         const data = JSON.parse(resp).payload
         if (data.tx) {
-          this.updateTxList(data)
+          this.$store.commit('transactions/setTransactions', [data])
+          this.$store.dispatch('generations/updateTx', data)
         }
-
         if (data.beneficiary) {
-          this.updateGenList(data)
+          this.$store.commit('generations/setGenerations', [data])
+          if (this.$store.state.height < data.height) {
+            this.$store.commit('setHeight', data.height, { root: true })
+          }
         }
-
         if (data.key_block_id) {
-          this.updateMicroBlocks(data)
+          this.$store.dispatch('generations/updateMicroBlock', data)
         }
       }
-    },
-    async updateTxList (tx) {
-      this.$store.commit('transactions/setTransactions', [tx])
-      this.$store.dispatch('generations/updateTx', tx)
-      if (this.$store.state.height < tx.block_height) {
-        await this.$store.dispatch('height')
-      }
-    },
-    updateMicroBlocks (mb) {
-      this.$store.dispatch('generations/updateMicroBlock', mb)
-    },
-    updateGenList (gen) {
-      this.$store.commit('generations/setGenerations', [gen])
     }
   }
 }
