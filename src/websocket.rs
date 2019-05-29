@@ -13,6 +13,7 @@ use ws::{listen, CloseCode, Handler, Handshake, Message, Result, Sender};
 
 use crate::middleware_result::MiddlewareResult;
 
+#[derive(Debug)]
 pub struct Candidate {
     pub payload: WsPayload,
     pub data: serde_json::Value,
@@ -23,6 +24,7 @@ type VanillaSub = HashSet<Client>;
 type ObjectSubFwd = HashMap<Client, HashSet<Object>>;
 type ObjectSubRvs = HashMap<Object, VanillaSub>;
 
+#[derive(Debug)]
 pub struct Subscriptions {
     pub kb_sub: VanillaSub,
     pub mb_sub: VanillaSub,
@@ -54,16 +56,26 @@ impl Subscriptions {
         }
     }
 
-    pub fn vanilla_subscribe(&self, kind: WsPayload, client: Client) {
-        if let Some(mut sub) = self.get_subscription(kind) {
-            sub.insert(client.clone());
-        }
+    pub fn vanilla_subscribe(&mut self, kind: WsPayload, client: Client) {
+        match kind {
+            WsPayload::key_blocks => self.kb_sub.insert(client.clone()),
+            WsPayload::micro_blocks => self.mb_sub.insert(client.clone()),
+            WsPayload::transactions => self.tx_sub.insert(client.clone()),
+            WsPayload::tx_update => self.tu_sub.insert(client.clone()),
+            _ => false,
+        };
+        debug!("Sub is {:?}", self);
     }
 
-    pub fn vanilla_unsubscribe(&self, kind: WsPayload, client: Client) {
-        if let Some(mut sub) = self.get_subscription(kind) {
-            sub.remove(&client);
-        }
+    pub fn vanilla_unsubscribe(&mut self, kind: WsPayload, client: Client) {
+        match kind {
+            WsPayload::key_blocks => self.kb_sub.remove(&client),
+            WsPayload::micro_blocks => self.mb_sub.remove(&client),
+            WsPayload::transactions => self.tx_sub.remove(&client),
+            WsPayload::tx_update => self.tu_sub.remove(&client),
+            _ => false,
+        };
+        debug!("Sub is {:?}", self);
     }
 
     pub fn object_subscribe(&mut self, client: Client, object: Object) {
@@ -97,6 +109,7 @@ impl Subscriptions {
     }
 
     pub fn client_unsubscribe(&mut self, client: Client) {
+        debug!("Unsubscribing client {:?}", client);
         let mut objs: HashSet<Object> = match self.object_subs_fwd.get(&client) {
             Some(x) => (*x).to_owned(),
             None => HashSet::new(),
@@ -104,6 +117,56 @@ impl Subscriptions {
         for object in objs.iter() {
             self.object_unsubscribe(client.clone(), object.to_string());
         }
+    }
+
+    pub fn subs_for_client(&self, client: Client) -> Vec<Object> {
+        let mut subs = Vec::new();
+        if self.kb_sub.contains(&client) {
+            subs.push(WsPayload::key_blocks.to_string());
+        }
+        if self.mb_sub.contains(&client) {
+            subs.push(WsPayload::micro_blocks.to_string());
+        }
+        if self.tx_sub.contains(&client) {
+            subs.push(WsPayload::transactions.to_string());
+        }
+        if self.tx_sub.contains(&client) {
+            subs.push(WsPayload::tx_update.to_string());
+        }
+        let mut objs: HashSet<Object> = match self.object_subs_fwd.get(&client) {
+            Some(x) => (*x).to_owned(),
+            None => HashSet::new(),
+        };
+        for obj in objs.iter() {
+            subs.push(obj.to_string());
+        }
+        debug!("Subs for client {:?} are {:?}", client, subs);
+        subs
+    }
+
+    pub fn clients_for_object(&self, candidate: &Candidate) -> Vec<Client> {
+        if let Some(vanilla_sub) = self.get_subscription(candidate.payload.clone()) {
+            debug!("Found and returning sub {:?}", vanilla_sub);
+            return vanilla_sub.clone().iter().map(|x| x.clone()).collect();
+        }
+        if candidate.payload != WsPayload::object {
+            return vec![];
+        }
+        // it's a tx of some kind
+        let objects = get_objects(candidate.data.to_string());
+        debug!("Objects found: {:?}", objects);
+        let mut clients: HashSet<Client> = HashSet::new();
+        for object in objects.iter() {
+            debug!("Checking object {:?}", object);
+            if let Some(sub) = self.object_subs_rvs.get(object) {
+                debug!("Found subscription {:?}", sub);
+                for client in sub.iter() {
+                    clients.insert(client.clone());
+                }
+            }
+        }
+        debug!("Clients with matching subscriptions: {:?}", clients);
+        clients.iter().map(|x| x.clone()).collect()
     }
 }
 
@@ -117,6 +180,14 @@ fn test_subs() {
 lazy_static! {
     static ref SUBSCRIPTIONS: Arc<Mutex<RefCell<Subscriptions>>> =
         Arc::new(Mutex::new(RefCell::new(Subscriptions::new())));
+}
+
+pub fn subs_for_client(client: Client) -> Vec<Object> {
+    if let Ok(x) = (*SUBSCRIPTIONS).lock() {
+        (*x).borrow_mut().subs_for_client(client)
+    } else {
+        Vec::new()
+    }
 }
 
 pub fn vanilla_subscribe(kind: WsPayload, client: Client) {
@@ -146,6 +217,15 @@ pub fn object_unsubscribe(client: Client, object: Object) {
 pub fn client_unsubscribe(client: Client) {
     if let Ok(x) = (*SUBSCRIPTIONS).lock() {
         (*x).borrow_mut().client_unsubscribe(client);
+    }
+}
+
+pub fn clients_for_object(candidate: &Candidate) -> Vec<Client> {
+    if let Ok(x) = (*SUBSCRIPTIONS).lock() {
+        (*x).borrow_mut().clients_for_object(candidate)
+    } else {
+        error!("Error locking subscriptions");
+        vec![]
     }
 }
 
@@ -276,7 +356,8 @@ impl Handler for Client {
             }
             _ => (),
         }
-        self.out.send(format!("No rules to send back yet"));
+        self.out
+            .send(json!(subs_for_client(self.clone())).to_string());
         Ok(())
     }
 
@@ -308,11 +389,16 @@ pub fn start_ws() {
  * subscription to which it relates.
  */
 pub fn broadcast_ws(candidate: &Candidate) -> MiddlewareResult<()> {
-    /*
-        for client in get_clients() {
-            let rules = get_client_rules(&client);
-        }
-    */
+    debug!("Broadcasting candidate {:?}", candidate);
+    for client in clients_for_object(candidate) {
+        client.out.send(
+            json!({
+                "subscription": candidate.payload.to_string(),
+                "payload": candidate.data,
+            })
+            .to_string(),
+        )?;
+    }
     Ok(())
 }
 

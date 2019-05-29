@@ -116,6 +116,7 @@ GET /middleware/channels/transactions/address/<address>
 GET /middleware/contracts/all
 GET /middleware/contracts/calls/address/<address>
 GET /middleware/contracts/transactions/address/<address>
+GET /generations/<from>/<to>?<limit>&<page>
 GET /middleware/names/active?<limit>&<page>
 GET /middleware/oracles/all?<limit>&<page>
 GET /middleware/reward/height/<height>
@@ -167,6 +168,12 @@ Subscriptions return the array of subscriptions (possibly empty):
 ["key_blocks"]
 {"op":"subscribe", "payload": "micro_blocks"}
 ["key_blocks","micro_blocks"]
+{"op":"unsubscribe", "payload": "micro_blocks"}
+["key_blocks"]
+{"op":"subscribe", "payload": "object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}
+["key_blocks","micro_blocks"]
+
+
 ```
 
 Actual chain data is wrapped in a JSON structure identifying the subscription to which it relates:
