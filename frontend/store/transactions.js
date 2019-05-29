@@ -21,7 +21,7 @@ export const actions = {
     const page = payload.page
     const maxTransactions = payload.numTransactions
     try {
-      const transactions = await axios.get(nodeUrl + 'middleware/transactions/interval/1/' + height.toString() + '?limit=' + maxTransactions + '&page=' + page)
+      const transactions = await axios.get(nodeUrl + '/middleware/transactions/interval/1/' + height.toString() + '?limit=' + maxTransactions + '&page=' + page)
       commit('setTransactions', transactions.data.transactions)
       return transactions.data.transactions
     } catch (e) {
