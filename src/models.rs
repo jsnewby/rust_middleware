@@ -79,6 +79,24 @@ impl KeyBlock {
         Ok(_height?)
     }
 
+    /**
+     * return the height that has time >= of the epoch input value
+     */
+    pub fn height_at_epoch(conn: &PgConnection, epoch:i64 ) -> Option<i64> {
+        let next_height = match key_blocks.select(
+          diesel::dsl::min(height))
+          .filter(time.ge(epoch))
+          .first::<Option<i64>>(conn) 
+        {
+            Ok(x) => x,
+            Err(y) => {
+                error!("Error loading key block at epoch: {:?}", y);
+                return None;
+            }
+        };
+        next_height
+    }
+
     pub fn load_at_height(conn: &PgConnection, _height: i64) -> Option<KeyBlock> {
         let block = match key_blocks::table
             .filter(height.eq(_height))

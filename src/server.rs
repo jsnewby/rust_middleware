@@ -19,6 +19,8 @@ use serde_json;
 use std::io::Cursor;
 use std::path::PathBuf;
 
+use std::collections::HashMap;
+
 use SQLCONNECTION;
 
 use PGCONNECTION;
@@ -29,7 +31,7 @@ pub struct MiddlewareServer {
     pub port: u16,        // port to listen on
 }
 
-// SQL santitizing method to prevent injection attacks.
+// SQL sanitizing method to prevent injection attacks.
 fn sanitize(s: &String) -> String {
     s.replace("'", "\\'")
 }
@@ -915,6 +917,35 @@ fn reverse_names(
     Json(names)
 }
 
+/**
+ * Gets the chain height at a specific point in time
+ */
+#[get("/height/at/<epoch>")]
+fn height_at_epoch(state: State<MiddlewareServer>, epoch:i64) -> Result<Json<serde_json::Value>, Status> {
+    // cannot make this work 
+    // it compiles returns only height 1
+    // or it panics
+    match KeyBlock::height_at_epoch(&PGCONNECTION.get().unwrap(), epoch) {
+      Some(x) => {
+        info!("height {}", x);
+        // it doesn't seem necessary but I dont know 
+        // how to do it otherwise
+        let mut _h = HashMap::new(); 
+        _h.insert("height", x);
+        return Ok(Json(
+          //json!({ "height": &x}) // THIS WORKS BUT IS rocket json OBJECT and requires return Result<Json<JsonValue>, Status>
+          serde_json::from_str(&serde_json::to_string(&_h).unwrap()).unwrap(),
+        ))
+      },
+      None => { 
+          info!("No block found at epoch {}", epoch);
+          let mut path = std::path::PathBuf::new();
+          path.push(format!("key-blocks/at/{}", epoch));
+          return Ok(node_get_json(state, path));
+      }
+    }
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -949,6 +980,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_channel_address])
             .mount("/middleware", routes![transactions_for_contract_address])
+            .mount("/middleware", routes![height_at_epoch])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![generation_at_height])
