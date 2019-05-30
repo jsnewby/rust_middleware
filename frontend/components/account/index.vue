@@ -13,7 +13,7 @@
         <FormatAddress
           :value="value"
           :icon="icon"
-          length="responsive"
+          :length="length"
         />
       </div>
     </AppDefinition>
@@ -39,6 +39,10 @@ export default {
     icon: {
       type: Boolean,
       default: false
+    },
+    length: {
+      type: String,
+      default: 'responsive'
     }
   }
 }
