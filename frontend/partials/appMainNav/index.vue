@@ -33,6 +33,9 @@
         <AppNavLink to="/names">
           Names
         </AppNavLink>
+        <AppNavLink to="/oracles">
+          Oracles
+        </AppNavLink>
       </AppNav>
     </AppNavAccordion>
   </div>
