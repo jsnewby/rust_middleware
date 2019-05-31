@@ -805,7 +805,7 @@ fn oracles_all(
 ) -> JsonValue {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        "SELECT hash, block_height, \
+        "SELECT REPLACE(tx->>'account_id', 'ak_', 'ok_'), hash, block_height, \
          CASE WHEN tx->'oracle_ttl'->>'type' = 'delta' THEN block_height + (tx->'oracle_ttl'->'value')::text::integer ELSE 0 END, \
          tx FROM transactions \
          WHERE tx_type='OracleRegisterTx' \
@@ -816,11 +816,13 @@ fn oracles_all(
     debug!("{}", sql);
     let mut res: Vec<JsonValue> = vec![];
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
-        let hash: String = row.get(0);
-        let block_height: i32 = row.get(1);
-        let expires_at: i32 = row.get(2);
-        let tx: serde_json::Value = row.get(3);
+        let oracle_id: String = row.get(0);
+        let hash: String = row.get(1);
+        let block_height: i32 = row.get(2);
+        let expires_at: i32 = row.get(3);
+        let tx: serde_json::Value = row.get(4);
         res.push(json!({
+            "oracle_id": oracle_id,
             "transaction_hash": hash,
             "block_height": block_height,
             "expires_at": expires_at,
