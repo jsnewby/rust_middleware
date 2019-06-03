@@ -4,22 +4,14 @@
       <div class="container-first-inner">
         <div>
           <LabelType
-            title="Oracle Query"
+            title="Oracle"
             fill="green"
           />
         </div>
-        <Account
-          v-if="data.query_id"
-          :value="data.query_id"
-          title="Oracle Query Id"
-          icon
-        />
       </div>
       <div class="containter-first-inner">
         <Account
-          v-if="data.request"
-          :value="data.request.oracle_id"
-          length="full"
+          :value="data.oracle_id"
           title="Oracle Id"
           icon
         />
@@ -29,17 +21,36 @@
       <div class="container-last-wrapper">
         <AppDefinition
           class="container-last-inner"
-          title="Query"
+          title="Block Height"
         >
-          {{ request }}
+          {{ data.block_height }}
+        </AppDefinition>
+        <AppDefinition
+          class="container-last-inner"
+          title="Expires At"
+        >
+          {{ data.expires_at }}
         </AppDefinition>
       </div>
       <div class="container-last-wrapper">
         <AppDefinition
           class="container-last-inner"
-          title="Response"
+          title="Query Fee"
         >
-          {{ response }}
+          {{ data.tx.query_fee }}
+        </AppDefinition>
+        <AppDefinition
+          class="container-last-inner"
+          title="Query Format"
+        >
+          {{ data.tx.query_format }}
+        </AppDefinition>
+
+        <AppDefinition
+          class="container-last-inner"
+          title="Response Format"
+        >
+          {{ data.tx.response_format }}
         </AppDefinition>
       </div>
     </div>
@@ -61,14 +72,6 @@ export default {
     data: {
       type: Object,
       required: true
-    }
-  },
-  computed: {
-    request () {
-      return this.data.request ? this.data.request.query : '-'
-    },
-    response () {
-      return this.data.response ? this.data.response.response : '-'
     }
   }
 }
