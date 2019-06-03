@@ -1,3 +1,4 @@
+import Vue from 'vue'
 import axios from 'axios'
 
 export const state = () => ({
@@ -6,14 +7,16 @@ export const state = () => ({
 
 export const mutations = {
   setContracts (state, contracts) {
-    state.contracts = contracts
+    for (let contract of contracts) {
+      Vue.set(state.contracts, contract.contract_id, contract)
+    }
   }
 }
 
 export const actions = {
-  getAllContracts: async function ({ rootState: { nodeUrl }, commit }) {
+  getContracts: async function ({ rootState: { nodeUrl }, commit }, { page, limit }) {
     try {
-      const contracts = await axios.get(nodeUrl + '/middleware/contracts/all')
+      const contracts = await axios.get(nodeUrl + '/middleware/contracts/all?limit=' + limit + '&page=' + page)
       commit('setContracts', contracts.data)
       return contracts.data
     } catch (e) {
