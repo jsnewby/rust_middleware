@@ -79,6 +79,21 @@ impl KeyBlock {
         Ok(_height?)
     }
 
+    /**
+     * return the height that has time >= of the epoch input value
+     */
+    pub fn height_at_epoch(conn: &PgConnection, epoch: i64) -> MiddlewareResult<Option<i64>> {
+        let rows = SQLCONNECTION.get()?.query(
+            "SELECT MIN(height) FROM key_blocks WHERE time_ >= $1",
+            &[&epoch],
+        )?;
+        if rows.len() == 0 {
+            Ok(None)
+        } else {
+            Ok(rows.get(0).get(0))
+        }
+    }
+
     pub fn load_at_height(conn: &PgConnection, _height: i64) -> Option<KeyBlock> {
         let block = match key_blocks::table
             .filter(height.eq(_height))

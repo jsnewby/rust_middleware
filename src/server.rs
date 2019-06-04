@@ -29,7 +29,7 @@ pub struct MiddlewareServer {
     pub port: u16,        // port to listen on
 }
 
-// SQL santitizing method to prevent injection attacks.
+// SQL sanitizing method to prevent injection attacks.
 fn sanitize(s: &String) -> String {
     s.replace("'", "\\'")
 }
@@ -927,25 +927,22 @@ fn reverse_names(
     Json(names)
 }
 
-/*
- * Gets the names which point to something
+/**
+ * Gets the chain height at a specific point in time
  */
-#[get("/heights/date/<date>")]
-fn height_by_date(_state: State<MiddlewareServer>, date: String) -> Json<JsonValue> {
-    let sql_date = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d").unwrap(); // check it's a valid date.
-    let sql = r#"select min(t.block_height), max(t.block_height) from transactions t join micro_blocks m on t.micro_block_id=m.id where date(to_timestamp(m.time_/1000)) = $1"#;
-    let rows = SQLCONNECTION
-        .get()
-        .unwrap()
-        .query(sql, &[&sql_date])
-        .unwrap();
-    let from: i32 = rows.get(0).get(0);
-    let to: i32 = rows.get(0).get(1);
-    Json(json!({
-        "from": from,
-        "to": to,
-    }))
+#[get("/height/at/<millis_since_epoch>")]
+fn height_at_epoch(
+    state: State<MiddlewareServer>,
+    millis_since_epoch: i64,
+) -> Result<Json<JsonValue>, Status> {
+    match KeyBlock::height_at_epoch(&PGCONNECTION.get().unwrap(), millis_since_epoch).unwrap() {
+        Some(x) => Ok(Json(json!({
+            "height": x,
+        }))),
+        None => Err(rocket::http::Status::new(404, "Not found")),
+    }
 }
+
 
 #[get("/status")]
 fn status(_state: State<MiddlewareServer>) -> Response {
@@ -1006,7 +1003,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
-            .mount("/middleware", routes![height_by_date])
+            .mount("/middleware", routes![height_at_epoch])
             .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
