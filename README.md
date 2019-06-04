@@ -111,6 +111,7 @@ GET /middleware/channels/transactions/address/<address>
 GET /middleware/contracts/all
 GET /middleware/contracts/calls/address/<address>
 GET /middleware/contracts/transactions/address/<address>
+GET /middleware/height/at/<millis_since_epoch>
 GET /middleware/names/active?<limit>&<page>
 GET /middleware/oracles/all?<limit>&<page>
 GET /middleware/reward/height/<height>

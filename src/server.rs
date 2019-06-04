@@ -920,12 +920,12 @@ fn reverse_names(
 /**
  * Gets the chain height at a specific point in time
  */
-#[get("/height/at/<epoch>")]
-fn height_at_epoch(state: State<MiddlewareServer>, epoch: i64) -> Result<Json<JsonValue>, Status> {
-    // cannot make this work
-    // it compiles returns only height 1
-    // or it panics
-    match KeyBlock::height_at_epoch(&PGCONNECTION.get().unwrap(), epoch).unwrap() {
+#[get("/height/at/<millis_since_epoch>")]
+fn height_at_epoch(
+    state: State<MiddlewareServer>,
+    millis_since_epoch: i64,
+) -> Result<Json<JsonValue>, Status> {
+    match KeyBlock::height_at_epoch(&PGCONNECTION.get().unwrap(), millis_since_epoch).unwrap() {
         Some(x) => Ok(Json(json!({
             "height": x,
         }))),
@@ -955,6 +955,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
+            .mount("/middleware", routes![height_at_epoch])
             .mount("/middleware", routes![oracle_all_requests_responses])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
@@ -967,7 +968,6 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_channel_address])
             .mount("/middleware", routes![transactions_for_contract_address])
-            .mount("/middleware", routes![height_at_epoch])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![generation_at_height])
