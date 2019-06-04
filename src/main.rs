@@ -12,15 +12,20 @@ extern crate blake2b;
 extern crate byteorder;
 extern crate chashmap;
 extern crate chrono;
+extern crate clap;
 extern crate crypto;
 extern crate curl;
 extern crate daemonize;
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 extern crate dotenv;
 extern crate env_logger;
 extern crate flexi_logger;
+extern crate futures;
 extern crate hex;
+extern crate itertools;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -40,18 +45,13 @@ extern crate rust_base58;
 extern crate rust_decimal;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-use std::fs::File;
-use std::io::Write;
-use std::thread;
-use std::thread::JoinHandle;
-extern crate itertools;
-
-extern crate futures;
 extern crate postgres;
+extern crate serde_json;
 extern crate ws;
 
-extern crate clap;
+use std::thread;
+use std::thread::JoinHandle;
+
 use clap::{App, Arg};
 
 use std::env;
@@ -80,6 +80,8 @@ use r2d2_postgres::PostgresConnectionManager;
 use std::sync::Arc;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
+embed_migrations!("migrations/");
 
 lazy_static! {
     static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
@@ -189,7 +191,7 @@ fn main() {
                 .unwrap();
             ()
         }
-        Err(x) => env_logger::Builder::from_default_env()
+        Err(_x) => env_logger::Builder::from_default_env()
             .target(env_logger::Target::Stdout)
             .init(),
     }
@@ -263,9 +265,19 @@ fn main() {
         return;
     }
 
+    // Run migrations
+    let connection = PGCONNECTION.get().unwrap();
+    let mut migration_output = Vec::new();
+    let migration_result =
+        embedded_migrations::run_with_output(&*connection, &mut migration_output);
+    for line in migration_output.iter() {
+        info!("migration out: {}", line);
+    }
+    migration_result.unwrap();
+
     /*
-     * The `heights` argument is of this form: 1,10-15,1000 which would cause blocks 1, 10,11,12,13,14,15 and 1000
-     *to be loaded.
+     * The `heights` argument is of this form: 1,10-15,1000 which
+     * would cause blocks 1, 10,11,12,13,14,15 and 1000 to be loaded.
      */
     if heights {
         let to_load = matches.value_of("heights").unwrap();

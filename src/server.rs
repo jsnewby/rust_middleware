@@ -8,7 +8,7 @@ use chrono::prelude::*;
 use diesel::RunQueryDsl;
 use regex::Regex;
 use rocket;
-use rocket::http::{Method, Status};
+use rocket::http::{Header, Method, Status};
 use rocket::response::Response;
 use rocket::State;
 use rocket_contrib::json::*;
@@ -29,7 +29,7 @@ pub struct MiddlewareServer {
     pub port: u16,        // port to listen on
 }
 
-// SQL santitizing method to prevent injection attacks.
+// SQL sanitizing method to prevent injection attacks.
 fn sanitize(s: &String) -> String {
     s.replace("'", "\\'")
 }
@@ -420,7 +420,7 @@ fn transactions_for_account(
          t.tx->>'account_id' = '{}' OR \
          t.tx->>'recipient_id'='{}' or \
          t.tx->>'owner_id' = '{}' )\
-         order by id desc \
+         order by m.time_ desc \
          limit {} offset {} ",
         s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql
     );
@@ -762,13 +762,20 @@ fn active_channels(_state: State<MiddlewareServer>) -> Json<Vec<String>> {
     )
 }
 
-#[get("/contracts/all")]
-fn all_contracts(_state: State<MiddlewareServer>) -> Json<Vec<JsonValue>> {
-    let sql = "SELECT ci.contract_identifier, t.hash, t.block_height \
-               FROM contract_identifiers ci, transactions t WHERE \
-               ci.transaction_id=t.id \
-               ORDER BY block_height DESC"
-        .to_string();
+#[get("/contracts/all?<limit>&<page>")]
+fn all_contracts(
+    _state: State<MiddlewareServer>,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<JsonValue>> {
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "SELECT ci.contract_identifier, t.hash, t.block_height \
+         FROM contract_identifiers ci, transactions t WHERE \
+         ci.transaction_id=t.id \
+         ORDER BY block_height DESC LIMIT {} OFFSET {}",
+        limit_sql, offset_sql
+    );
     Json(
         SQLCONNECTION
             .get()
@@ -790,31 +797,36 @@ fn all_contracts(_state: State<MiddlewareServer>) -> Json<Vec<JsonValue>> {
     )
 }
 
-#[get("/oracles/all?<limit>&<page>")]
-fn oracle_all_requests_responses(
+#[get("/oracles/list?<limit>&<page>")]
+fn oracles_all(
     _state: State<MiddlewareServer>,
     limit: Option<i32>,
     page: Option<i32>,
 ) -> JsonValue {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        "select oq.query_id, t1.tx, t2.tx from \
-         oracle_queries oq \
-         join transactions t1 on oq.transaction_id=t1.id \
-         left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
-         limit {} offset {} ",
-        limit_sql, offset_sql
+        "SELECT REPLACE(tx->>'account_id', 'ak_', 'ok_'), hash, block_height, \
+         CASE WHEN tx->'oracle_ttl'->>'type' = 'delta' THEN block_height + (tx->'oracle_ttl'->'value')::text::integer ELSE 0 END, \
+         tx FROM transactions \
+         WHERE tx_type='OracleRegisterTx' \
+         ORDER BY block_height DESC \
+         LIMIT {} OFFSET {}",
+        limit_sql, offset_sql,
     );
     debug!("{}", sql);
     let mut res: Vec<JsonValue> = vec![];
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
-        let query_id: String = row.get(0);
-        let request: serde_json::Value = row.get(1);
-        let response: Option<serde_json::Value> = row.get(2);
+        let oracle_id: String = row.get(0);
+        let hash: String = row.get(1);
+        let block_height: i32 = row.get(2);
+        let expires_at: i32 = row.get(3);
+        let tx: serde_json::Value = row.get(4);
         res.push(json!({
-            "query_id": query_id,
-            "request": json!(request),
-            "response": json!(response),
+            "oracle_id": oracle_id,
+            "transaction_hash": hash,
+            "block_height": block_height,
+            "expires_at": expires_at,
+               "tx": tx,
         }));
     }
     json!(res)
@@ -915,6 +927,58 @@ fn reverse_names(
     Json(names)
 }
 
+/**
+ * Gets the chain height at a specific point in time
+ */
+#[get("/height/at/<millis_since_epoch>")]
+fn height_at_epoch(
+    _state: State<MiddlewareServer>,
+    millis_since_epoch: i64,
+) -> Result<Json<JsonValue>, Status> {
+    match KeyBlock::height_at_epoch(&PGCONNECTION.get().unwrap(), millis_since_epoch).unwrap() {
+        Some(x) => Ok(Json(json!({
+            "height": x,
+        }))),
+        None => Err(rocket::http::Status::new(404, "Not found")),
+    }
+}
+
+#[get("/status")]
+fn status(_state: State<MiddlewareServer>) -> Response {
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    let top_key_block = KeyBlock::load_at_height(&PGCONNECTION.get().unwrap(), _height).unwrap();
+    let utc: DateTime<Utc> = Utc::now();
+    let seconds_since_last_block = (utc.timestamp_millis() - top_key_block.time) / 1000;
+    let max_seconds: i64 = std::env::var("STATUS_MAX_BLOCK_AGE")
+        .unwrap_or("900".into())
+        .parse::<i64>()
+        .unwrap();
+    let queue_length = crate::loader::queue_length();
+    let max_queue_length: i64 = std::env::var("STATUS_MAX_QUEUE_LENGTH")
+        .unwrap_or("2".into())
+        .parse::<i64>()
+        .unwrap();
+    let ok: bool = true
+        && (queue_length as i64 <= max_queue_length)
+        && (seconds_since_last_block < max_seconds);
+    let mut response = Response::build();
+    if ok {
+        response.status(Status::from_code(200).unwrap());
+    } else {
+        response.status(Status::from_code(503).unwrap());
+    }
+    response.header(Header::new("content-type", "application/json"));
+    response.sized_body(Cursor::new(
+        json!({
+            "queue_length": queue_length,
+            "seconds_since_last_block": seconds_since_last_block,
+            "OK": ok,
+        })
+        .to_string(),
+    ));
+    response.finalize()
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -937,11 +1001,13 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
-            .mount("/middleware", routes![oracle_all_requests_responses])
+            .mount("/middleware", routes![height_at_epoch])
+            .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
             .mount("/middleware", routes![reward_at_height])
             .mount("/middleware", routes![size])
+            .mount("/middleware", routes![status])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_account_to_account])

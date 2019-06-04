@@ -52,6 +52,17 @@ There is a hosted middleware for the æternity mainnet at http://mdw.aepps.com/,
 - copy `.env.example` to `.env`
 - if you want to use a different DB name, edit `scripts/prepare-db.sql`, `.env` and `Rocket.toml`
 
+### Tips and tricks
+
+You can run several instances of the middleware simultaneously, with different options. A sensible way of doing this would be one or more using the `-s` option to serve clients, and one (and only one) with the `-p` option, populating the database.
+
+If you don't want to interrupt service, want to update the database with new features, and can live with short-term (possible) inconsistencies, use the `-H` option with the whole chain to force a reload, but serve from the old version soon.
+
+**DON'T USE `diesel migration run`!
+**
+
+The generated `src/schema.rs` does not work, and `diesel migration run` insists on over-writing it. We have made a `run-migrations.rs` in the root directory which moves the old `schema.rs` out of the way and replaces it after use.
+
 ## How to build
 
 You need a nightly rust build
@@ -62,22 +73,27 @@ then
 
 `cargo build`
 
-and to install the database
-
-```
-cargo install diesel_cli
-diesel database reset
-```
+The middleware will automatically set up its DB on initialization, and run migrations after an update, if they are necessary.
 
 ## How to run
 
+### Development mode
+
 `cargo run -- ` + flags below
 
+### Release mode
+
 ```
-FLAGS:
+cargo build --release # make a release build--this will take a long long time
+./target/release/aepp-middleware # + flags below
+```
+
+### Flags
+```
         --help        Prints help information
-    -H, --heights     Adds or replaces a set of heights, or ranges of heights, separated by
-    		      commas to the database.
+    -H, --heights     Adds or replaces a set of heights, or ranges of heights separated by
+    		      commas to the database. i.e. -H1,3-4,6,100-200
+    -d, --daemonize   If set, the middleware will daemonize on startup
     -p, --populate    Populate DB
     -s, --server      Start server
     -v, --verify      Check the DB against the chain
@@ -89,7 +105,7 @@ FLAGS:
 
 `NODE_URL` - the URL of the æternity node
 `AESOPHIA_URL` - if present, the middleware will attempt to use this to decode contract calls, storing the function called, and its parameters
-`PID_FILE` - if present, the middleware stores its pid in this file
+`PID_FILE` - if present, and the `-d` option is set, the middleware stores its pid in this file
 `LOG_DIR` - if present, this directory is used for logs, otherwise stdout is used
 `DATABASE_URL` - PostgreSQL connection URL
 
@@ -100,15 +116,17 @@ GET /middleware/channels/transactions/address/<address>
 GET /middleware/contracts/all
 GET /middleware/contracts/calls/address/<address>
 GET /middleware/contracts/transactions/address/<address>
+GET /middleware/generations/<from>/<to>?<limit>&<page>
+GET /middleware/height/at/<millis_since_epoch>
 GET /middleware/names/active?<limit>&<page>
 GET /middleware/oracles/all?<limit>&<page>
+GET /middleware/oracles/<oracle_id>?<limit>&<page>
 GET /middleware/reward/height/<height>
 GET /middleware/size/current
 GET /middleware/size/height/<height>
 GET /middleware/transactions/account/<account>/count
 GET /middleware/transactions/account/<sender>/to/<receiver>
 GET /middleware/transactions/account/<account>?<limit>&<page>
-GET /middleware/transactions/<hash>
 GET /middleware/transactions/interval/<from>/<to>?<limit>&<page>
 GET /middleware/transactions/rate/<from>/<to>
 
@@ -120,6 +138,7 @@ GET /v2/key-blocks/height/<height>
 GET /v2/micro-blocks/hash/<hash>/header
 GET /v2/micro-blocks/hash/<hash>/transactions
 GET /v2/micro-blocks/hash/<hash>/transactions/count
+GET /v2/middleware/transactions/<hash>
 ```
 
 ## Websocket support
@@ -142,6 +161,11 @@ Message format:
 - micro_blocks
 - transactions
 - tx_update
+- object, which takes a further field, 'target'--see below
+
+### Object subscriptions
+
+You may subscribe to any æternity object type, and be sent all transactions which reference the object. There is an example of this below.
 
 ### Returned data
 
@@ -151,6 +175,11 @@ Subscriptions return the array of subscriptions (possibly empty):
 ["key_blocks"]
 {"op":"subscribe", "payload": "micro_blocks"}
 ["key_blocks","micro_blocks"]
+{"op":"unsubscribe", "payload": "micro_blocks"}
+["key_blocks"]
+{"op":"subscribe", "payload": "object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}
+["key_blocks","micro_blocks", "ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv"]
+
 ```
 
 Actual chain data is wrapped in a JSON structure identifying the subscription to which it relates:

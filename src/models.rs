@@ -79,6 +79,21 @@ impl KeyBlock {
         Ok(_height?)
     }
 
+    /**
+     * return the height that has time >= of the epoch input value
+     */
+    pub fn height_at_epoch(conn: &PgConnection, epoch: i64) -> MiddlewareResult<Option<i64>> {
+        let rows = SQLCONNECTION.get()?.query(
+            "SELECT MIN(height) FROM key_blocks WHERE time_ >= $1",
+            &[&epoch],
+        )?;
+        if rows.len() == 0 {
+            Ok(None)
+        } else {
+            Ok(rows.get(0).get(0))
+        }
+    }
+
     pub fn load_at_height(conn: &PgConnection, _height: i64) -> Option<KeyBlock> {
         let block = match key_blocks::table
             .filter(height.eq(_height))
@@ -587,7 +602,7 @@ pub fn count_at_height(
     Ok(None)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum WsOp {
     subscribe,
     unsubscribe,
@@ -595,10 +610,11 @@ pub enum WsOp {
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum WsPayload {
-    key_blocks,
-    micro_blocks,
-    transactions,
-    tx_update,
+    key_blocks = 0,
+    micro_blocks = 1,
+    transactions = 2,
+    tx_update = 3,
+    object,
 }
 
 impl fmt::Display for WsPayload {
@@ -613,6 +629,8 @@ pub struct WsMessage {
     pub op: Option<WsOp>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<WsPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
 }
 
 #[derive(Insertable)]
