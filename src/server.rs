@@ -19,8 +19,6 @@ use serde_json;
 use std::io::Cursor;
 use std::path::PathBuf;
 
-use std::collections::HashMap;
-
 use SQLCONNECTION;
 
 use PGCONNECTION;
