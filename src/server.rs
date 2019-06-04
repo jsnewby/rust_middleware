@@ -921,28 +921,15 @@ fn reverse_names(
  * Gets the chain height at a specific point in time
  */
 #[get("/height/at/<epoch>")]
-fn height_at_epoch(state: State<MiddlewareServer>, epoch:i64) -> Result<Json<serde_json::Value>, Status> {
-    // cannot make this work 
+fn height_at_epoch(state: State<MiddlewareServer>, epoch: i64) -> Result<Json<JsonValue>, Status> {
+    // cannot make this work
     // it compiles returns only height 1
     // or it panics
-    match KeyBlock::height_at_epoch(&PGCONNECTION.get().unwrap(), epoch) {
-      Some(x) => {
-        info!("height {}", x);
-        // it doesn't seem necessary but I dont know 
-        // how to do it otherwise
-        let mut _h = HashMap::new(); 
-        _h.insert("height", x);
-        return Ok(Json(
-          //json!({ "height": &x}) // THIS WORKS BUT IS rocket json OBJECT and requires return Result<Json<JsonValue>, Status>
-          serde_json::from_str(&serde_json::to_string(&_h).unwrap()).unwrap(),
-        ))
-      },
-      None => { 
-          info!("No block found at epoch {}", epoch);
-          let mut path = std::path::PathBuf::new();
-          path.push(format!("key-blocks/at/{}", epoch));
-          return Ok(node_get_json(state, path));
-      }
+    match KeyBlock::height_at_epoch(&PGCONNECTION.get().unwrap(), epoch).unwrap() {
+        Some(x) => Ok(Json(json!({
+            "height": x,
+        }))),
+        None => Err(rocket::http::Status::new(404, "Not found")),
     }
 }
 
