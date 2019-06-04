@@ -8,7 +8,7 @@ use chrono::prelude::*;
 use diesel::RunQueryDsl;
 use regex::Regex;
 use rocket;
-use rocket::http::{Method, Status};
+use rocket::http::{Header, Method, Status};
 use rocket::response::Response;
 use rocket::State;
 use rocket_contrib::json::*;
@@ -946,6 +946,44 @@ fn height_by_date(_state: State<MiddlewareServer>, date: String) -> Json<JsonVal
         "to": to,
     }))
 }
+
+#[get("/status")]
+fn status(_state: State<MiddlewareServer>) -> Response {
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    let top_key_block = KeyBlock::load_at_height(&PGCONNECTION.get().unwrap(), _height).unwrap();
+    let utc: DateTime<Utc> = Utc::now();
+    let seconds_since_last_block = (utc.timestamp_millis() - top_key_block.time) / 1000;
+    let max_seconds: i64 = std::env::var("STATUS_MAX_BLOCK_AGE")
+        .unwrap_or("900".into())
+        .parse::<i64>()
+        .unwrap();
+    let queue_length = crate::loader::queue_length();
+    let max_queue_length: i64 = std::env::var("STATUS_MAX_QUEUE_LENGTH")
+        .unwrap_or("2".into())
+        .parse::<i64>()
+        .unwrap();
+    let queue_length = crate::loader::queue_length();
+    let ok: bool = true
+        && (queue_length as i64 <= max_queue_length)
+        && (seconds_since_last_block < max_seconds);
+    let mut response = Response::build();
+    if (ok) {
+        response.status(Status::from_code(200).unwrap());
+    } else {
+        response.status(Status::from_code(503).unwrap());
+    }
+    response.header(Header::new("content-type", "application/json"));
+    response.sized_body(Cursor::new(
+        json!({
+            "queue_length": queue_length,
+            "seconds_since_last_block": seconds_since_last_block,
+            "OK": ok,
+        })
+        .to_string(),
+    ));
+    response.finalize()
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -974,6 +1012,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![reverse_names])
             .mount("/middleware", routes![reward_at_height])
             .mount("/middleware", routes![size])
+            .mount("/middleware", routes![status])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_account_to_account])

@@ -159,6 +159,11 @@ Message format:
 - micro_blocks
 - transactions
 - tx_update
+- object, which takes a further field, 'target'--see below
+
+### Object subscriptions
+
+You may subscribe to any æternity object type, and be sent all transactions which reference the object. There is an example of this below.
 
 ### Returned data
 
@@ -171,8 +176,7 @@ Subscriptions return the array of subscriptions (possibly empty):
 {"op":"unsubscribe", "payload": "micro_blocks"}
 ["key_blocks"]
 {"op":"subscribe", "payload": "object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}
-["key_blocks","micro_blocks"]
-
+["key_blocks","micro_blocks", "ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv"]
 
 ```
 

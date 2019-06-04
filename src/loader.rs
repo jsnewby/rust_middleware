@@ -69,6 +69,10 @@ pub fn queue(
     Ok(())
 }
 
+pub fn queue_length() -> usize {
+    TX_QUEUE.len()
+}
+
 /*
 * You may notice the use of '_tx' as a variable name in this file,
 * rather than the more natural 'tx'. This is because the macros which
