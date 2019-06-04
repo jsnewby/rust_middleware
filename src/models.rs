@@ -602,7 +602,7 @@ pub fn count_at_height(
     Ok(None)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum WsOp {
     subscribe,
     unsubscribe,
@@ -610,10 +610,11 @@ pub enum WsOp {
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum WsPayload {
-    key_blocks,
-    micro_blocks,
-    transactions,
-    tx_update,
+    key_blocks = 0,
+    micro_blocks = 1,
+    transactions = 2,
+    tx_update = 3,
+    object,
 }
 
 impl fmt::Display for WsPayload {
@@ -628,6 +629,8 @@ pub struct WsMessage {
     pub op: Option<WsOp>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<WsPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
 }
 
 #[derive(Insertable)]

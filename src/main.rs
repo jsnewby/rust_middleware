@@ -278,8 +278,8 @@ fn main() {
     migration_result.unwrap();
 
     /*
-     * The `heights` argument is of this form: 1,10-15,1000 which would cause blocks 1, 10,11,12,13,14,15 and 1000
-     *to be loaded.
+     * The `heights` argument is of this form: 1,10-15,1000 which
+     * would cause blocks 1, 10,11,12,13,14,15 and 1000 to be loaded.
      */
     if heights {
         let to_load = matches.value_of("heights").unwrap();
