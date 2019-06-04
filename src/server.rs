@@ -932,7 +932,7 @@ fn reverse_names(
  */
 #[get("/height/at/<millis_since_epoch>")]
 fn height_at_epoch(
-    state: State<MiddlewareServer>,
+    _state: State<MiddlewareServer>,
     millis_since_epoch: i64,
 ) -> Result<Json<JsonValue>, Status> {
     match KeyBlock::height_at_epoch(&PGCONNECTION.get().unwrap(), millis_since_epoch).unwrap() {
@@ -942,7 +942,6 @@ fn height_at_epoch(
         None => Err(rocket::http::Status::new(404, "Not found")),
     }
 }
-
 
 #[get("/status")]
 fn status(_state: State<MiddlewareServer>) -> Response {
@@ -959,12 +958,11 @@ fn status(_state: State<MiddlewareServer>) -> Response {
         .unwrap_or("2".into())
         .parse::<i64>()
         .unwrap();
-    let queue_length = crate::loader::queue_length();
     let ok: bool = true
         && (queue_length as i64 <= max_queue_length)
         && (seconds_since_last_block < max_seconds);
     let mut response = Response::build();
-    if (ok) {
+    if ok {
         response.status(Status::from_code(200).unwrap());
     } else {
         response.status(Status::from_code(503).unwrap());

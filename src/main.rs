@@ -12,6 +12,7 @@ extern crate blake2b;
 extern crate byteorder;
 extern crate chashmap;
 extern crate chrono;
+extern crate clap;
 extern crate crypto;
 extern crate curl;
 extern crate daemonize;
@@ -22,7 +23,9 @@ extern crate diesel_migrations;
 extern crate dotenv;
 extern crate env_logger;
 extern crate flexi_logger;
+extern crate futures;
 extern crate hex;
+extern crate itertools;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -42,18 +45,13 @@ extern crate rust_base58;
 extern crate rust_decimal;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-use std::fs::File;
-use std::io::Write;
-use std::thread;
-use std::thread::JoinHandle;
-extern crate itertools;
-
-extern crate futures;
 extern crate postgres;
+extern crate serde_json;
 extern crate ws;
 
-extern crate clap;
+use std::thread;
+use std::thread::JoinHandle;
+
 use clap::{App, Arg};
 
 use std::env;
@@ -193,7 +191,7 @@ fn main() {
                 .unwrap();
             ()
         }
-        Err(x) => env_logger::Builder::from_default_env()
+        Err(_x) => env_logger::Builder::from_default_env()
             .target(env_logger::Target::Stdout)
             .init(),
     }
