@@ -22,6 +22,7 @@ import ChannelCreateTx from '../txListType/channelCreateTx.vue'
 import ChannelForceProgressTx from '../txListType/channelForceProgressTx.vue'
 import ChannelDepositTx from '../txListType/channelDepositTx.vue'
 import ChannelCloseMutualTx from '../txListType/channelCloseMutualTx.vue'
+import GAAttachTx from '../txListType/GAAttachTx.vue'
 
 export default {
   name: 'TXListItem',
@@ -40,7 +41,8 @@ export default {
     ChannelCreateTx,
     ChannelForceProgressTx,
     ChannelDepositTx,
-    ChannelCloseMutualTx
+    ChannelCloseMutualTx,
+    GAAttachTx
   },
   props: {
     data: {
