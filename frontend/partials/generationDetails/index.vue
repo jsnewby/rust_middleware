@@ -49,7 +49,7 @@
                 <AppDefinition
                   title="Microblocks"
                 >
-                  {{ microBlockCount }}
+                  {{ microBlocks }}
                 </AppDefinition>
               </AppTableCell>
             </AppTableRowColumn>
@@ -228,12 +228,8 @@ export default {
     }
   },
   computed: {
-    microBlockCount () {
-      let count = 0
-      if (!this.data.micro_blocks) {
-
-      }
-      return count
+    microBlocks () {
+      return this.data.micro_blocks ? Object.values(this.data.micro_blocks).length : 0
     }
   }
 }
