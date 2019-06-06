@@ -49,7 +49,7 @@
                 <AppDefinition
                   title="Microblocks"
                 >
-                  {{ data.micro_blocks.length || 0 }}
+                  {{ microBlockCount }}
                 </AppDefinition>
               </AppTableCell>
             </AppTableRowColumn>
@@ -63,6 +63,7 @@
                 title="Hash"
               >
                 <FormatAddress
+                  v-if="data.hash"
                   :value="data.hash"
                   length="full"
                 />
@@ -87,6 +88,7 @@
                   title="Miner"
                 >
                   <FormatAddress
+                    v-if="data.miner"
                     :value="data.miner"
                     length="full"
                   />
@@ -135,6 +137,7 @@
                   title="Prev key hash"
                 >
                   <FormatAddress
+                    v-if="data.prev_key_hash"
                     :value="data.prev_key_hash"
                     length="full"
                   />
@@ -148,6 +151,7 @@
                   title="State hash"
                 >
                   <FormatAddress
+                    v-if="data.state_hash"
                     :value="data.state_hash"
                     length="full"
                   />
@@ -221,6 +225,15 @@ export default {
     dynamicData: {
       type: Number,
       default: undefined
+    }
+  },
+  computed: {
+    microBlockCount () {
+      let count = 0
+      if (!this.data.micro_blocks) {
+
+      }
+      return count
     }
   }
 }

@@ -46,24 +46,36 @@ export default {
     MicroBlock,
     TXListItem
   },
-  computed: {
-    height () {
-      return this.$store.state.height
-    },
-    generation () {
-      return this.$store.state.generations.generations[[this.$route.params.generation]]
-    },
-    prev () {
-      const current = this.generation.height
-      const last = Number(Object.keys(this.$store.state.generations.generations)[0])
-      const prev = this.$store.state.generations.generations[current - 1]
-      return last === current ? '' : `/generations/${prev.height}`
-    },
-    next () {
-      const current = this.generation.height
-      const next = this.$store.state.generations.generations[current + 1]
-      return this.height === current ? '' : `/generations/${next.height}`
+  data () {
+    return {
+      height: 0,
+      prev: '',
+      next: '',
+      generation: null
     }
+  },
+  async asyncData ({ store, params }) {
+    let generation = null
+    let prev = null
+    let next = null
+    if (store.generations) {
+      generation = store.generations.generations[params.generation]
+      prev = store.state.generations.generations[params.generation - 1]
+      next = store.state.generations.generations[params.generation + 1]
+    } else {
+      const generations = await store.dispatch('generations/getGenerationByRange', { start: params.generation - 1, end: params.generation + 1 })
+      prev = generations[params.generation - 1]
+      next = generations[params.generation + 1]
+      generation = generations[params.generation]
+    }
+    const height = await store.dispatch('height')
+    const current = generation.height
+    const last = Number(Object.keys(store.state.generations.generations)[0])
+    prev = last === current ? '' : `/generations/${prev.height}`
+    if (next) {
+      next = height === current ? '' : `/generations/${next.height}`
+    }
+    return { generation, prev, next, height }
   },
   methods: {
     getLast () {
