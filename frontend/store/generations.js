@@ -46,8 +46,9 @@ export const actions = {
       commit('catchError', 'Error', { root: true })
     }
   },
-  getGenerationByRange: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, start, end) {
+  getGenerationByRange: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, { start, end }) {
     try {
+      console.log(start, end)
       const generations = await axios.get(nodeUrl + '/middleware/generations/' + start + '/' + end)
       commit('setGenerations', generations.data.data)
       return generations.data.data
@@ -60,7 +61,7 @@ export const actions = {
     try {
       const generations = await axios.get(nodeUrl + '/v2/key-blocks/hash/' + keyHash)
       commit('setGenerations', generations.data)
-      await dispatch('getGenerationByRange', generations.data.height, generations.data.height)
+      await dispatch('getGenerationByRange', { start: generations.data.height, end: generations.data.height })
       return generations.data.data
     } catch (e) {
       console.log(e)
