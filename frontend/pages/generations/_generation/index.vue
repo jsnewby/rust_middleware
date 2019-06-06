@@ -56,35 +56,17 @@ export default {
   },
   async asyncData ({ store, params }) {
     let generation = null
-    let prev = null
-    let next = null
-    if (store.generations) {
-      generation = store.generations.generations[params.generation]
-      prev = store.state.generations.generations[params.generation - 1]
-      next = store.state.generations.generations[params.generation + 1]
-    } else {
-      const generations = await store.dispatch('generations/getGenerationByRange', { start: params.generation - 1, end: params.generation + 1 })
-      prev = generations[params.generation - 1]
-      next = generations[params.generation + 1]
-      generation = generations[params.generation]
-    }
+    const current = Number(params.generation)
     const height = await store.dispatch('height')
-    const current = generation.height
-    const last = Number(Object.keys(store.state.generations.generations)[0])
-    prev = last === current ? '' : `/generations/${prev.height}`
-    if (next) {
-      next = height === current ? '' : `/generations/${next.height}`
+    if (store.generations && store.generations.generations[current]) {
+      generation = store.generations.generations[current]
+    } else {
+      const generations = await store.dispatch('generations/getGenerationByRange', { start: current, end: height })
+      generation = generations[current]
     }
+    const prev = current < 1 ? '' : `/generations/${current - 1}`
+    const next = height === current ? '' : `/generations/${current + 1}`
     return { generation, prev, next, height }
-  },
-  methods: {
-    getLast () {
-      let heights = []
-      for (let generation of this.$store.state.generations.generations) {
-        heights.push(generation.height)
-      }
-      return heights.reverse()[0]
-    }
   }
 }
 </script>
