@@ -1,9 +1,11 @@
 <template>
   <div class="search-bar">
     <input
+      v-model="query"
       :placeholder="placeholder"
       class="search-bar-input"
       type="text"
+      @keyup.enter="processInput"
     >
     <button
       class="search-bar-button"
@@ -24,6 +26,18 @@ export default {
     placeholder: {
       type: String,
       default: 'Search'
+    }
+  },
+  data () {
+    return {
+      query: ''
+    }
+  },
+  methods: {
+    processInput () {
+      if (this.query.match(/^\d+$/)) {
+        window.open(`/generations/${this.query}`)
+      }
     }
   }
 }
