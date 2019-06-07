@@ -19,11 +19,15 @@
         :key="number"
         :data="microBlock"
       >
-        <TXListItem
+        <nuxt-link
           v-for="(transaction, index) in microBlock.transactions"
           :key="index"
-          :data="transaction"
-        />
+          :to="`/transactions/${transaction.hash}`"
+        >
+          <TXListItem
+            :data="transaction"
+          />
+        </nuxt-link>
       </MicroBlock>
     </MicroBlocks>
   </div>

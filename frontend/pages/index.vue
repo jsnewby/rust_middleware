@@ -30,11 +30,15 @@
           title="Transactions"
         />
         <TxList>
-          <TXListItem
+          <nuxt-link
             v-for="(transaction, index) in transactions.reverse().slice(0,5)"
             :key="index"
-            :data="transaction"
-          />
+            :to="`/transactions/${transaction.hash}`"
+          >
+            <TXListItem
+              :data="transaction"
+            />
+          </nuxt-link>
         </TxList>
       </div>
     </no-ssr>

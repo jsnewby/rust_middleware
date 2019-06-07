@@ -4,11 +4,15 @@
       <BreadCrumbs />
     </PageHeader>
     <TxList>
-      <TXListItem
+      <nuxt-link
         v-for="(item, index) in Object.values(transactions).reverse()"
         :key="index"
-        :data="item"
-      />
+        :to="`/transactions/${item.hash}`"
+      >
+        <TXListItem
+          :data="item"
+        />
+      </nuxt-link>
     </TxList>
     <LoadMoreButton @update="loadmore" />
   </div>
