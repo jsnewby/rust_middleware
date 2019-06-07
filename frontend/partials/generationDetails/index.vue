@@ -66,6 +66,7 @@
                   v-if="data.hash"
                   :value="data.hash"
                   length="full"
+                  icon
                 />
               </AppDefinition>
             </AppTableCell>
@@ -91,6 +92,7 @@
                     v-if="data.miner"
                     :value="data.miner"
                     length="full"
+                    icon
                   />
                 </AppDefinition>
               </AppTableCell>
@@ -124,6 +126,7 @@
                   <FormatAddress
                     :value="data.prev_hash"
                     length="full"
+                    icon
                   />
                 </AppDefinition>
               </AppTableCell>
@@ -140,6 +143,7 @@
                     v-if="data.prev_key_hash"
                     :value="data.prev_key_hash"
                     length="full"
+                    icon
                   />
                 </AppDefinition>
               </AppTableCell>
@@ -154,6 +158,7 @@
                     v-if="data.state_hash"
                     :value="data.state_hash"
                     length="full"
+                    icon
                   />
                 </AppDefinition>
               </AppTableCell>
