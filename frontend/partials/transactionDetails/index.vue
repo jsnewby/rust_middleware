@@ -5,7 +5,7 @@
         <AppTableBody>
           <AppTableRow extend>
             <AppTableCell extend>
-              <TxlistItem :data="data.tx" />
+              <TxlistItem :data="data" />
             </AppTableCell>
           </AppTableRow>
           <AppTableRow extend>
@@ -17,6 +17,7 @@
                 <FormatAddress
                   :value="data.hash"
                   length="full"
+                  icon
                 />
               </AppDefinition>
             </AppTableCell>
