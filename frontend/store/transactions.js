@@ -28,6 +28,16 @@ export const actions = {
       commit('catchError', 'Error', { root: true })
     }
   },
+  getTransactionByHash: async function ({ state, rootState: { nodeUrl }, commit, dispatch }, hash) {
+    try {
+      const tx = await axios.get(nodeUrl + '/v2/transactions/' + hash)
+      commit('setTransactions', [tx.data])
+      return tx.data
+    } catch (e) {
+      console.log(e)
+      commit('catchError', 'Error', { root: true })
+    }
+  },
   nuxtServerInit ({ dispatch }, context) {
     return (
       dispatch('getLatestTransactions', { 'page': 1, 'numTransactions': 10 })
