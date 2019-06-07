@@ -8,10 +8,14 @@
             fill="black"
           />
         </div>
-        <BlockHeight :value="data.height" />
+        <BlockHeight
+          v-if="data.height"
+          :value="data.height"
+        />
       </div>
       <div class="container-first-inner">
         <Account
+          v-if="data.beneficiary"
           :value="data.beneficiary"
           title="Beneficiary"
           icon
@@ -30,7 +34,10 @@
           class="container-last-inner"
           title="Age"
         >
-          <Age :time="data.time" />
+          <Age
+            v-if="data.time"
+            :time="data.time"
+          />
         </AppDefinition>
       </div>
       <div class="container-last-wrapper">
@@ -46,7 +53,10 @@
           title="Target"
         >
           <!--{{ data.target | prefixedAmount }}-->
-          <FormatAeUnit :value="data.target" />
+          <FormatAeUnit
+            v-if="data.target"
+            :value="data.target"
+          />
         </AppDefinition>
       </div>
     </div>
