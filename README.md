@@ -138,7 +138,7 @@ GET /v2/key-blocks/height/<height>
 GET /v2/micro-blocks/hash/<hash>/header
 GET /v2/micro-blocks/hash/<hash>/transactions
 GET /v2/micro-blocks/hash/<hash>/transactions/count
-GET /v2/middleware/transactions/<hash>
+GET /v2/transactions/<hash>
 ```
 
 ## Websocket support
