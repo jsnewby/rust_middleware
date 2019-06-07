@@ -868,6 +868,7 @@ fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
     let coinbase: Decimal = (coinbase(height) as u64).into();
     let last_reward = KeyBlock::fees(&SQLCONNECTION.get().unwrap(), (height - 1) as i32);
     let this_reward = KeyBlock::fees(&SQLCONNECTION.get().unwrap(), height as i32);
+    let key_block = KeyBlock::load_at_height(&SQLCONNECTION.get().unwrap(), height as i32).unwrap();
     let four: Decimal = 4.into();
     let six: Decimal = 6.into();
     let ten: Decimal = 10.into();
@@ -875,6 +876,7 @@ fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
     json!({
         "height": height,
         "coinbase": coinbase,
+        "beneficiary": key_block.beneficiary,
         "fees": total_reward,
         "total": coinbase + total_reward,
     })
