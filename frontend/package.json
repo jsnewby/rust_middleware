@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "aepp-middleware-frontend",
   "version": "0.0.1",
   "description": "frontend for middleware",
   "author": "Shubhendu Shekhar",
@@ -15,14 +15,14 @@
   "dependencies": {
     "@aeternity/aepp-components-3": "3.0.0-alpha.9",
     "@download/blockies": "1.0.3",
-    "@nuxtjs/axios": "5.0.0",
+    "@nuxtjs/axios": "5.5.4",
     "@nuxtjs/svg-sprite": "0.2.0",
     "bignumber.js": "8.1.1",
     "camelcase-keys-deep": "0.1.0",
     "clipboard-copy": "2.0.1",
     "normalize-scss": "7.0.1",
-    "nuxt": "2.4.5",
-    "vue": "2.6.8"
+    "nuxt": "2.8.1",
+    "vue": "2.6.10"
   },
   "devDependencies": {
     "@vue/eslint-config-standard": "4.0.0",
