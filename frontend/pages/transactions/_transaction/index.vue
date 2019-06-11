@@ -1,6 +1,8 @@
 <template>
   <div class="app-transaction">
-    <h1>Transaction Overview</h1>
+    <PageHeader title="Transaction Overview">
+      <BreadCrumbs />
+    </PageHeader>
     <GenerationDetails
       :data="generation"
       :dynamic-data="height"
@@ -16,12 +18,16 @@
 <script>
 import GenerationDetails from '../../../partials/generationDetails'
 import TransactionDetails from '../../../partials/transactionDetails'
+import PageHeader from '../../../components/PageHeader'
+import BreadCrumbs from '../../../components/breadCrumbs'
 
 export default {
   name: 'AppTransaction',
   components: {
     GenerationDetails,
-    TransactionDetails
+    TransactionDetails,
+    PageHeader,
+    BreadCrumbs
   },
   data () {
     return {
