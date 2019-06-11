@@ -23,5 +23,15 @@ export const actions = {
       console.log(e)
       commit('catchError', 'Error', { root: true })
     }
+  },
+
+  getContractTx: async function ({ rootState: { nodeUrl }, commit }, contractId) {
+    try {
+      const contractTx = await axios.get(nodeUrl + '/middleware/contracts/transactions/address/' + contractId)
+      return contractTx.data.transactions
+    } catch (e) {
+      console.log(e)
+      commit('catchError', 'Error', { root: true })
+    }
   }
 }
