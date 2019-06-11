@@ -20,5 +20,14 @@ export const actions = {
       console.log(e)
       commit('catchError', 'Error', { root: true })
     }
+  },
+  getChannelTx: async function ({ rootState: { nodeUrl }, commit }, channelId) {
+    try {
+      const channelTx = await axios.get(nodeUrl + '/middleware/channels/transactions/address/' + channelId)
+      return channelTx.data.transactions
+    } catch (e) {
+      console.log(e)
+      commit('catchError', 'Error', { root: true })
+    }
   }
 }
