@@ -3,14 +3,21 @@
     <PageHeader title="Oracle Queries">
       <BreadCrumbs />
     </PageHeader>
-    <OracleList>
-      <OracleQuery
-        v-for="(item, index) of queries"
-        :key="index"
-        :data="item"
-      />
-    </OracleList>
-    <LoadMoreButton @update="loadMore" />
+    <div
+      v-if="queries.length > 0"
+    >
+      <OracleList>
+        <OracleQuery
+          v-for="(item, index) of queries"
+          :key="index"
+          :data="item"
+        />
+      </OracleList>
+      <LoadMoreButton @update="loadMore" />
+    </div>
+    <div v-else>
+      Nothing to see here right now....
+    </div>
   </div>
 </template>
 
@@ -33,7 +40,7 @@ export default {
   },
   data () {
     return {
-      oracleId: '',
+      oracleId: null,
       queries: [],
       page: 1
     }
