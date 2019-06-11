@@ -4,7 +4,7 @@
       <div class="transaction-main-info-inner">
         <div class="transaction-label">
           <LabelType
-            :title="data.type.replace(/([A-Z])/g, ' $1')"
+            :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
             fill="red"
           />
         </div>
@@ -18,15 +18,15 @@
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.caller_id"
-            :value="transaction.caller_id"
-            title="caller"
+            v-if="transaction.tx.initiator_id"
+            :value="transaction.tx.initiator_id"
+            title="initiator"
             icon
           />
           <Account
-            v-if="transaction.contract_id"
-            :value="transaction.contract_id"
-            title="contract"
+            v-if="transaction.tx.responder_id"
+            :value="transaction.tx.responder_id"
+            title="responder"
             icon
           />
         </AccountGroup>
@@ -35,11 +35,11 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.amount"
-          title="Amount"
+          v-if="transaction.tx.channel_reserve"
+          title="Channel Reserve"
         >
           <FormatAeUnit
-            :value="transaction.tx.amount"
+            :value="transaction.tx.channel_reserve"
           />
         </AppDefinition>
       </div>
@@ -53,11 +53,11 @@
           />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.lock_period"
+          title="Lock Period"
         >
           <FormatAeUnit
-            :value="transaction.tx.cost"
+            :value="transaction.tx.lock_period"
           />
         </AppDefinition>
       </div>
