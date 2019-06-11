@@ -4,11 +4,15 @@
       <BreadCrumbs />
     </PageHeader>
     <OracleList>
-      <Oracle
+      <nuxt-link
         v-for="(item, index) of Object.values(oracles)"
         :key="index"
-        :data="item"
-      />
+        :to="`/oracles/queries/${item.oracle_id}`"
+      >
+        <Oracle
+          :data="item"
+        />
+      </nuxt-link>
     </OracleList>
     <LoadMoreButton @update="loadMore" />
   </div>

@@ -23,5 +23,14 @@ export const actions = {
       console.log(e)
       commit('catchError', 'Error', { root: true })
     }
+  },
+  getAllQueries: async function ({ rootState: { nodeUrl }, commit }, { oracleId, page, limit }) {
+    try {
+      const queries = await axios.get(nodeUrl + '/middleware/oracles/' + oracleId + '?limit=' + limit + '&page=' + page)
+      return queries.data
+    } catch (e) {
+      console.log(e)
+      commit('catchError', 'Error', { root: true })
+    }
   }
 }
