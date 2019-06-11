@@ -4,11 +4,15 @@
       <BreadCrumbs />
     </PageHeader>
     <ChannelList>
-      <Channel
+      <nuxt-link
         v-for="(item, index) in channels"
         :key="index"
-        :data="item"
-      />
+        :to="`/channels/transactions/${item}`"
+      >
+        <Channel
+          :data="item"
+        />
+      </nuxt-link>
     </ChannelList>
   </div>
 </template>
