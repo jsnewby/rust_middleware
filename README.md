@@ -119,7 +119,7 @@ GET /middleware/contracts/transactions/address/<address>
 GET /middleware/generations/<from>/<to>?<limit>&<page>
 GET /middleware/height/at/<millis_since_epoch>
 GET /middleware/names/active?<limit>&<page>
-GET /middleware/oracles/all?<limit>&<page>
+GET /middleware/oracles/list?<limit>&<page>
 GET /middleware/oracles/<oracle_id>?<limit>&<page>
 GET /middleware/reward/height/<height>
 GET /middleware/size/current
