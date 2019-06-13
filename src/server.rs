@@ -51,10 +51,15 @@ fn check_object(s: &str) -> () {
  */
 #[get("/<path..>", rank = 6)]
 fn node_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Response {
-    let http_response = state
+    let http_response = match state
         .node
-        .get_naked(&String::from("/v2/"), &String::from(path.to_str().unwrap()))
-        .unwrap();
+        .get_naked(&String::from("/v2/"),
+                   &String::from(path.to_str().unwrap())) {
+            Ok(x) => x,
+            Err(e) => { info!("non-200 response:\n{}", e.to_string());
+                        return Response::build().status(Status::new(500, "An error occurred")).finalize();
+            },
+        };
     debug!("http_response is {:?}", http_response);
     let mut response = Response::build();
     if let Some(status) = http_response.status {
@@ -868,7 +873,7 @@ fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
     let coinbase: Decimal = (coinbase(height) as u64).into();
     let last_reward = KeyBlock::fees(&SQLCONNECTION.get().unwrap(), (height - 1) as i32);
     let this_reward = KeyBlock::fees(&SQLCONNECTION.get().unwrap(), height as i32);
-    let key_block = KeyBlock::load_at_height(&SQLCONNECTION.get().unwrap(), height as i32).unwrap();
+    let key_block = KeyBlock::load_at_height(&PGCONNECTION.get().unwrap(), height).unwrap();
     let four: Decimal = 4.into();
     let six: Decimal = 6.into();
     let ten: Decimal = 10.into();
@@ -964,11 +969,7 @@ fn status(_state: State<MiddlewareServer>) -> Response {
         && (queue_length as i64 <= max_queue_length)
         && (seconds_since_last_block < max_seconds);
     let mut response = Response::build();
-    if ok {
-        response.status(Status::from_code(200).unwrap());
-    } else {
-        response.status(Status::from_code(503).unwrap());
-    }
+    response.status(Status::from_code(if ok { 200 } else { 503 }).unwrap());
     response.header(Header::new("content-type", "application/json"));
     response.sized_body(Cursor::new(
         json!({
