@@ -61,7 +61,7 @@ If you don't want to interrupt service, want to update the database with new fea
 **DON'T USE `diesel migration run`!
 **
 
-The generated `src/schema.rs` does not work, and `diesel migration run` insists on over-writing it. We have made a `run-migrations.rs` in the root directory which moves the old `schema.rs` out of the way and replaces it after use.
+We now update migrations automatically on application start--and the command `diesel migration run` overwrites important files.
 
 ## How to build
 
