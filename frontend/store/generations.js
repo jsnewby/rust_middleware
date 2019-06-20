@@ -83,7 +83,7 @@ export const actions = {
       })
     }
   },
-  updateTx: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, tx) {
+  updateTx: async function ({ state, rootState: { nodeUrl }, commit, dispatch }, tx) {
     try {
       if (!state.generations[tx.block_height]) {
         await dispatch('getGenerationByRange', tx.block_height, tx.block_height)

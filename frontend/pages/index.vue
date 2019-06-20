@@ -10,16 +10,12 @@
           title="Generations"
         />
         <Generations>
-          <nuxt-link
+          <Generation
             v-for="(generation, number) in generations.slice(0,5)"
             :key="number"
-            :to="`/generations/${generation.height}`"
             class="generation-link"
-          >
-            <Generation
-              :data="generation"
-            />
-          </nuxt-link>
+            :data="generation"
+          />
         </Generations>
       </div>
       <div
@@ -30,15 +26,11 @@
           title="Transactions"
         />
         <TxList>
-          <nuxt-link
+          <TXListItem
             v-for="(transaction, index) in transactions.reverse().slice(0,5)"
             :key="index"
-            :to="`/transactions/${transaction.hash}`"
-          >
-            <TXListItem
-              :data="transaction"
-            />
-          </nuxt-link>
+            :data="transaction"
+          />
         </TxList>
       </div>
     </no-ssr>
@@ -75,37 +67,7 @@ export default {
     })
   },
   mounted () {
-    const mdwWebsocket = new WebSocket(this.$store.state.wsUrl)
-
-    mdwWebsocket.onopen = e => {
-      mdwWebsocket.send('{"op":"subscribe", "payload": "key_blocks"}')
-      mdwWebsocket.send('{"op":"subscribe", "payload": "micro_blocks"}')
-      mdwWebsocket.send('{"op":"subscribe", "payload": "transactions"}')
-
-      mdwWebsocket.onmessage = e => {
-        this.getWsData(e.data)
-      }
-    }
-  },
-  methods: {
-    getWsData (resp) {
-      if (resp.includes('payload')) {
-        const data = JSON.parse(resp).payload
-        if (data.tx) {
-          this.$store.commit('transactions/setTransactions', [data])
-          this.$store.dispatch('generations/updateTx', data)
-        }
-        if (data.beneficiary) {
-          this.$store.commit('generations/setGenerations', [data])
-          if (this.$store.state.height < data.height) {
-            this.$store.commit('setHeight', data.height, { root: true })
-          }
-        }
-        if (data.key_block_id) {
-          this.$store.dispatch('generations/updateMicroBlock', data)
-        }
-      }
-    }
+    this.$store.dispatch('setupWebSocket')
   }
 }
 </script>

@@ -4,15 +4,11 @@
       <BreadCrumbs />
     </PageHeader>
     <TxList>
-      <nuxt-link
+      <TXListItem
         v-for="tx of transactions"
         :key="tx.hash"
-        :to="`/transactions/${tx.hash}`"
-      >
-        <TXListItem
-          :data="tx"
-        />
-      </nuxt-link>
+        :data="tx"
+      />
     </TxList>
   </div>
 </template>
