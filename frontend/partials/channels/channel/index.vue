@@ -2,12 +2,15 @@
   <div class="channel">
     <div class="container-first">
       <div class="container-first-inner">
-        <div>
+        <nuxt-link
+          v-if="data"
+          :to="`/channels/transactions/${data}`"
+        >
           <LabelType
             title="Channel"
             fill="green"
           />
-        </div>
+        </nuxt-link>
         <Account
           v-if="data"
           :value="data"

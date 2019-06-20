@@ -2,12 +2,14 @@
   <div class="transaction">
     <div class="transaction-main-info">
       <div class="transaction-main-info-inner">
-        <div class="transaction-label">
-          <LabelType
-            :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
-            fill="red"
-          />
-        </div>
+        <nuxt-link :to="`/transactions/${transaction.hash}`">
+          <div class="transaction-label">
+            <LabelType
+              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              fill="red"
+            />
+          </div>
+        </nuxt-link>
         <AppDefinition
           v-if="data.time"
           title="Age"

@@ -2,18 +2,14 @@
   <div class="transaction">
     <div class="transaction-main-info">
       <div class="transaction-main-info-inner">
-        <div class="transaction-label">
-          <LabelType
-            :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
-            fill="red"
-          />
-        </div>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
+        <nuxt-link :to="`/transactions/${transaction.hash}`">
+          <div class="transaction-label">
+            <LabelType
+              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              fill="red"
+            />
+          </div>
+        </nuxt-link>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
@@ -61,7 +57,6 @@ import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
 
 export default {
@@ -71,8 +66,7 @@ export default {
     AppDefinition,
     FormatAeUnit,
     AccountGroup,
-    Account,
-    Age
+    Account
   },
   props: {
     transaction: {
