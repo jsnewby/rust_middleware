@@ -7,12 +7,14 @@
             <AppTableRowColumn width="large">
               <AppTableCell extend>
                 <div class="block-height-wrapper">
-                  <div>
+                  <nuxt-link
+                    :to="`/generations/${data.height}`"
+                  >
                     <LabelType
-                      title="Block Height"
+                      title="block height"
                       fill="black"
                     />
-                  </div>
+                  </nuxt-link>
                   <BlockHeight :value="data.height" />
                   <div>
                     <Confirmations

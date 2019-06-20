@@ -1,7 +1,11 @@
 <template>
-  <span class="block-height">
-    {{ value }}
-  </span>
+  <nuxt-link
+    :to="`/generations/${value}`"
+  >
+    <span class="block-height">
+      {{ value }}
+    </span>
+  </nuxt-link>
 </template>
 <script>
 export default {
