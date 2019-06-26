@@ -3,6 +3,7 @@ CREATE TABLE names (
        id SERIAL PRIMARY KEY,
        name VARCHAR(255) NOT NULL,
        name_hash VARCHAR(255) NOT NULL,
+       tx_hash VARCHAR(255) NOT NULL,
        created_at_height BIGINT NOT NULL,
        owner VARCHAR(255),
        expires_at BIGINT NOT NULL,
@@ -11,4 +12,5 @@ CREATE TABLE names (
 DELETE FROM key_blocks where height in (select block_height from transactions WHERE tx_type in ('NameClaimTx', 'NameRevokeTx', 'NameTransferTx', 'NameUpdateTx'));
 
 CREATE INDEX names_name_hash_index ON names(name_hash);
+CREATE INDEX names_tx_hash_index ON names(tx_hash);
 CREATE INDEX names_pointers_index ON names(pointers);
