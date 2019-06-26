@@ -902,6 +902,7 @@ fn active_names(
         "select * from \
          names where \
          expires_at >= {} \
+         order by created_at_height desc \
          limit {} offset {} ",
         KeyBlock::top_height(&*connection).unwrap(),
         limit_sql,
@@ -920,8 +921,9 @@ fn all_names(
     let connection = PGCONNECTION.get().unwrap();
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        "select * from \
-         names limit {} offset {} ",
+        "select * from names \
+         order by created_at_height desc \
+         limit {} offset {} ",
         limit_sql,
         offset_sql
     );
