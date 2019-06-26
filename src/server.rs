@@ -911,6 +911,24 @@ fn active_names(
     Json(names)
 }
 
+#[get("/names?<limit>&<page>")]
+fn all_names(
+    _state: State<MiddlewareServer>,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<Name>> {
+    let connection = PGCONNECTION.get().unwrap();
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "select * from \
+         names limit {} offset {} ",
+        limit_sql,
+        offset_sql
+    );
+    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    Json(names)
+}
+
 /*
  * Gets the names which point to something
  */
@@ -1002,6 +1020,7 @@ impl MiddlewareServer {
             .register(catchers![error400, error404])
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![active_names])
+            .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![calls_for_contract_address])
             .mount("/middleware", routes![current_count])
