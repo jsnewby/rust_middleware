@@ -849,7 +849,7 @@ fn oracle_requests_responses(
 ) -> JsonValue {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        "select oq.query_id, t1.tx, t2.tx from \
+        "select oq.query_id, t1.tx, t2.tx, t1.hash, t2.hash from \
          oracle_queries oq \
          join transactions t1 on oq.transaction_id=t1.id \
          left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
@@ -860,13 +860,25 @@ fn oracle_requests_responses(
     let mut res: Vec<JsonValue> = vec![];
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
         let query_id: String = row.get(0);
-        let request: serde_json::Value = row.get(1);
-        let response: Option<serde_json::Value> = row.get(2);
-        res.push(json!({
+        let mut request: serde_json::Value = row.get(1);
+        let request_hash: String = row.get(3);
+        request["hash"] = serde_json::to_value(&request_hash).unwrap();
+        let data: Option<serde_json::Value> = row.get(2);
+        let response = match data {
+            Some(x) => {
+                let mut response_value = x.clone();
+                let response_hash:String = row.get(4);
+                response_value["hash"] =  serde_json::to_value(&response_hash).unwrap();
+                response_value
+            },
+            _=> { serde_json::json!(null) },
+        };
+        let result_set = json!({
             "query_id": query_id,
             "request": json!(request),
             "response": json!(response),
-        }));
+        });
+        res.push(result_set);
     }
     json!(res)
 }
