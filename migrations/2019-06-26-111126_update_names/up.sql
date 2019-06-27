@@ -1,3 +1,6 @@
 -- Your SQL goes here
-alter table names add column tx_hash VARCHAR(255) NOT NULL;
-CREATE INDEX names_tx_hash_index ON names(tx_hash);
+delete from key_blocks k where height in (select created_at_height from names);
+truncate names;
+
+alter table names add column tx_hash varchar(255) not null;
+create index names_tx_hash_index on names(tx_hash);
