@@ -38,6 +38,12 @@ export default {
       if (this.query.match(/^\d+$/)) {
         window.open(`/generations/${this.query}`)
       }
+      if (this.query.match(/^th_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        window.open(`/transactions/${this.query}`)
+      }
+      if (this.query.match(/^ok_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        window.open(`/oracles/queries/${this.query}`)
+      }
     }
   }
 }
