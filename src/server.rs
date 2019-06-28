@@ -622,7 +622,7 @@ fn generations_by_range(
         let mut transaction = json!({"block_hash": ""});
         let mut micro_block = json!({"prev_key_hash":""});
         let mut key_block = json!({"height": ""});
-        // check if tx is avaiable for a given row
+        // check if tx is available for a given row
         if let Some(val) = row.get(21) {
             let block_hash: String = val;
             let block_height: i32 = row.get(22);
@@ -849,10 +849,12 @@ fn oracle_requests_responses(
 ) -> JsonValue {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        "select oq.query_id, t1.tx, t2.tx from \
-         oracle_queries oq \
+        "select oq.query_id, t1.tx, t2.tx, t1.hash, t2.hash, \
+         m1.time_, m2.time_ from oracle_queries oq \
          join transactions t1 on oq.transaction_id=t1.id \
+         inner join micro_blocks m1 on t1.micro_block_id = m1.id \
          left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
+         inner join micro_blocks m2 on t2.micro_block_id = m2.id \
          where oq.oracle_id='{}' \
          limit {} offset {} ",
         hash, limit_sql, offset_sql
@@ -860,13 +862,29 @@ fn oracle_requests_responses(
     let mut res: Vec<JsonValue> = vec![];
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
         let query_id: String = row.get(0);
-        let request: serde_json::Value = row.get(1);
-        let response: Option<serde_json::Value> = row.get(2);
-        res.push(json!({
+        let mut request: serde_json::Value = row.get(1);
+        let request_hash: String = row.get(3);
+        let request_timestamp: i64 = row.get(5);
+        request["hash"] = serde_json::to_value(&request_hash).unwrap();
+        request["timestamp"] = serde_json::to_value(&request_timestamp).unwrap();
+        let data: Option<serde_json::Value> = row.get(2);
+        let response = match data {
+            Some(x) => {
+                let mut response_value = x.clone();
+                let response_hash:String = row.get(4);
+                let response_timestamp:i64 = row.get(6);
+                response_value["timestamp"] = serde_json::to_value(&response_timestamp).unwrap();
+                response_value["hash"] =  serde_json::to_value(&response_hash).unwrap();
+                response_value
+            },
+            _=> { serde_json::json!(null) },
+        };
+        let result_set = json!({
             "query_id": query_id,
             "request": json!(request),
             "response": json!(response),
-        }));
+        });
+        res.push(result_set);
     }
     json!(res)
 }
