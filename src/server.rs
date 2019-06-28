@@ -622,7 +622,7 @@ fn generations_by_range(
         let mut transaction = json!({"block_hash": ""});
         let mut micro_block = json!({"prev_key_hash":""});
         let mut key_block = json!({"height": ""});
-        // check if tx is avaiable for a given row
+        // check if tx is available for a given row
         if let Some(val) = row.get(21) {
             let block_hash: String = val;
             let block_height: i32 = row.get(22);
