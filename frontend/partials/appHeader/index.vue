@@ -4,7 +4,7 @@
     <div class="app-header-content">
       <section class="inner">
         <div class="searchbar">
-          <SearchBar placeholder="Search by block height, tx hash, oracle id" />
+          <SearchBar placeholder="Search by height, tx, oracleId, contractId, channelId" />
         </div>
         <div class="network">
           <NetworkName />

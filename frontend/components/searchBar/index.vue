@@ -37,12 +37,23 @@ export default {
     processInput () {
       if (this.query.match(/^\d+$/)) {
         window.open(`/generations/${this.query}`)
+        this.query = ''
       }
       if (this.query.match(/^th_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
         window.open(`/transactions/${this.query}`)
+        this.query = ''
       }
       if (this.query.match(/^ok_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
         window.open(`/oracles/queries/${this.query}`)
+        this.query = ''
+      }
+      if (this.query.match(/^ch_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        window.open(`/channels/transactions/${this.query}`)
+        this.query = ''
+      }
+      if (this.query.match(/^ct_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        window.open(`/contracts/transactions/${this.query}`)
+        this.query = ''
       }
     }
   }
