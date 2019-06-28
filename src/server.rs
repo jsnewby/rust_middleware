@@ -852,9 +852,9 @@ fn oracle_requests_responses(
         "select oq.query_id, t1.tx, t2.tx, t1.hash, t2.hash, \
          m1.time_, m2.time_ from oracle_queries oq \
          join transactions t1 on oq.transaction_id=t1.id \
-         left outer join micro_blocks m1 on t1.micro_block_id = m1.id \
+         inner join micro_blocks m1 on t1.micro_block_id = m1.id \
          left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
-         left outer join micro_blocks m2 on t2.micro_block_id = m2.id \
+         inner join micro_blocks m2 on t2.micro_block_id = m2.id \
          where oq.oracle_id='{}' \
          limit {} offset {} ",
         hash, limit_sql, offset_sql
