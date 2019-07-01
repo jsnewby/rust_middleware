@@ -1,8 +1,11 @@
 <template>
   <div class="app-transaction">
-    <PageHeader title="Transaction Overview">
-      <BreadCrumbs />
-    </PageHeader>
+    <PageHeader
+      title="Transactions"
+      :has-crumbs="true"
+      :page="{to: '/transactions', name: 'Transactions'}"
+      :subpage="{to: `/transactions/${$route.params.transaction}`, name: 'Transaction Overview'}"
+    />
     <GenerationDetails
       :data="generation"
       :dynamic-data="height"
@@ -19,15 +22,13 @@
 import GenerationDetails from '../../../partials/generationDetails'
 import TransactionDetails from '../../../partials/transactionDetails'
 import PageHeader from '../../../components/PageHeader'
-import BreadCrumbs from '../../../components/breadCrumbs'
 
 export default {
   name: 'AppTransaction',
   components: {
     GenerationDetails,
     TransactionDetails,
-    PageHeader,
-    BreadCrumbs
+    PageHeader
   },
   data () {
     return {
