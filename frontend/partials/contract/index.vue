@@ -2,12 +2,14 @@
   <div class="contract">
     <div class="container-first">
       <div class="container-first-inner">
-        <div>
+        <nuxt-link
+          :to="`/contracts/transactions/${data.contract_id}`"
+        >
           <LabelType
             title="Contract"
             fill="green"
           />
-        </div>
+        </nuxt-link>
         <Account
           v-if="data.contract_id"
           :value="data.contract_id"
