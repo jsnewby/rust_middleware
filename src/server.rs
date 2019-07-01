@@ -491,15 +491,22 @@ fn transactions_for_account_to_account(
 /*
  * Gets transactions between blocks
  */
-#[get("/transactions/interval/<from>/<to>?<limit>&<page>")]
+#[get("/transactions/interval/<from>/<to>?<limit>&<page>&<txtype>")]
 fn transactions_for_interval(
     _state: State<MiddlewareServer>,
     from: i64,
     to: i64,
     limit: Option<i32>,
     page: Option<i32>,
+    txtype: Option<String>,
 ) -> Json<JsonTransactionList> {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => { 
+            format!(" {}  and tx_type ilike '{}' ", to, txtype)
+            },
+        _ => { to.to_string() }
+    };
     let sql = format!(
         "select t.* from transactions t, micro_blocks m, key_blocks k where \
          t.micro_block_id=m.id and \
@@ -507,7 +514,7 @@ fn transactions_for_interval(
          k.height >={} and k.height <= {} \
          order by k.height desc, t.id desc \
          limit {} offset {} ",
-        from, to, limit_sql, offset_sql
+        from, txtype_sql, limit_sql, offset_sql
     );
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
