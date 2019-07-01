@@ -2,15 +2,17 @@
   <div class="name">
     <div class="container-first">
       <div class="container-first-inner">
-        <div>
+        <nuxt-link :to="`/transactions/${data.tx_hash}`">
           <LabelType
             title="Name"
             fill="green"
           />
-        </div>
-        <div class="name-value">
-          {{ data.name }}
-        </div>
+        </nuxt-link>
+        <nuxt-link :to="`/transactions/${data.tx_hash}`">
+          <div class="name-value">
+            {{ data.name }}
+          </div>
+        </nuxt-link>
       </div>
       <div class="container-first-inner">
         <Account

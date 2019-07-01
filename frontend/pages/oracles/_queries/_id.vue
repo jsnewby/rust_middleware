@@ -1,10 +1,13 @@
 <template>
   <div class="app-transactions">
-    <PageHeader title="Oracle Queries">
-      <BreadCrumbs />
-    </PageHeader>
+    <PageHeader
+      title="Oracle Queries"
+      :has-crumbs="true"
+      :page="{to: '/oracles', name: 'Oracles'}"
+      :subpage="{to: `/oracles/queries/${$route.params.id}`, name: 'Oracle Queries'}"
+    />
     <div
-      v-if="queries.length > 0"
+      v-if="queries.length"
     >
       <OracleList>
         <OracleQuery
@@ -26,7 +29,6 @@
 import OracleList from '../../../partials/oracles/oracleList'
 import OracleQuery from '../../../partials/oracles/oracleQuery'
 import PageHeader from '../../../components/PageHeader'
-import BreadCrumbs from '../../../components/breadCrumbs'
 import LoadMoreButton from '../../../components/loadMoreButton'
 
 export default {
@@ -35,7 +37,6 @@ export default {
     OracleList,
     OracleQuery,
     PageHeader,
-    BreadCrumbs,
     LoadMoreButton
   },
   data () {

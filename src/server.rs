@@ -367,20 +367,27 @@ fn current_count(_state: State<MiddlewareServer>) -> Json<JsonValue> {
 /*
  * Gets count of transactions for an account
  */
-#[get("/transactions/account/<account>/count")]
+#[get("/transactions/account/<account>/count?<txtype>")]
 fn transaction_count_for_account(
     _state: State<MiddlewareServer>,
     account: String,
+    txtype: Option<String>,
 ) -> Json<JsonValue> {
     check_object(&account);
     let s_acc = sanitize(&account);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => {
+            format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype))
+        },
+        _ => { format!(" '{}') ", s_acc) }
+    };
     let sql = format!(
-        "select count(1) from transactions where \
+        "select count(1) from transactions where ( \
          tx->>'sender_id'='{}' or \
          tx->>'account_id' = '{}' or \
          tx->>'recipient_id'='{}' or \
-         tx->>'owner_id' = '{}' ",
-        s_acc, s_acc, s_acc, s_acc
+         tx->>'owner_id' = {} ",
+        s_acc, s_acc, s_acc, txtype_sql
     );
     debug!("{}", sql);
     let rows = SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap();
@@ -411,26 +418,33 @@ fn offset_limit(limit: Option<i32>, page: Option<i32>) -> (String, String) {
 /*
  * Gets all transactions for an account
  */
-#[get("/transactions/account/<account>?<limit>&<page>")]
+#[get("/transactions/account/<account>?<limit>&<page>&<txtype>")]
 fn transactions_for_account(
     _state: State<MiddlewareServer>,
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
+    txtype: Option<String>,
 ) -> Json<Vec<JsonValue>> {
     check_object(&account);
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => {
+            format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype))
+        },
+        _ => { format!(" '{}') ", s_acc) }
+    };
     let sql = format!(
         "SELECT m.time_, t.* FROM transactions t, micro_blocks m WHERE \
          m.id = t.micro_block_id AND \
          (t.tx->>'sender_id'='{}' OR \
          t.tx->>'account_id' = '{}' OR \
          t.tx->>'recipient_id'='{}' or \
-         t.tx->>'owner_id' = '{}' )\
+         t.tx->>'owner_id' = {}\
          order by m.time_ desc \
          limit {} offset {} ",
-        s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql
+        s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
     );
     info!("{}", sql);
 
@@ -491,15 +505,22 @@ fn transactions_for_account_to_account(
 /*
  * Gets transactions between blocks
  */
-#[get("/transactions/interval/<from>/<to>?<limit>&<page>")]
+#[get("/transactions/interval/<from>/<to>?<limit>&<page>&<txtype>")]
 fn transactions_for_interval(
     _state: State<MiddlewareServer>,
     from: i64,
     to: i64,
     limit: Option<i32>,
     page: Option<i32>,
+    txtype: Option<String>,
 ) -> Json<JsonTransactionList> {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => {
+            format!(" {}  and tx_type ilike '{}' ", to, sanitize(&txtype))
+            },
+        _ => { to.to_string() }
+    };
     let sql = format!(
         "select t.* from transactions t, micro_blocks m, key_blocks k where \
          t.micro_block_id=m.id and \
@@ -507,7 +528,7 @@ fn transactions_for_interval(
          k.height >={} and k.height <= {} \
          order by k.height desc, t.id desc \
          limit {} offset {} ",
-        from, to, limit_sql, offset_sql
+        from, txtype_sql, limit_sql, offset_sql
     );
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
@@ -622,7 +643,7 @@ fn generations_by_range(
         let mut transaction = json!({"block_hash": ""});
         let mut micro_block = json!({"prev_key_hash":""});
         let mut key_block = json!({"height": ""});
-        // check if tx is avaiable for a given row
+        // check if tx is available for a given row
         if let Some(val) = row.get(21) {
             let block_hash: String = val;
             let block_height: i32 = row.get(22);
@@ -849,10 +870,12 @@ fn oracle_requests_responses(
 ) -> JsonValue {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
-        "select oq.query_id, t1.tx, t2.tx from \
-         oracle_queries oq \
+        "select oq.query_id, t1.tx, t2.tx, t1.hash, t2.hash, \
+         m1.time_, m2.time_ from oracle_queries oq \
          join transactions t1 on oq.transaction_id=t1.id \
+         inner join micro_blocks m1 on t1.micro_block_id = m1.id \
          left outer join transactions t2 on t2.tx->>'query_id' = oq.query_id \
+         inner join micro_blocks m2 on t2.micro_block_id = m2.id \
          where oq.oracle_id='{}' \
          limit {} offset {} ",
         hash, limit_sql, offset_sql
@@ -860,13 +883,29 @@ fn oracle_requests_responses(
     let mut res: Vec<JsonValue> = vec![];
     for row in &SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap() {
         let query_id: String = row.get(0);
-        let request: serde_json::Value = row.get(1);
-        let response: Option<serde_json::Value> = row.get(2);
-        res.push(json!({
+        let mut request: serde_json::Value = row.get(1);
+        let request_hash: String = row.get(3);
+        let request_timestamp: i64 = row.get(5);
+        request["hash"] = serde_json::to_value(&request_hash).unwrap();
+        request["timestamp"] = serde_json::to_value(&request_timestamp).unwrap();
+        let data: Option<serde_json::Value> = row.get(2);
+        let response = match data {
+            Some(x) => {
+                let mut response_value = x.clone();
+                let response_hash:String = row.get(4);
+                let response_timestamp:i64 = row.get(6);
+                response_value["timestamp"] = serde_json::to_value(&response_timestamp).unwrap();
+                response_value["hash"] =  serde_json::to_value(&response_hash).unwrap();
+                response_value
+            },
+            _=> { serde_json::json!(null) },
+        };
+        let result_set = json!({
             "query_id": query_id,
             "request": json!(request),
             "response": json!(response),
-        }));
+        });
+        res.push(result_set);
     }
     json!(res)
 }
@@ -902,8 +941,28 @@ fn active_names(
         "select * from \
          names where \
          expires_at >= {} \
+         order by created_at_height desc \
          limit {} offset {} ",
         KeyBlock::top_height(&*connection).unwrap(),
+        limit_sql,
+        offset_sql
+    );
+    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    Json(names)
+}
+
+#[get("/names?<limit>&<page>")]
+fn all_names(
+    _state: State<MiddlewareServer>,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<Name>> {
+    let connection = PGCONNECTION.get().unwrap();
+    let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let sql = format!(
+        "select * from names \
+         order by created_at_height desc \
+         limit {} offset {} ",
         limit_sql,
         offset_sql
     );
@@ -1002,6 +1061,7 @@ impl MiddlewareServer {
             .register(catchers![error400, error404])
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![active_names])
+            .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![calls_for_contract_address])
             .mount("/middleware", routes![current_count])

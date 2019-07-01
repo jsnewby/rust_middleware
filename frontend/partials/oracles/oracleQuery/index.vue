@@ -31,7 +31,15 @@
           class="container-last-inner"
           title="Query"
         >
-          {{ request }}
+          <nuxt-link
+            v-if="data.request && data.request.hash"
+            :to="`/transactions/${data.request.hash}`"
+          >
+            {{ request }}
+          </nuxt-link>
+          <div v-else>
+            {{ request }}
+          </div>
         </AppDefinition>
       </div>
       <div class="container-last-wrapper">
@@ -39,7 +47,15 @@
           class="container-last-inner"
           title="Response"
         >
-          {{ response }}
+          <nuxt-link
+            v-if="data.response && data.response.hash"
+            :to="`/transactions/${data.response.hash}`"
+          >
+            {{ response }}
+          </nuxt-link>
+          <div v-else>
+            {{ response }}
+          </div>
         </AppDefinition>
       </div>
     </div>

@@ -3,8 +3,9 @@
     class="generations-wrapper"
   >
     <PageHeader
-      :has-nav="false"
       title="Generations"
+      :has-crumbs="true"
+      :page="{to: '/generations', name: 'Generations'}"
     />
     <Generations>
       <nuxt-link
@@ -29,7 +30,6 @@ import Generations from '../../partials/generations'
 import Generation from '../../partials/generation'
 import PageHeader from '../../components/PageHeader'
 import LoadMoreButton from '../../components/loadMoreButton'
-// import BreadCrumbs from '../../components/breadCrumbs'
 
 export default {
   name: 'AppGenerations',
@@ -37,7 +37,6 @@ export default {
     Generations,
     Generation,
     PageHeader,
-    // BreadCrumbs,
     LoadMoreButton
   },
   data () {

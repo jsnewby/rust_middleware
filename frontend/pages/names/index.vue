@@ -1,16 +1,23 @@
 <template>
   <div class="app-names">
-    <PageHeader title="Names">
-      <BreadCrumbs />
-    </PageHeader>
-    <NameList>
-      <Name
-        v-for="(item, index) in Object.values(names)"
-        :key="index"
-        :data="item"
-      />
-    </NameList>
-    <LoadMoreButton @update="loadMore" />
+    <PageHeader
+      title="Names"
+      :has-crumbs="true"
+      :page="{to: '/names', name: 'Names'}"
+    />
+    <div v-if="Object.values(names).length">
+      <NameList>
+        <Name
+          v-for="(item, index) in Object.values(names)"
+          :key="index"
+          :data="item"
+        />
+      </NameList>
+      <LoadMoreButton @update="loadMore" />
+    </div>
+    <div v-else>
+      Nothing to see here right now....
+    </div>
   </div>
 </template>
 
@@ -18,7 +25,6 @@
 import NameList from '../../partials/names/nameList'
 import Name from '../../partials/names/name'
 import PageHeader from '../../components/PageHeader'
-import BreadCrumbs from '../../components/breadCrumbs'
 import LoadMoreButton from '../../components/loadMoreButton'
 import { mapState } from 'vuex'
 
@@ -28,7 +34,6 @@ export default {
     NameList,
     Name,
     PageHeader,
-    BreadCrumbs,
     LoadMoreButton
   },
   data () {
