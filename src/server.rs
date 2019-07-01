@@ -411,26 +411,33 @@ fn offset_limit(limit: Option<i32>, page: Option<i32>) -> (String, String) {
 /*
  * Gets all transactions for an account
  */
-#[get("/transactions/account/<account>?<limit>&<page>")]
+#[get("/transactions/account/<account>?<limit>&<page>&<txtype>")]
 fn transactions_for_account(
     _state: State<MiddlewareServer>,
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
+    txtype: Option<String>,
 ) -> Json<Vec<JsonValue>> {
     check_object(&account);
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => {
+            format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype))
+        },
+        _ => { format!(" '{}') ", s_acc) }
+    };
     let sql = format!(
         "SELECT m.time_, t.* FROM transactions t, micro_blocks m WHERE \
          m.id = t.micro_block_id AND \
          (t.tx->>'sender_id'='{}' OR \
          t.tx->>'account_id' = '{}' OR \
          t.tx->>'recipient_id'='{}' or \
-         t.tx->>'owner_id' = '{}' )\
+         t.tx->>'owner_id' = {}\
          order by m.time_ desc \
          limit {} offset {} ",
-        s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql
+        s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
     );
     info!("{}", sql);
 
