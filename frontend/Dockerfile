@@ -10,7 +10,7 @@ RUN npm run build
 FROM node:10.15.1-alpine as frontend
 WORKDIR /app
 COPY --from=frontend-build /app/.nuxt /app/.nuxt
-RUN npm install nuxt@2.8.1 @nuxtjs/axios@5.5.4 @download/blockies@1.0.3 clipboard-copy@2.0.1 bignumber.js@8.1.1 && \
+RUN npm install nuxt@2.8.1 @nuxtjs/axios@5.5.4 @download/blockies@1.0.3 clipboard-copy@3.0.0 bignumber.js@9.0.0 && \
     npm cache clean --force
 COPY package.json package.json
 COPY LICENSE.md LICENSE.md
