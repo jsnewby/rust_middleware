@@ -502,8 +502,8 @@ fn transactions_for_interval(
 ) -> Json<JsonTransactionList> {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let txtype_sql: String = match txtype {
-        Some(txtype) => { 
-            format!(" {}  and tx_type ilike '{}' ", to, txtype)
+        Some(txtype) => {
+            format!(" {}  and tx_type ilike '{}' ", to, sanitize(&txtype))
             },
         _ => { to.to_string() }
     };
