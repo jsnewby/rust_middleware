@@ -367,20 +367,27 @@ fn current_count(_state: State<MiddlewareServer>) -> Json<JsonValue> {
 /*
  * Gets count of transactions for an account
  */
-#[get("/transactions/account/<account>/count")]
+#[get("/transactions/account/<account>/count?<txtype>")]
 fn transaction_count_for_account(
     _state: State<MiddlewareServer>,
     account: String,
+    txtype: Option<String>,
 ) -> Json<JsonValue> {
     check_object(&account);
     let s_acc = sanitize(&account);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => {
+            format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype))
+        },
+        _ => { format!(" '{}') ", s_acc) }
+    };
     let sql = format!(
-        "select count(1) from transactions where \
+        "select count(1) from transactions where ( \
          tx->>'sender_id'='{}' or \
          tx->>'account_id' = '{}' or \
          tx->>'recipient_id'='{}' or \
-         tx->>'owner_id' = '{}' ",
-        s_acc, s_acc, s_acc, s_acc
+         tx->>'owner_id' = {} ",
+        s_acc, s_acc, s_acc, txtype_sql
     );
     debug!("{}", sql);
     let rows = SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap();
