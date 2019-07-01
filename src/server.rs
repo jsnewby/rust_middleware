@@ -367,20 +367,27 @@ fn current_count(_state: State<MiddlewareServer>) -> Json<JsonValue> {
 /*
  * Gets count of transactions for an account
  */
-#[get("/transactions/account/<account>/count")]
+#[get("/transactions/account/<account>/count?<txtype>")]
 fn transaction_count_for_account(
     _state: State<MiddlewareServer>,
     account: String,
+    txtype: Option<String>,
 ) -> Json<JsonValue> {
     check_object(&account);
     let s_acc = sanitize(&account);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => {
+            format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype))
+        },
+        _ => { format!(" '{}') ", s_acc) }
+    };
     let sql = format!(
-        "select count(1) from transactions where \
+        "select count(1) from transactions where ( \
          tx->>'sender_id'='{}' or \
          tx->>'account_id' = '{}' or \
          tx->>'recipient_id'='{}' or \
-         tx->>'owner_id' = '{}' ",
-        s_acc, s_acc, s_acc, s_acc
+         tx->>'owner_id' = {} ",
+        s_acc, s_acc, s_acc, txtype_sql
     );
     debug!("{}", sql);
     let rows = SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap();
@@ -411,26 +418,33 @@ fn offset_limit(limit: Option<i32>, page: Option<i32>) -> (String, String) {
 /*
  * Gets all transactions for an account
  */
-#[get("/transactions/account/<account>?<limit>&<page>")]
+#[get("/transactions/account/<account>?<limit>&<page>&<txtype>")]
 fn transactions_for_account(
     _state: State<MiddlewareServer>,
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
+    txtype: Option<String>,
 ) -> Json<Vec<JsonValue>> {
     check_object(&account);
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => {
+            format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype))
+        },
+        _ => { format!(" '{}') ", s_acc) }
+    };
     let sql = format!(
         "SELECT m.time_, t.* FROM transactions t, micro_blocks m WHERE \
          m.id = t.micro_block_id AND \
          (t.tx->>'sender_id'='{}' OR \
          t.tx->>'account_id' = '{}' OR \
          t.tx->>'recipient_id'='{}' or \
-         t.tx->>'owner_id' = '{}' )\
+         t.tx->>'owner_id' = {}\
          order by m.time_ desc \
          limit {} offset {} ",
-        s_acc, s_acc, s_acc, s_acc, limit_sql, offset_sql
+        s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
     );
     info!("{}", sql);
 
@@ -491,15 +505,22 @@ fn transactions_for_account_to_account(
 /*
  * Gets transactions between blocks
  */
-#[get("/transactions/interval/<from>/<to>?<limit>&<page>")]
+#[get("/transactions/interval/<from>/<to>?<limit>&<page>&<txtype>")]
 fn transactions_for_interval(
     _state: State<MiddlewareServer>,
     from: i64,
     to: i64,
     limit: Option<i32>,
     page: Option<i32>,
+    txtype: Option<String>,
 ) -> Json<JsonTransactionList> {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let txtype_sql: String = match txtype {
+        Some(txtype) => {
+            format!(" {}  and tx_type ilike '{}' ", to, sanitize(&txtype))
+            },
+        _ => { to.to_string() }
+    };
     let sql = format!(
         "select t.* from transactions t, micro_blocks m, key_blocks k where \
          t.micro_block_id=m.id and \
@@ -507,7 +528,7 @@ fn transactions_for_interval(
          k.height >={} and k.height <= {} \
          order by k.height desc, t.id desc \
          limit {} offset {} ",
-        from, to, limit_sql, offset_sql
+        from, txtype_sql, limit_sql, offset_sql
     );
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
