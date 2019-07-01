@@ -4,15 +4,11 @@
       <BreadCrumbs />
     </PageHeader>
     <ContractList>
-      <nuxt-link
+      <Contract
         v-for="(item, index) in Object.values(contracts)"
         :key="index"
-        :to="`/contracts/transactions/${item.contract_id}`"
-      >
-        <Contract
-          :data="item"
-        />
-      </nuxt-link>
+        :data="item"
+      />
     </ContractList>
     <LoadMoreButton @update="loadMore" />
   </div>
