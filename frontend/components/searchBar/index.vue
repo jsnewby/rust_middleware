@@ -55,6 +55,10 @@ export default {
         this.$router.push(`/contracts/transactions/${this.query}`)
         this.query = ''
       }
+      if (this.query.match(/^ak_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        this.$router.push(`/account/transactions/${this.query}`)
+        this.query = ''
+      }
     }
   }
 }
