@@ -56,7 +56,7 @@ impl Subscriptions {
         }
     }
 
-    pub fn vanilla_subscribe(&mut self, kind: WsPayload, client: Client) {
+    pub fn vanilla_subscribe(&mut self, kind: &WsPayload, client: &Client) {
         match kind {
             WsPayload::key_blocks => self.kb_sub.insert(client.clone()),
             WsPayload::micro_blocks => self.mb_sub.insert(client.clone()),
@@ -67,7 +67,7 @@ impl Subscriptions {
         debug!("Sub is {:?}", self);
     }
 
-    pub fn vanilla_unsubscribe(&mut self, kind: WsPayload, client: Client) {
+    pub fn vanilla_unsubscribe(&mut self, kind: &WsPayload, client: &Client) {
         match kind {
             WsPayload::key_blocks => self.kb_sub.remove(&client),
             WsPayload::micro_blocks => self.mb_sub.remove(&client),
@@ -117,6 +117,11 @@ impl Subscriptions {
         for object in objs.iter() {
             self.object_unsubscribe(client.clone(), object.to_string());
         }
+        for payload in &[ WsPayload::key_blocks, WsPayload::micro_blocks,
+                          WsPayload::transactions, WsPayload::tx_update ] {
+            self.vanilla_unsubscribe(payload, &client);
+        }
+        debug!("Subs for client now {:?}", self.subs_for_client(client));
     }
 
     pub fn subs_for_client(&self, client: Client) -> Vec<Object> {
@@ -190,15 +195,15 @@ pub fn subs_for_client(client: Client) -> Vec<Object> {
     }
 }
 
-pub fn vanilla_subscribe(kind: WsPayload, client: Client) {
+pub fn vanilla_subscribe(kind: &WsPayload, client: Client) {
     if let Ok(x) = (*SUBSCRIPTIONS).lock() {
-        (*x).borrow_mut().vanilla_subscribe(kind, client);
+        (*x).borrow_mut().vanilla_subscribe(kind, &client);
     }
 }
 
-pub fn vanilla_unsubscribe(kind: WsPayload, client: Client) {
+pub fn vanilla_unsubscribe(kind: &WsPayload, client: Client) {
     if let Ok(x) = (*SUBSCRIPTIONS).lock() {
-        (*x).borrow_mut().vanilla_unsubscribe(kind, client);
+        (*x).borrow_mut().vanilla_unsubscribe(kind, &client);
     }
 }
 
@@ -327,7 +332,7 @@ impl Handler for Client {
                     | Some(WsPayload::micro_blocks)
                     | Some(WsPayload::transactions)
                     | Some(WsPayload::tx_update) => {
-                        vanilla_subscribe(value.payload.unwrap(), self.clone())
+                        vanilla_subscribe(&value.payload.unwrap(), self.clone())
                     }
                     Some(WsPayload::object) => {
                         if let Some(target) = value.target {
@@ -344,7 +349,7 @@ impl Handler for Client {
                     | Some(WsPayload::micro_blocks)
                     | Some(WsPayload::transactions)
                     | Some(WsPayload::tx_update) => {
-                        vanilla_unsubscribe(value.payload.unwrap(), self.clone())
+                        vanilla_unsubscribe(&value.payload.unwrap(), self.clone())
                     }
                     Some(WsPayload::object) => {
                         if let Some(target) = value.target {

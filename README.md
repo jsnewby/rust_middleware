@@ -61,7 +61,7 @@ If you don't want to interrupt service, want to update the database with new fea
 **DON'T USE `diesel migration run`!
 **
 
-The generated `src/schema.rs` does not work, and `diesel migration run` insists on over-writing it. We have made a `run-migrations.rs` in the root directory which moves the old `schema.rs` out of the way and replaces it after use.
+We now update migrations automatically on application start--and the command `diesel migration run` overwrites important files.
 
 ## How to build
 
@@ -108,6 +108,7 @@ cargo build --release # make a release build--this will take a long long time
 `PID_FILE` - if present, and the `-d` option is set, the middleware stores its pid in this file
 `LOG_DIR` - if present, this directory is used for logs, otherwise stdout is used
 `DATABASE_URL` - PostgreSQL connection URL
+`STATUS_MAX_BLOCK_AGE`
 
 ## Supported queries
 ```
@@ -118,12 +119,15 @@ GET /middleware/contracts/calls/address/<address>
 GET /middleware/contracts/transactions/address/<address>
 GET /middleware/generations/<from>/<to>?<limit>&<page>
 GET /middleware/height/at/<millis_since_epoch>
+GET /middleware/names?<limit>&<page>
 GET /middleware/names/active?<limit>&<page>
-GET /middleware/oracles/all?<limit>&<page>
+GET /middleware/names/reverse/<account>?<limit>&<page>
+GET /middleware/oracles/list?<limit>&<page>
 GET /middleware/oracles/<oracle_id>?<limit>&<page>
 GET /middleware/reward/height/<height>
 GET /middleware/size/current
 GET /middleware/size/height/<height>
+GET /middleware/status
 GET /middleware/transactions/account/<account>/count
 GET /middleware/transactions/account/<sender>/to/<receiver>
 GET /middleware/transactions/account/<account>?<limit>&<page>
@@ -138,7 +142,7 @@ GET /v2/key-blocks/height/<height>
 GET /v2/micro-blocks/hash/<hash>/header
 GET /v2/micro-blocks/hash/<hash>/transactions
 GET /v2/micro-blocks/hash/<hash>/transactions/count
-GET /v2/middleware/transactions/<hash>
+GET /v2/transactions/<hash>
 ```
 
 ## Websocket support

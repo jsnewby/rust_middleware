@@ -1,0 +1,59 @@
+<template>
+  <div class="app-oracles">
+    <PageHeader
+      title="Oracles"
+      :has-crumbs="true"
+      :page="{to: '/oracles', name: 'Oracles'}"
+    />
+    <div v-if="Object.keys(oracles).length">
+      <OracleList>
+        <Oracle
+          v-for="(item, index) of Object.values(oracles)"
+          :key="index"
+          :data="item"
+        />
+      </OracleList>
+      <LoadMoreButton @update="loadMore" />
+    </div>
+    <div v-else>
+      Nothing to see here right now....
+    </div>
+  </div>
+</template>
+
+<script>
+import OracleList from '../../partials/oracles/oracleList'
+import Oracle from '../../partials/oracles/oracle'
+import PageHeader from '../../components/PageHeader'
+import LoadMoreButton from '../../components/loadMoreButton'
+import { mapState } from 'vuex'
+
+export default {
+  name: 'AppOracles',
+  components: {
+    OracleList,
+    Oracle,
+    PageHeader,
+    LoadMoreButton
+  },
+  data () {
+    return {
+      page: 1
+    }
+  },
+  computed: {
+    ...mapState('oracles', [
+      'oracles'
+    ])
+  },
+  beforeMount () {
+    this.loadMore()
+  },
+  methods: {
+    loadMore () {
+      this.$store.dispatch('oracles/getOracles', { 'page': this.page, 'limit': 10 })
+      this.page += 1
+    }
+  }
+}
+</script>
