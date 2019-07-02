@@ -21,7 +21,7 @@ export const actions = {
     const page = payload.page
     const maxTransactions = payload.numTransactions
     try {
-      const transactions = await axios.get(nodeUrl + '/middleware/transactions/interval/1/' + height.toString() + '?limit=' + maxTransactions + '&page=' + page)
+      const transactions = await axios.get(`${nodeUrl}/middleware/transactions/interval/1/${height}?limit=${maxTransactions}&page=${page}`)
       commit('setTransactions', transactions.data.transactions)
       return transactions.data.transactions
     } catch (e) {
@@ -32,6 +32,15 @@ export const actions = {
     try {
       const tx = await axios.get(nodeUrl + '/v2/transactions/' + hash)
       commit('setTransactions', [tx.data])
+      return tx.data
+    } catch (e) {
+      console.log(e)
+      commit('catchError', 'Error', { root: true })
+    }
+  },
+  getTransactionByAccount: async function ({ state, rootState: { nodeUrl }, commit, dispatch }, { account, limit, page }) {
+    try {
+      const tx = await axios.get(`${nodeUrl}/middleware/transactions/account/${account}?page=${page}&limit=${limit}`)
       return tx.data
     } catch (e) {
       console.log(e)
