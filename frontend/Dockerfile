@@ -4,7 +4,10 @@ RUN apk add make gcc g++ python git
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+ARG NODE_URL
+ARG NODE_WS
+ARG NETWORK_NAME
+RUN NUXT_APP_NODE_URL=$NUXT_APP_NODE_URL NUXT_APP_NODE_WS=$NUXT_APP_NODE_WS NUXT_APP_NETWORK_NAME=$NUXT_APP_NETWORK_NAME npm run build
 
 
 FROM node:10.15.1-alpine as frontend
