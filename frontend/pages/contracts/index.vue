@@ -1,18 +1,16 @@
 <template>
   <div class="app-contracts">
-    <PageHeader title="Contracts">
-      <BreadCrumbs />
-    </PageHeader>
+    <PageHeader
+      title="Contracts"
+      :has-crumbs="true"
+      :page="{to: '/contracts', name: 'Contracts'}"
+    />
     <ContractList>
-      <nuxt-link
+      <Contract
         v-for="(item, index) in Object.values(contracts)"
         :key="index"
-        :to="`/contracts/transactions/${item.contract_id}`"
-      >
-        <Contract
-          :data="item"
-        />
-      </nuxt-link>
+        :data="item"
+      />
     </ContractList>
     <LoadMoreButton @update="loadMore" />
   </div>
@@ -23,7 +21,6 @@
 import ContractList from '../../partials/contractList'
 import Contract from '../../partials/contract'
 import PageHeader from '../../components/PageHeader'
-import BreadCrumbs from '../../components/breadCrumbs'
 import LoadMoreButton from '../../components/loadMoreButton'
 import { mapState } from 'vuex'
 
@@ -33,7 +30,6 @@ export default {
     ContractList,
     Contract,
     PageHeader,
-    BreadCrumbs,
     LoadMoreButton
   },
   data () {

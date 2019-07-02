@@ -1,18 +1,16 @@
 <template>
   <div class="app-names">
-    <PageHeader title="State Channels">
-      <BreadCrumbs />
-    </PageHeader>
+    <PageHeader
+      :has-crumbs="true"
+      :page="{to: '/channels', name: 'Channels'}"
+      title="State Channels"
+    />
     <ChannelList>
-      <nuxt-link
+      <Channel
         v-for="(item, index) in channels"
         :key="index"
-        :to="`/channels/transactions/${item}`"
-      >
-        <Channel
-          :data="item"
-        />
-      </nuxt-link>
+        :data="item"
+      />
     </ChannelList>
   </div>
 </template>
@@ -21,7 +19,6 @@
 import ChannelList from '../../partials/channels/channelList'
 import Channel from '../../partials/channels/channel'
 import PageHeader from '../../components/PageHeader'
-import BreadCrumbs from '../../components/breadCrumbs'
 import { mapState } from 'vuex'
 
 export default {
@@ -29,8 +26,7 @@ export default {
   components: {
     ChannelList,
     Channel,
-    PageHeader,
-    BreadCrumbs
+    PageHeader
   },
   data () {
     return {

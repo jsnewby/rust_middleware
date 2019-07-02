@@ -359,13 +359,21 @@ impl BlockLoader {
             InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
         websocket::broadcast_ws(&Candidate {
+            payload: WsPayload::object,
+            data: serde_json::to_value(&generation.key_block)?,
+        });
+        websocket::broadcast_ws(&Candidate {
             payload: WsPayload::key_blocks,
-            data: serde_json::to_value(generation.key_block)?,
+            data: serde_json::to_value(&generation.key_block)?,
         })?; //broadcast key_block
         for mb_hash in &generation.micro_blocks {
             let mut mb: InsertableMicroBlock =
                 serde_json::from_value(self.node.get_micro_block_by_hash(&mb_hash)?)?;
             mb.key_block_id = Some(key_block_id);
+            websocket::broadcast_ws(&Candidate {
+                payload: WsPayload::object,
+                data: serde_json::to_value(&mb)?,
+            });
             websocket::broadcast_ws(&Candidate {
                 payload: WsPayload::micro_blocks,
                 data: serde_json::to_value(&mb)?,

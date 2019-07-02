@@ -1,20 +1,23 @@
 <template>
   <div class="app-oracles">
-    <PageHeader title="Oracles">
-      <BreadCrumbs />
-    </PageHeader>
-    <OracleList>
-      <nuxt-link
-        v-for="(item, index) of Object.values(oracles)"
-        :key="index"
-        :to="`/oracles/queries/${item.oracle_id}`"
-      >
+    <PageHeader
+      title="Oracles"
+      :has-crumbs="true"
+      :page="{to: '/oracles', name: 'Oracles'}"
+    />
+    <div v-if="Object.keys(oracles).length">
+      <OracleList>
         <Oracle
+          v-for="(item, index) of Object.values(oracles)"
+          :key="index"
           :data="item"
         />
-      </nuxt-link>
-    </OracleList>
-    <LoadMoreButton @update="loadMore" />
+      </OracleList>
+      <LoadMoreButton @update="loadMore" />
+    </div>
+    <div v-else>
+      Nothing to see here right now....
+    </div>
   </div>
 </template>
 
@@ -22,7 +25,6 @@
 import OracleList from '../../partials/oracles/oracleList'
 import Oracle from '../../partials/oracles/oracle'
 import PageHeader from '../../components/PageHeader'
-import BreadCrumbs from '../../components/breadCrumbs'
 import LoadMoreButton from '../../components/loadMoreButton'
 import { mapState } from 'vuex'
 
@@ -32,7 +34,6 @@ export default {
     OracleList,
     Oracle,
     PageHeader,
-    BreadCrumbs,
     LoadMoreButton
   },
   data () {

@@ -1,8 +1,11 @@
 <template>
   <div class="app-transaction">
-    <PageHeader title="Transaction Overview">
-      <BreadCrumbs />
-    </PageHeader>
+    <PageHeader
+      title="Transactions"
+      :has-crumbs="true"
+      :page="{to: '/transactions', name: 'Transactions'}"
+      :subpage="{to: `/transactions/${$route.params.transaction}`, name: 'Transaction Overview'}"
+    />
     <GenerationDetails
       :data="generation"
       :dynamic-data="height"
@@ -19,15 +22,13 @@
 import GenerationDetails from '../../../partials/generationDetails'
 import TransactionDetails from '../../../partials/transactionDetails'
 import PageHeader from '../../../components/PageHeader'
-import BreadCrumbs from '../../../components/breadCrumbs'
 
 export default {
   name: 'AppTransaction',
   components: {
     GenerationDetails,
     TransactionDetails,
-    PageHeader,
-    BreadCrumbs
+    PageHeader
   },
   data () {
     return {
@@ -51,7 +52,7 @@ export default {
       generation = store.generations.generations[txDetails.block_height]
     }
     if (!generation) {
-      generation = (await store.dispatch('generations/getGenerationByRange', { start: txDetails.block_height, end: txDetails.block_height }))[txDetails.block_height]
+      generation = (await store.dispatch('generations/getGenerationByRange', { start: (txDetails.block_height - 1), end: (txDetails.block_height + 1) }))[txDetails.block_height]
     }
     if (!store.height) {
       height = await store.dispatch('height')

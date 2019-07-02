@@ -16,7 +16,7 @@ export const mutations = {
 export const actions = {
   getNames: async function ({ rootState: { nodeUrl }, commit }, { page, limit }) {
     try {
-      const names = await axios.get(nodeUrl + '/middleware/names/active?limit=' + limit + '&page=' + page)
+      const names = await axios.get(nodeUrl + '/middleware/names?limit=' + limit + '&page=' + page)
       commit('setNames', names.data)
       return names.data
     } catch (e) {

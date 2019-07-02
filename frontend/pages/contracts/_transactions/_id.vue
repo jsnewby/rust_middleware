@@ -1,18 +1,17 @@
 <template>
   <div class="app-transactions">
-    <PageHeader title="Contract Transactions">
-      <BreadCrumbs />
-    </PageHeader>
+    <PageHeader
+      title="Contracts Transactions"
+      :has-crumbs="true"
+      :page="{to: '/Contracts', name: 'Contracts'}"
+      :subpage="{to: `/contracts/transactions/${$route.params.id}`, name: 'Contract Transactions'}"
+    />
     <TxList>
-      <nuxt-link
+      <TXListItem
         v-for="tx of transactions"
         :key="tx.hash"
-        :to="`/transactions/${tx.hash}`"
-      >
-        <TXListItem
-          :data="tx"
-        />
-      </nuxt-link>
+        :data="tx"
+      />
     </TxList>
   </div>
 </template>
@@ -22,15 +21,13 @@
 import TxList from '../../../partials/transactions/txList'
 import TXListItem from '../../../partials/transactions/txListItem'
 import PageHeader from '../../../components/PageHeader'
-import BreadCrumbs from '../../../components/breadCrumbs'
 
 export default {
   name: 'ChannelTransactions',
   components: {
     TxList,
     TXListItem,
-    PageHeader,
-    BreadCrumbs
+    PageHeader
   },
   data () {
     return {

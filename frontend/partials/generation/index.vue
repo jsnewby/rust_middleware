@@ -2,12 +2,14 @@
   <div class="generation">
     <div class="container-first">
       <div class="container-first-inner">
-        <div>
+        <nuxt-link
+          :to="`/generations/${data.height}`"
+        >
           <LabelType
             title="block height"
             fill="black"
           />
-        </div>
+        </nuxt-link>
         <BlockHeight
           v-if="data.height"
           :value="data.height"

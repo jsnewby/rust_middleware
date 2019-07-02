@@ -744,6 +744,7 @@ impl InsertableChannelIdentifier {
 pub struct InsertableName {
     pub name: String,
     pub name_hash: String,
+    pub tx_hash: String,
     pub created_at_height: i64,
     pub owner: String,
     pub expires_at: i64,
@@ -754,6 +755,7 @@ impl InsertableName {
     pub fn new(
         _name: &String,
         _name_hash: &String,
+        _tx_hash: &String,
         _created_at_height: i64,
         _owner: &str,
         _expires_at: i64,
@@ -761,6 +763,7 @@ impl InsertableName {
         InsertableName {
             name: _name.to_string(),
             name_hash: _name_hash.to_string(),
+            tx_hash: _tx_hash.to_string(),
             created_at_height: _created_at_height,
             owner: _owner.to_string(),
             expires_at: _expires_at,
@@ -775,11 +778,13 @@ impl InsertableName {
         }
         let _name = transaction.tx["name"].as_str()?;
         let _name_hash = super::hashing::get_name_id(&_name).unwrap(); // TODO
+        let _tx_hash = transaction.hash.clone();
         let _account_id = transaction.tx["account_id"].as_str()?;
         let _expires_at = transaction.tx["ttl"].as_i64()? + transaction.block_height as i64;
         Some(InsertableName::new(
             &_name.to_string(),
             &_name_hash,
+            &_tx_hash,
             transaction.block_height as i64,
             &_account_id,
             _expires_at,
@@ -804,6 +809,7 @@ pub struct Name {
     pub id: i32,
     pub name: String,
     pub name_hash: String,
+    pub tx_hash: String,
     pub created_at_height: i64,
     pub owner: String,
     pub expires_at: i64,

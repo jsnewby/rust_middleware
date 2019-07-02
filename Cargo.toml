@@ -1,7 +1,7 @@
 [package]
 name = "aepp-middleware"
 version = "0.7.0"
-authors = ["John Newby <john@newby.org>"]
+authors = ["John Newby <@johnsnewby>", "Shubhendu Shekhar <@shekhar-shubhendu>", "Andrea Giacobino <@noandrea>" ]
 
 [features]
 client = [ ]

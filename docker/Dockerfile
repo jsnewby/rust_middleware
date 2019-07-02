@@ -1,4 +1,4 @@
-FROM rust:1.32.0 as build
+FROM rust:1.35.0 as build
 
 # maybe we can optimize this but easiest way to get nightly
 RUN rustup default nightly
@@ -11,6 +11,7 @@ COPY ./Cargo.toml ./Cargo.toml
 RUN cargo build --release
 RUN rm src/*.rs && rm -rf target/release/deps/aepp_middleware*
 COPY ./src/ ./src/
+COPY ./migrations/ ./migrations/
 RUN cargo build --release
 
 FROM debian:stretch-slim

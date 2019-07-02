@@ -1,18 +1,16 @@
 <template>
   <div class="app-transactions">
-    <PageHeader title="Transactions">
-      <BreadCrumbs />
-    </PageHeader>
+    <PageHeader
+      title=" Transactions"
+      :has-crumbs="true"
+      :page="{to: '/transactions', name: 'Transactions'}"
+    />
     <TxList>
-      <nuxt-link
+      <TXListItem
         v-for="(item, index) in Object.values(transactions).reverse()"
         :key="index"
-        :to="`/transactions/${item.hash}`"
-      >
-        <TXListItem
-          :data="item"
-        />
-      </nuxt-link>
+        :data="item"
+      />
     </TxList>
     <LoadMoreButton @update="loadmore" />
   </div>
@@ -23,7 +21,6 @@
 import TxList from '../../partials/transactions/txList'
 import TXListItem from '../../partials/transactions/txListItem'
 import PageHeader from '../../components/PageHeader'
-import BreadCrumbs from '../../components/breadCrumbs'
 import LoadMoreButton from '../../components/loadMoreButton'
 
 import { mapState } from 'vuex'
@@ -34,7 +31,6 @@ export default {
     TxList,
     TXListItem,
     PageHeader,
-    BreadCrumbs,
     LoadMoreButton
   },
   data () {

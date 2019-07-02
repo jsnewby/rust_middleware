@@ -19,15 +19,11 @@
         :key="number"
         :data="microBlock"
       >
-        <nuxt-link
+        <TXListItem
           v-for="(transaction, index) in microBlock.transactions"
           :key="index"
-          :to="`/transactions/${transaction.hash}`"
-        >
-          <TXListItem
-            :data="transaction"
-          />
-        </nuxt-link>
+          :data="transaction"
+        />
       </MicroBlock>
     </MicroBlocks>
   </div>
@@ -65,7 +61,7 @@ export default {
     if (store.generations && store.generations.generations[current]) {
       generation = store.generations.generations[current]
     } else {
-      const generations = await store.dispatch('generations/getGenerationByRange', { start: current, end: height })
+      const generations = await store.dispatch('generations/getGenerationByRange', { start: current - 1, end: current + 1 })
       generation = generations[current]
     }
     const prev = current < 1 ? '' : `/generations/${current - 1}`
