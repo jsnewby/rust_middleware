@@ -78,7 +78,6 @@ export default {
         display: flex;
 
           &-item {
-            text-transform: capitalize;
             @extend %face-sans-s;
             &:not(:last-child) {
               &:after {
