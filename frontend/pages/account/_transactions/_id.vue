@@ -11,6 +11,7 @@
           v-for="tx of transactions"
           :key="tx.hash"
           :data="tx"
+          :address="`${$route.params.id}`"
         />
       </TxList>
       <LoadMoreButton @update="loadMore" />

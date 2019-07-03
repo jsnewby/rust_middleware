@@ -17,17 +17,23 @@ export default {
   },
   computed: {
     type () {
-      switch (this.title.match(/[^\s]+/g)[0]) {
-        case 'Spend':
-          return 'red'
-        case 'Name':
-          return 'grey'
-        case 'Contract':
-          return 'green'
-        case 'Oracle':
-          return 'purple'
-        default:
-          return 'black'
+      if (this.title.includes('OUT')) {
+        return 'red'
+      } else if (this.title.includes('IN')) {
+        return 'green'
+      } else {
+        switch (this.title.match(/[^\s]+/g)[0]) {
+          case 'Spend':
+            return 'red'
+          case 'Name':
+            return 'grey'
+          case 'Contract':
+            return 'green'
+          case 'Oracle':
+            return 'purple'
+          default:
+            return 'black'
+        }
       }
     }
   }
