@@ -783,8 +783,8 @@ impl InsertableName {
         let _name_hash = super::hashing::get_name_id(&_name).unwrap(); // TODO
         let _tx_hash = transaction.hash.clone();
         let _account_id = transaction.tx["account_id"].as_str()?;
-        let _expires_at = InsertableName::NAME_CLAIM_MAX_EXPIRATION;
-        
+        let _expires_at = InsertableName::NAME_CLAIM_MAX_EXPIRATION + transaction.block_height as i64;
+
         Some(InsertableName::new(
             &_name.to_string(),
             &_name_hash,
