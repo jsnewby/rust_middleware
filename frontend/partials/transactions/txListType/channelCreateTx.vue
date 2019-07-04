@@ -58,9 +58,7 @@
           v-if="transaction.tx.lock_period"
           title="Lock Period"
         >
-          <FormatAeUnit
-            :value="transaction.tx.lock_period"
-          />
+          {{ transaction.tx.lock_period }}
         </AppDefinition>
       </div>
     </div>
