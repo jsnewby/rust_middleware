@@ -3,7 +3,7 @@
     <PageHeader
       title="Account"
       :has-crumbs="true"
-      :page="{to: `/account/transactions/${$route.params.id}`, name: `${$route.params.id}`}"
+      :page="{to: `/account/transactions/${$route.params.id}`, name: `${account.id}(${account.balance / 10 ** 18} AE)`}"
     />
     <div v-if="transactions.length > 0">
       <TxList>
@@ -30,7 +30,7 @@ import PageHeader from '../../../components/PageHeader'
 import LoadMoreButton from '../../../components/loadMoreButton'
 
 export default {
-  name: 'ChannelTransactions',
+  name: 'AccountTransactions',
   components: {
     TxList,
     TXListItem,
@@ -39,18 +39,19 @@ export default {
   },
   data () {
     return {
-      address: '',
+      account: {},
       transactions: [],
       page: 1
     }
   },
   async asyncData ({ store, params }) {
     const transactions = await store.dispatch('transactions/getTransactionByAccount', { account: params.id, page: 1, limit: 10 })
-    return { address: params.id, transactions, page: 2 }
+    const account = await store.dispatch('account/getAccountDetails', params.id)
+    return { address: params.id, transactions, page: 2, account }
   },
   methods: {
     async loadMore () {
-      const transactions = await this.$store.dispatch('transactions/getTransactionByAccount', { account: this.address, page: this.page, limit: 10 })
+      const transactions = await this.$store.dispatch('transactions/getTransactionByAccount', { account: this.account.id, page: this.page, limit: 10 })
       this.transactions = [...this.transactions, ...transactions]
       this.page += 1
     }
