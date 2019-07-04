@@ -37,7 +37,9 @@
           class="container-last-inner"
           title="Query Fee"
         >
-          {{ data.tx.query_fee }}
+          <FormatAeUnit
+            :value="data.tx.query_fee"
+          />
         </AppDefinition>
         <AppDefinition
           class="container-last-inner"
@@ -60,13 +62,15 @@
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
 import AppDefinition from '../../../components/appDefinition'
+import FormatAeUnit from '../../../components/formatAeUnit'
 
 export default {
   name: 'Oracle',
   components: {
     LabelType,
     Account,
-    AppDefinition
+    AppDefinition,
+    FormatAeUnit
   },
   props: {
     data: {

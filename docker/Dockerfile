@@ -2,7 +2,7 @@ FROM rust:1.35.0 as build
 
 # maybe we can optimize this but easiest way to get nightly
 RUN rustup default nightly
-RUN USER=root cargo new --bin aepp-middleware
+RUN USER=root cargo new --bin --vcs none aepp-middleware
 WORKDIR /aepp-middleware
 
 COPY ./Cargo.lock ./Cargo.lock

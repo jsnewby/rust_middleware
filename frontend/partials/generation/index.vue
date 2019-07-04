@@ -54,11 +54,7 @@
           class="container-last-inner"
           title="Target"
         >
-          <!--{{ data.target | prefixedAmount }}-->
-          <FormatAeUnit
-            v-if="data.target"
-            :value="data.target"
-          />
+          {{ data.target }}
         </AppDefinition>
       </div>
     </div>
@@ -72,7 +68,6 @@ import Account from '../../components/account'
 import Age from '../../components/age'
 import LabelType from '../../components/labelType'
 import BlockHeight from '../../components/blockHeight'
-import FormatAeUnit from '../../components/formatAeUnit'
 import prefixedAmount from '../../plugins/filters/prefixedAmount.js'
 
 export default {
@@ -83,7 +78,6 @@ export default {
     LabelType,
     AppDefinition,
     Account,
-    FormatAeUnit,
     Age
   },
   props: {
