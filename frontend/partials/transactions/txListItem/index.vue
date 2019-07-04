@@ -3,6 +3,7 @@
     :is="data.tx.type"
     v-if="data.tx.type"
     :transaction="data"
+    :address="address"
   />
 </template>
 
@@ -48,6 +49,11 @@ export default {
     data: {
       type: Object,
       required: true
+    },
+    address: {
+      type: String,
+      required: false,
+      default: ''
     }
   }
 }

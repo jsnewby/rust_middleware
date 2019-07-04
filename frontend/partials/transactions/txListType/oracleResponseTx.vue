@@ -20,9 +20,9 @@
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.tx.account_id"
-            :value="transaction.tx.account_id"
-            title="account"
+            v-if="transaction.tx.oracle_id"
+            :value="transaction.tx.oracle_id"
+            title="oracle"
             icon
           />
           <Account

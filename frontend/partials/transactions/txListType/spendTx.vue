@@ -5,7 +5,7 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              :title="updateType"
               fill="red"
             />
           </div>
@@ -72,6 +72,25 @@ export default {
     transaction: {
       type: Object,
       required: true
+    },
+    address: {
+      type: String,
+      required: false,
+      default: ''
+    }
+  },
+  computed: {
+    updateType () {
+      const txType = this.transaction.tx.type.replace(/([A-Z])/g, ' $1')
+      if (this.address && this.transaction.tx.type === 'SpendTx') {
+        if (this.address === this.transaction.tx.sender_id) {
+          return `${txType} OUT`
+        }
+        if (this.address === this.transaction.tx.recipient_id) {
+          return `${txType} IN`
+        }
+      }
+      return txType
     }
   }
 }
