@@ -38,9 +38,6 @@ export default {
     PageHeader,
     LoadMoreButton
   },
-  filters: {
-    prefixAmount
-  },
   data () {
     return {
       account: {
