@@ -3,7 +3,7 @@
     <PageHeader
       title="Account"
       :has-crumbs="true"
-      :page="{to: `/account/transactions/${$route.params.id}`, name: `${account.id}(${account.balance / 10 ** 18} AE)`}"
+      :page="{to: `/account/transactions/${$route.params.id}`, name: `${account.id}(${amount})`}"
     />
     <div v-if="transactions.length > 0">
       <TxList>
@@ -28,6 +28,7 @@ import TxList from '../../../partials/transactions/txList'
 import TXListItem from '../../../partials/transactions/txListItem'
 import PageHeader from '../../../components/PageHeader'
 import LoadMoreButton from '../../../components/loadMoreButton'
+import prefixAmount from '../../../plugins/filters/prefixedAmount'
 
 export default {
   name: 'AccountTransactions',
@@ -37,11 +38,21 @@ export default {
     PageHeader,
     LoadMoreButton
   },
+  filters: {
+    prefixAmount
+  },
   data () {
     return {
-      account: {},
+      account: {
+        balance: 0
+      },
       transactions: [],
       page: 1
+    }
+  },
+  computed: {
+    amount () {
+      return prefixAmount(this.account.balance)
     }
   },
   async asyncData ({ store, params }) {
