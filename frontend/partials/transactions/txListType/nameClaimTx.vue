@@ -42,7 +42,14 @@
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item" />
+      <div class="transaction-type-info-item">
+        <AppDefinition
+          v-if="transaction.tx.name_salt"
+          title="name salt"
+        >
+          {{ transaction.tx.name_salt }}
+        </AppDefinition>
+      </div>
       <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"
