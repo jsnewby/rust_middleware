@@ -20,15 +20,15 @@
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.caller_id"
-            :value="transaction.tx.caller_id"
-            title="caller"
+            v-if="transaction.tx.from_id"
+            :value="transaction.tx.from_id"
+            title="From Account"
             icon
           />
           <Account
-            v-if="transaction.contract_id"
-            :value="transaction.contract_id"
-            title="contract"
+            v-if="transaction.tx.channel_id"
+            :value="transaction.tx.channel_id"
+            title="channel id"
             icon
           />
         </AccountGroup>
@@ -37,10 +37,16 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.amount"
-          title="Amount"
+          v-if="transaction.tx.round"
+          title="round"
         >
-          <FormatAeUnit :value="transaction.tx.amount" />
+          {{ transaction.tx.round }}
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.state_hash"
+          title="state hash"
+        >
+          {{ transaction.tx.state_hash }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -69,7 +75,7 @@ import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
 
 export default {
-  name: 'ContractCallTx',
+  name: 'ChannelForceProgressTx',
   components: {
     LabelType,
     AppDefinition,
