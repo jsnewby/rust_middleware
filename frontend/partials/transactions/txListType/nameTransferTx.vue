@@ -11,10 +11,10 @@
           </div>
         </nuxt-link>
         <AppDefinition
-          v-if="data.time"
+          v-if="transaction.tx.time"
           title="Age"
         >
-          <Age :time="data.time" />
+          <Age :time="transaction.tx.time" />
         </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
@@ -26,9 +26,9 @@
             icon
           />
           <Account
-            v-if="transaction.tx.commitment_id"
-            :value="transaction.tx.commitment_id"
-            title="commitment"
+            v-if="transaction.tx.recipient_id"
+            :value="transaction.tx.recipient_id"
+            title="recipient"
             icon
           />
         </AccountGroup>
@@ -42,7 +42,14 @@
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item" />
+      <div class="transaction-type-info-item">
+        <AppDefinition
+          v-if="transaction.tx.name_id"
+          title="name id"
+        >
+          {{ transaction.tx.name_id }}
+        </AppDefinition>
+      </div>
       <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"

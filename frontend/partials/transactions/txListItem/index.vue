@@ -17,12 +17,18 @@ import NameClaimTx from '../txListType/nameClaimTx.vue'
 import NamePreclaimTx from '../txListType/namePreclaimTx.vue'
 import NameTransferTx from '../txListType/nameTransferTx.vue'
 import NameUpdateTx from '../txListType/nameUpdateTx.vue'
+import NameRevokeTx from '../txListType/nameRevokeTx.vue'
 import ContractCallTx from '../txListType/contractCallTx.vue'
 import ContractCreateTx from '../txListType/contractCreateTx.vue'
 import ChannelCreateTx from '../txListType/channelCreateTx.vue'
 import ChannelForceProgressTx from '../txListType/channelForceProgressTx.vue'
 import ChannelDepositTx from '../txListType/channelDepositTx.vue'
 import ChannelCloseMutualTx from '../txListType/channelCloseMutualTx.vue'
+import ChannelCloseSoloTx from '../txListType/channelCloseSoloTx.vue'
+import ChannelSlashTx from '../txListType/channelSlashTx.vue'
+import ChannelWithdrawTx from '../txListType/channelWithdrawTx.vue'
+import ChannelSettleTx from '../txListType/channelSettleTx.vue'
+import ChannelSnapshotSoloTx from '../txListType/channelSnapshotSoloTx.vue'
 import GAAttachTx from '../txListType/GAAttachTx.vue'
 
 export default {
@@ -35,6 +41,7 @@ export default {
     OracleQueryTx,
     NameClaimTx,
     NamePreclaimTx,
+    NameRevokeTx,
     NameTransferTx,
     NameUpdateTx,
     ContractCallTx,
@@ -43,6 +50,11 @@ export default {
     ChannelForceProgressTx,
     ChannelDepositTx,
     ChannelCloseMutualTx,
+    ChannelWithdrawTx,
+    ChannelCloseSoloTx,
+    ChannelSlashTx,
+    ChannelSettleTx,
+    ChannelSnapshotSoloTx,
     GAAttachTx
   },
   props: {

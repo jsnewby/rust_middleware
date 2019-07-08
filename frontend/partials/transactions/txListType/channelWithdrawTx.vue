@@ -20,21 +20,15 @@
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.tx.account_id"
-            :value="transaction.tx.account_id"
-            title="account"
+            v-if="transaction.tx.channel_id"
+            :value="transaction.tx.channel_id"
+            title="channel id"
             icon
           />
           <Account
-            v-if="transaction.tx.sender_id"
-            :value="transaction.tx.sender_id"
-            title="Sender"
-            icon
-          />
-          <Account
-            v-if="transaction.tx.recipient_id"
-            :value="transaction.tx.recipient_id"
-            title="recipient"
+            v-if="transaction.tx.to_id"
+            :value="transaction.tx.to_id"
+            title="to account"
             icon
           />
         </AccountGroup>
@@ -43,10 +37,14 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.query"
-          title="Query"
+          title="amount"
         >
-          {{ transaction.tx.query }}
+          <FormatAeUnit :value="transaction.tx.amount" />
+        </AppDefinition>
+        <AppDefinition
+          title="round"
+        >
+          {{ transaction.tx.round }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -54,17 +52,13 @@
           v-if="transaction.tx.fee"
           title="tx fee"
         >
-          <FormatAeUnit
-            :value="transaction.tx.fee"
-          />
+          <FormatAeUnit :value="transaction.tx.fee" />
         </AppDefinition>
         <AppDefinition
           v-if="transaction.tx.cost"
           title="tx cost"
         >
-          <FormatAeUnit
-            :value="transaction.tx.cost"
-          />
+          <FormatAeUnit :value="transaction.tx.cost" />
         </AppDefinition>
       </div>
     </div>
@@ -79,7 +73,7 @@ import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
 
 export default {
-  name: 'OracleQueryTx',
+  name: 'ChannelWithdrawTx',
   components: {
     LabelType,
     AppDefinition,

@@ -26,9 +26,9 @@
             icon
           />
           <Account
-            v-if="transaction.tx.sender_id"
-            :value="transaction.tx.sender_id"
-            title="Sender"
+            v-if="transaction.tx.query_id"
+            :value="transaction.tx.query_id"
+            title="Query id"
             icon
           />
           <Account
@@ -41,7 +41,14 @@
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item" />
+      <div class="transaction-type-info-item">
+        <AppDefinition
+          v-if="transaction.tx.response"
+          title="response"
+        >
+          {{ transaction.tx.response }}
+        </AppDefinition>
+      </div>
       <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"

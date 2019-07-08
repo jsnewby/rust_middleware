@@ -26,44 +26,45 @@
             icon
           />
           <Account
-            v-if="transaction.tx.sender_id"
-            :value="transaction.tx.sender_id"
-            title="Sender"
-            icon
-          />
-          <Account
-            v-if="transaction.tx.recipient_id"
-            :value="transaction.tx.recipient_id"
-            title="recipient"
+            v-if="transaction.tx.name_id"
+            :value="transaction.tx.name_id"
+            title="Name Id"
             icon
           />
         </AccountGroup>
+        <AppDefinition
+          v-if="transaction.tx.name"
+          title="name"
+          class="name"
+        >
+          {{ transaction.tx.name }}
+        </AppDefinition>
       </div>
     </div>
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.query"
-          title="Query"
+          v-if="transaction.tx.nonce"
+          title="nonce"
         >
-          {{ transaction.tx.query }}
+          {{ transaction.tx.nonce }}
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.deposit"
+          title="Deposit"
+        >
+          <FormatAeUnit
+            :value="transaction.tx.deposit"
+          />
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"
-          title="tx fee"
+          title="Tx fee"
         >
           <FormatAeUnit
             :value="transaction.tx.fee"
-          />
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
-        >
-          <FormatAeUnit
-            :value="transaction.tx.cost"
           />
         </AppDefinition>
       </div>
@@ -79,7 +80,7 @@ import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
 
 export default {
-  name: 'OracleQueryTx',
+  name: 'NameRevokeTx',
   components: {
     LabelType,
     AppDefinition,

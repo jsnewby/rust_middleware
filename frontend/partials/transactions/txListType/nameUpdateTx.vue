@@ -26,9 +26,9 @@
             icon
           />
           <Account
-            v-if="transaction.tx.commitment_id"
-            :value="transaction.tx.commitment_id"
-            title="commitment"
+            v-if="transaction.tx.name_id"
+            :value="transaction.tx.name_id"
+            title="Name Id"
             icon
           />
         </AccountGroup>
@@ -44,12 +44,10 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.amount"
-          title="Amount"
+          v-if="transaction.tx.name_ttl"
+          title="name ttl"
         >
-          <FormatAeUnit
-            :value="transaction.tx.amount"
-          />
+          {{ transaction.tx.name_ttl }}
         </AppDefinition>
         <AppDefinition
           v-if="transaction.tx.deposit"
