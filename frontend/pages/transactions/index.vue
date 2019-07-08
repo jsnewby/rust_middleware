@@ -135,42 +135,15 @@ export default {
 
   .multiselect__option--highlight {
     background: #14CCB7;
-    outline: none;
-    color: #fff;
   }
   .multiselect__option--highlight:after {
-    content: attr(data-select);
     background: #14CCB7;
-    color: #fff;
-  }
-  .multiselect__option--selected {
-    background: #f3f3f3;
-    color: #35495e;
-    font-weight: 700;
-  }
-  .multiselect__option--selected:after {
-    content: attr(data-selected);
-    color: silver;
   }
   .multiselect__option--selected.multiselect__option--highlight {
     background: #FF0D6A;
-    color: #fff;
   }
   .multiselect__option--selected.multiselect__option--highlight:after {
     background: #FF0D6A;
-    content: attr(data-deselect);
-    color: #fff;
-  }
-  .multiselect--disabled .multiselect__current,
-  .multiselect--disabled .multiselect__select {
-    background: #ededed;
-    color: #a6a6a6;
-  }
-  .multiselect__option--disabled {
-    background: #ededed !important;
-    color: #a6a6a6 !important;
-    cursor: text;
-    pointer-events: none;
   }
 }
 </style>
