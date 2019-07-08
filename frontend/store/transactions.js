@@ -2,7 +2,8 @@ import Vue from 'vue'
 import axios from 'axios'
 
 export const state = () => ({
-  transactions: {}
+  transactions: {},
+  lastPage: 0
 })
 
 export const mutations = {
@@ -13,22 +14,33 @@ export const mutations = {
         Vue.set(state.transactions, transaction.hash, transaction)
       }
     }
+  },
+  setLastPage (state, page) {
+    state.lastPage = page
   }
 }
 
 export const actions = {
-  getLatestTransactions: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, payload) {
-    const page = payload.page
-    const maxTransactions = payload.numTransactions
+  getLatestTransactions: async function ({ state, rootState: { nodeUrl, height }, commit }, { limit }) {
     try {
-      const transactions = await axios.get(`${nodeUrl}/middleware/transactions/interval/1/${height}?limit=${maxTransactions}&page=${page}`)
+      const page = state.lastPage + 1
+      const transactions = await axios.get(`${nodeUrl}/middleware/transactions/interval/1/${height}?limit=${limit}&page=${page}`)
       commit('setTransactions', transactions.data.transactions)
+      commit('setLastPage', page)
       return transactions.data.transactions
     } catch (e) {
       commit('catchError', 'Error', { root: true })
     }
   },
-  getTransactionByHash: async function ({ state, rootState: { nodeUrl }, commit, dispatch }, hash) {
+  getTxByType: async function ({ rootState: { nodeUrl, height }, commit }, { page, limit, txtype }) {
+    try {
+      const transactions = await axios.get(`${nodeUrl}/middleware/transactions/interval/1/${height}?txtype=${txtype}&limit=${limit}&page=${page}`)
+      return transactions.data.transactions
+    } catch (e) {
+      commit('catchError', 'Error', { root: true })
+    }
+  },
+  getTransactionByHash: async function ({ rootState: { nodeUrl }, commit }, hash) {
     try {
       const tx = await axios.get(nodeUrl + '/v2/transactions/' + hash)
       commit('setTransactions', [tx.data])
@@ -38,7 +50,7 @@ export const actions = {
       commit('catchError', 'Error', { root: true })
     }
   },
-  getTransactionByAccount: async function ({ state, rootState: { nodeUrl }, commit, dispatch }, { account, limit, page }) {
+  getTransactionByAccount: async function ({ rootState: { nodeUrl }, commit }, { account, limit, page }) {
     try {
       const tx = await axios.get(`${nodeUrl}/middleware/transactions/account/${account}?page=${page}&limit=${limit}`)
       return tx.data
@@ -49,7 +61,7 @@ export const actions = {
   },
   nuxtServerInit ({ dispatch }, context) {
     return (
-      dispatch('getLatestTransactions', { 'page': 1, 'numTransactions': 10 })
+      dispatch('getLatestTransactions', { limit: 10 })
     )
   }
 }
