@@ -47,22 +47,12 @@
       <div
         class="container-last-wrapper"
       >
-        <div class="container-last-inner">
-          <Account
-            v-if="firstPointerId"
-            :value="firstPointerId"
-            title="Pointer Id"
-            icon
-          />
-          <div v-else>
-            <AppDefinition
-              class="container-last-inner"
-              title="Pointer Id"
-            >
-              -
-            </appdefinition>
-          </div>
-        </div>
+        <AppDefinition
+          class="container-last-inner"
+          title="Pointer Id"
+        >
+          {{ firstPointerId }}
+        </AppDefinition>
         <AppDefinition
           class="container-last-inner"
           title="Pointer Key"
@@ -96,7 +86,7 @@ export default {
       return this.data.pointers ? this.data.pointers[0].key : '-'
     },
     firstPointerId () {
-      return this.data.pointers ? this.data.pointers[0].id : null
+      return this.data.pointers ? this.data.pointers[0].id : '-'
     }
   }
 }
