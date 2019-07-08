@@ -20,9 +20,9 @@
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.tx.account_id"
-            :value="transaction.tx.account_id"
-            title="account"
+            v-if="transaction.tx.oracle_id"
+            :value="transaction.tx.oracle_id"
+            title="oracle"
             icon
           />
           <Account
@@ -41,7 +41,6 @@
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item" />
       <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"
@@ -50,14 +49,20 @@
           <FormatAeUnit
             :value="transaction.tx.fee"
           />
+        </appdefinition>
+      </div>
+      <div class="transaction-type-info-item">
+        <AppDefinition
+          v-if="transaction.tx.oracle_ttl"
+          title="oracle ttl type"
+        >
+          {{ transaction.tx.oracle_ttl.type }}
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.oracle_ttl"
+          title="oracle ttl value"
         >
-          <FormatAeUnit
-            :value="transaction.tx.cost"
-          />
+          {{ transaction.tx.oracle_ttl.value }}
         </AppDefinition>
       </div>
     </div>
