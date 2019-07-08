@@ -124,7 +124,15 @@ export default {
   padding: 0.6rem 0.6rem 0 0;
   border-radius: 0.4rem;
   margin-bottom: 1rem;
-  width: 40%;
+
+  @media(min-width: 360px) {
+    width: 80%;
+  }
+
+  @media(min-width: 768px) {
+    width: 40%;
+  }
+
   .multiselect__option--highlight {
     background: #14CCB7;
     outline: none;
