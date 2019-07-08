@@ -44,10 +44,10 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.ttl"
-          title="ttl"
+          v-if="transaction.tx.nonce"
+          title="nonce"
         >
-          {{ transaction.tx.ttl }}
+          {{ transaction.tx.nonce }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
