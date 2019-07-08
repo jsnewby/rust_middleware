@@ -27,7 +27,11 @@ module.exports = {
   ** Global CSS
   */
   css: [
-    { src: 'styles/index.scss', lang: 'scss' }
+    { src: 'styles/index.scss', lang: 'scss' },
+    {
+      src: 'vue-multiselect/dist/vue-multiselect.min.css',
+      lang: 'css'
+    }
   ],
   env: {
     middlewareURL: process.env.NUXT_APP_NODE_URL || 'https://testnet.mdw.aepps.com',
