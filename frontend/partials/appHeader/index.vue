@@ -35,14 +35,8 @@ export default {
 .app-header {
   background-color: #D3DCE6;
   min-height: 30vh;
-  @media (min-width:765px) {
-    margin-bottom: -20rem;
-  }
-  @media (min-width: 769px) {
-    min-height: 60vh;
-    display: flex;
+  margin-bottom: -7.75rem;
 
-  }
   &-content {
     margin-left: auto;
     width: 80%;
