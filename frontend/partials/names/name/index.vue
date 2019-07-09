@@ -95,7 +95,7 @@ export default {
     border-radius: .4rem;
     box-shadow: 0 0 16px 0 rgba(27,68,121,0.10);
     margin-bottom: 1rem;
-    @media (min-width: 550px) {
+    @media (min-width: 768px) {
       flex-direction: row;
       border-radius: 0;
       box-shadow: none;
@@ -112,7 +112,7 @@ export default {
       flex-direction: column;
       justify-content: space-between;
     }
-    @media (min-width: 550px) {
+    @media (min-width: 768px) {
       width: 40%;
       margin-top: 1.5em;
       flex-direction: column;
@@ -120,7 +120,7 @@ export default {
     }
 
     @media (min-width: 2560px) {
-      margin-top: 2em;
+      margin-top: 1.5em;
       flex-direction: row;
       justify-content: flex-start;
     }
@@ -136,10 +136,9 @@ export default {
         justify-content: flex-start;
         align-items: center;
       }
-      @media (min-width: 550px) {
+      @media (min-width: 768px) {
         width: 100%;
         flex-direction: row;
-        margin-top: 2em;
         justify-content: flex-start;
         align-items: center;
       }
@@ -151,7 +150,7 @@ export default {
 
       &:last-child {
         border-left: 2px solid $color-neutral-positive-2;
-        @media (min-width: 550px) {
+        @media (min-width: 768px) {
           border-left: none;
         }
       }
@@ -161,7 +160,7 @@ export default {
     display: flex;
     align-items: baseline;
     flex-direction: column;
-    @media (min-width: 550px) {
+    @media (min-width: 768px) {
       width: 80%;
       border-left: 2px solid $color-neutral-positive-2;
     }
@@ -178,7 +177,7 @@ export default {
       &:last-child {
         padding-bottom: 0;
       }
-      @media (min-width: 550px) {
+      @media (min-width: 768px) {
         border-top: none;
         padding: 0;
         &:first-child {
@@ -196,7 +195,7 @@ export default {
       &:nth-child(2n) {
         border-left: 2px solid $color-neutral-positive-2;
       }
-      @media (min-width: 550px) {
+      @media (min-width: 768px) {
         &:nth-child(2n) {
           border-left: 2px solid $color-neutral-positive-2;
         }
