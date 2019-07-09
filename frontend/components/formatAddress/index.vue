@@ -26,13 +26,16 @@
         </span>
       </span>
     </template>
-    <template v-else>
+    <template v-if="length === 'full'">
       <span
         v-for="chunk in chunked"
         :key="chunk.id"
       >
         {{ chunk }}
       </span>
+    </template>
+    <template v-if="length === 'nochunk'">
+      {{ value }}
     </template>
     <div
       v-if="icon"
