@@ -10,6 +10,7 @@
         v-model="value"
         :options="options"
         :allow-empty="false"
+        :loading="loading"
         placeholder="Select transaction type...."
         @input="processInput"
       />
@@ -23,6 +24,12 @@
         />
       </TxList>
       <LoadMoreButton @update="loadmore" />
+    </div>
+    <div v-if="loading">
+      Loading....
+    </div>
+    <div v-if="!loading && Object.keys(transactions).length == 0">
+      No matching transactions found for the selected type.
     </div>
   </div>
 </template>
@@ -46,6 +53,7 @@ export default {
   data () {
     return {
       typePage: 1,
+      loading: false,
       value: 'All',
       prev: 'All',
       transactions: this.$store.state.transactions.transactions,
@@ -104,14 +112,16 @@ export default {
       })
       this.typePage += 1
     },
-    processInput () {
+    async processInput () {
       if (this.value === 'All') {
         this.tranasction = {}
         this.transactions = this.$store.state.transactions.transactions
       } else {
+        this.loading = true
         this.typePage = 1
         this.transactions = {}
-        this.loadmore()
+        await this.loadmore()
+        this.loading = false
       }
     }
   }
@@ -144,6 +154,9 @@ export default {
   }
   .multiselect__option--selected.multiselect__option--highlight:after {
     background: #FF0D6A;
+  }
+  .multiselect__spinner:after,.multiselect__spinner:before {
+    border-top-color:#FF0D6A;
   }
 }
 </style>
