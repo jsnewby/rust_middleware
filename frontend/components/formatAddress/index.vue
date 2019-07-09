@@ -130,12 +130,9 @@ export default {
       }
     }
     & span:nth-child(2) {
-      @media (max-width: 450px) {
+      @media (min-width: 320px) {
         margin-left: -.5rem;
       }
-    }
-    & span:nth-child(3) {
-
     }
   }
   .middle-chunk {
@@ -149,12 +146,7 @@ export default {
         display: none;
       }
      }
-    & span:nth-child(2) {
-      @media (max-width: 600px) {
-        display: none;
-      }
 
-    }
   }
 
 </style>
