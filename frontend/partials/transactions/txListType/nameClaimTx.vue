@@ -18,13 +18,13 @@
         </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
-        <AppDefinition
+        <Account
           v-if="transaction.tx.name"
+          :value="transaction.tx.name"
           title="name"
-          class="name"
-        >
-          {{ transaction.tx.name }}
-        </AppDefinition>
+          length="nochunk"
+          icon
+        />
         <Account
           v-if="transaction.tx.account_id"
           :value="transaction.tx.account_id"
