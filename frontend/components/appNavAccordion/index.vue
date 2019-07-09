@@ -1,8 +1,6 @@
 <template>
   <div
-    :class="
-      openMenu ? 'open' : ''
-    "
+    :class="openMenu ? 'open' : ''"
     class="app-nav-accordion"
   >
     <button
