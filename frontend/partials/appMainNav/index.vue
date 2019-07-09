@@ -8,7 +8,7 @@
         <div class="mobile-search">
           <SearchBar />
           <p class="mobile-search-info">
-            Search by address / txhash / block / name.aet
+            Search by account, height, tx, oracle, contract, channel
           </p>
         </div>
       </AppNavAccordion>
