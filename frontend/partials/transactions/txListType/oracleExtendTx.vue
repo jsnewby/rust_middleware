@@ -18,26 +18,12 @@
         </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
-        <AccountGroup>
-          <Account
-            v-if="transaction.tx.oracle_id"
-            :value="transaction.tx.oracle_id"
-            title="oracle"
-            icon
-          />
-          <Account
-            v-if="transaction.tx.sender_id"
-            :value="transaction.tx.sender_id"
-            title="Sender"
-            icon
-          />
-          <Account
-            v-if="transaction.tx.recipient_id"
-            :value="transaction.tx.recipient_id"
-            title="recipient"
-            icon
-          />
-        </AccountGroup>
+        <Account
+          v-if="transaction.tx.oracle_id"
+          :value="transaction.tx.oracle_id"
+          title="oracle"
+          icon
+        />
       </div>
     </div>
     <div class="transaction-type-info">
@@ -71,7 +57,6 @@
 <script>
 import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
-import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
@@ -82,7 +67,6 @@ export default {
     LabelType,
     AppDefinition,
     FormatAeUnit,
-    AccountGroup,
     Account,
     Age
   },
