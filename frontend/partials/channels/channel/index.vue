@@ -14,7 +14,7 @@
         <Account
           v-if="data"
           :value="data"
-          length="long"
+          length="nochunk"
           title="Channel Id"
           icon
         />
