@@ -6,36 +6,42 @@
     class="format-address"
   >
     <template v-if="length === 'responsive'">
-      <span class="first-chunk">
-        <span
-          v-for="chunk in chunked.slice(0, 3)"
-          :key="chunk"
-        >
-          {{ chunk }}
+      <nuxt-link :to="link">
+        <span class="first-chunk">
+          <span
+            v-for="chunk in chunked.slice(0, 3)"
+            :key="chunk"
+          >
+            {{ chunk }}
+          </span>
         </span>
-      </span>
-      <span class="middle-chunk">
-        ...
-      </span>
-      <span class="last-chunk">
-        <span
-          v-for="chunk in chunked.slice(15, 18)"
-          :key="chunk"
-        >
-          {{ chunk }}
+        <span class="middle-chunk">
+          ...
         </span>
-      </span>
+        <span class="last-chunk">
+          <span
+            v-for="chunk in chunked.slice(15, 18)"
+            :key="chunk"
+          >
+            {{ chunk }}
+          </span>
+        </span>
+      </nuxt-link>
     </template>
     <template v-if="length === 'full'">
-      <span
-        v-for="chunk in chunked"
-        :key="chunk.id"
-      >
-        {{ chunk }}
-      </span>
+      <nuxt-link :to="link">
+        <span
+          v-for="chunk in chunked"
+          :key="chunk.id"
+        >
+          {{ chunk }}
+        </span>
+      </nuxt-link>
     </template>
     <template v-if="length === 'nochunk'">
-      {{ value }}
+      <nuxt-link :to="link">
+        {{ value }}
+      </nuxt-link>
     </template>
     <div
       v-if="icon"
@@ -78,6 +84,24 @@ export default {
     },
     chunked () {
       return this.value.match(/^\w{2}_|.{2}(?=.{47,48}$)|.{2,3}/g)
+    },
+    link () {
+      if (this.value.match(/^th_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        return `/transactions/${this.value}`
+      }
+      if (this.value.match(/^ok_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        return `/oracles/queries/${this.value}`
+      }
+      if (this.value.match(/^ch_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        return `/channels/transactions/${this.value}`
+      }
+      if (this.value.match(/^ct_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        return `/contracts/transactions/${this.value}`
+      }
+      if (this.value.match(/^ak_[1-9A-HJ-NP-Za-km-z]{48,50}$/)) {
+        return `/account/transactions/${this.value}`
+      }
+      return ''
     }
   }
 }
