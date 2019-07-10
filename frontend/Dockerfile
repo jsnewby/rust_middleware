@@ -13,6 +13,7 @@ RUN NUXT_APP_NODE_URL=$NODE_URL NUXT_APP_NODE_WS=$NODE_WS NUXT_APP_NETWORK_NAME=
 FROM node:10.15.1-alpine as frontend
 WORKDIR /app
 COPY --from=frontend-build /app/.nuxt /app/.nuxt
+COPY --from=frontend-build /app/static /app/static
 RUN npm install nuxt@2.8.1 @nuxtjs/axios@5.5.4 @download/blockies@1.0.3 clipboard-copy@3.0.0 vue-multiselect@2.1.6 bignumber.js@9.0.0 && \
     npm cache clean --force
 COPY package.json package.json
