@@ -50,9 +50,13 @@ export const actions = {
       commit('catchError', 'Error', { root: true })
     }
   },
-  getTransactionByAccount: async function ({ rootState: { nodeUrl }, commit }, { account, limit, page }) {
+  getTransactionByAccount: async function ({ rootState: { nodeUrl }, commit }, { account, limit, page, txtype }) {
     try {
-      const tx = await axios.get(`${nodeUrl}/middleware/transactions/account/${account}?page=${page}&limit=${limit}`)
+      let url = `${nodeUrl}/middleware/transactions/account/${account}?page=${page}&limit=${limit}`
+      if (txtype) {
+        url += `&txtype=${txtype}`
+      }
+      const tx = await axios.get(url)
       return tx.data
     } catch (e) {
       console.log(e)

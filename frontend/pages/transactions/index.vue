@@ -55,33 +55,8 @@ export default {
       typePage: 1,
       loading: false,
       value: 'All',
-      prev: 'All',
       transactions: this.$store.state.transactions.transactions,
-      options: [
-        'All',
-        'SpendTx',
-        'OracleRegisterTx',
-        'OracleExtendTx',
-        'OracleQueryTx',
-        'OracleResponseTx',
-        'NamePreclaimTx',
-        'NameClaimTx',
-        'NameUpdateTx',
-        'NameTransferTx',
-        'NameRevokeTx',
-        'GAAttachTx',
-        'ContractCallTx',
-        'ContractCreateTx',
-        'ChannelCreateTx',
-        'ChannelDepositTx',
-        'ChannelWithdrawTx',
-        'ChannelCloseMutualTx',
-        'ChannelForceProgressTx',
-        'ChannelCloseSoloTx',
-        'ChannelSlashTx',
-        'ChannelSettleTx',
-        'ChannelSnapshotSoloTx'
-      ]
+      options: this.$store.state.filterOptions
     }
   },
   methods: {
@@ -127,36 +102,3 @@ export default {
   }
 }
 </script>
-<style lang="scss">
-.filter {
-  display: flex;
-  flex-direction: column;
-  padding: 0.6rem 0.6rem 0 0;
-  border-radius: 0.4rem;
-  margin-bottom: 1rem;
-
-  @media(min-width: 360px) {
-    width: 80%;
-  }
-
-  @media(min-width: 768px) {
-    width: 40%;
-  }
-
-  .multiselect__option--highlight {
-    background: #14CCB7;
-  }
-  .multiselect__option--highlight:after {
-    background: #14CCB7;
-  }
-  .multiselect__option--selected.multiselect__option--highlight {
-    background: #FF0D6A;
-  }
-  .multiselect__option--selected.multiselect__option--highlight:after {
-    background: #FF0D6A;
-  }
-  .multiselect__spinner:after,.multiselect__spinner:before {
-    border-top-color:#FF0D6A;
-  }
-}
-</style>

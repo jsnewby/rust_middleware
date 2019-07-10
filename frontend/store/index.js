@@ -8,7 +8,32 @@ export const state = () => ({
   error: '',
   height: 0,
   ws: null,
-  wsConnected: false
+  wsConnected: false,
+  filterOptions: [
+    'All',
+    'SpendTx',
+    'OracleRegisterTx',
+    'OracleExtendTx',
+    'OracleQueryTx',
+    'OracleResponseTx',
+    'NamePreclaimTx',
+    'NameClaimTx',
+    'NameUpdateTx',
+    'NameTransferTx',
+    'NameRevokeTx',
+    'GAAttachTx',
+    'ContractCallTx',
+    'ContractCreateTx',
+    'ChannelCreateTx',
+    'ChannelDepositTx',
+    'ChannelWithdrawTx',
+    'ChannelCloseMutualTx',
+    'ChannelForceProgressTx',
+    'ChannelCloseSoloTx',
+    'ChannelSlashTx',
+    'ChannelSettleTx',
+    'ChannelSnapshotSoloTx'
+  ]
 })
 
 export const mutations = {

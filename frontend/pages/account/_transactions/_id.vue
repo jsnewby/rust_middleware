@@ -5,19 +5,32 @@
       :has-crumbs="true"
       :page="{to: `/account/transactions/${$route.params.id}`, name: `${account.id}(${amount})`}"
     />
+    <div class="filter">
+      <multiselect
+        v-model="value"
+        :options="options"
+        :allow-empty="false"
+        :loading="loading"
+        placeholder="Select transaction type...."
+        @input="processInput"
+      />
+    </div>
     <div v-if="transactions.length > 0">
       <TxList>
         <TXListItem
-          v-for="tx of transactions"
-          :key="tx.hash"
+          v-for="(tx, index) of transactions"
+          :key="index"
           :data="tx"
           :address="`${$route.params.id}`"
         />
       </TxList>
       <LoadMoreButton @update="loadMore" />
     </div>
-    <div v-else>
-      Nothing to see here right now...
+    <div v-if="loading">
+      Loading....
+    </div>
+    <div v-if="!loading && transactions.length == 0">
+      No matching transactions found for the selected type.
     </div>
   </div>
 </template>
@@ -29,6 +42,7 @@ import TXListItem from '../../../partials/transactions/txListItem'
 import PageHeader from '../../../components/PageHeader'
 import LoadMoreButton from '../../../components/loadMoreButton'
 import prefixAmount from '../../../plugins/filters/prefixedAmount'
+import Multiselect from 'vue-multiselect'
 
 export default {
   name: 'AccountTransactions',
@@ -36,7 +50,8 @@ export default {
     TxList,
     TXListItem,
     PageHeader,
-    LoadMoreButton
+    LoadMoreButton,
+    Multiselect
   },
   data () {
     return {
@@ -44,7 +59,10 @@ export default {
         balance: 0
       },
       transactions: [],
-      page: 1
+      page: 1,
+      loading: false,
+      value: 'All',
+      options: this.$store.state.filterOptions
     }
   },
   computed: {
@@ -53,15 +71,23 @@ export default {
     }
   },
   async asyncData ({ store, params }) {
-    const transactions = await store.dispatch('transactions/getTransactionByAccount', { account: params.id, page: 1, limit: 10 })
+    const transactions = await store.dispatch('transactions/getTransactionByAccount', { account: params.id, page: 1, limit: 10, txtype: null })
     const account = await store.dispatch('account/getAccountDetails', params.id)
     return { address: params.id, transactions, page: 2, account }
   },
   methods: {
     async loadMore () {
-      const transactions = await this.$store.dispatch('transactions/getTransactionByAccount', { account: this.account.id, page: this.page, limit: 10 })
+      const txtype = this.value === 'All' ? null : this.value
+      const transactions = await this.$store.dispatch('transactions/getTransactionByAccount', { account: this.account.id, page: this.page, limit: 10, txtype })
       this.transactions = [...this.transactions, ...transactions]
       this.page += 1
+    },
+    async processInput () {
+      this.loading = true
+      this.page = 1
+      this.transactions = []
+      await this.loadMore()
+      this.loading = false
     }
   }
 }
