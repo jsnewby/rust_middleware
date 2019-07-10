@@ -103,9 +103,6 @@ export default {
     display: flex;
     & .app-icon {
       margin-left: .3rem;
-      /*@media (max-width:450px) {*/
-        /*display: none;*/
-      /*}*/
     }
     &.v-copied-to-clipboard:before {
       @extend %face-mono-base;

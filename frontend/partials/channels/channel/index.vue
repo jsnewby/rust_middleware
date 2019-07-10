@@ -14,7 +14,6 @@
         <Account
           v-if="data"
           :value="data"
-          length="nochunk"
           title="Channel Id"
           icon
         />
@@ -84,16 +83,10 @@ export default {
         justify-content: flex-start;
         align-items: center;
       }
-      @media (min-width: 1600px) {
-        width: auto;
-      }
       &:last-child {
         border-left: 2px solid $color-neutral-positive-2;
         @media (min-width: 550px) {
           border-left: none;
-        }
-        @media (min-width: 1600px) {
-          margin-left: 2rem;
         }
       }
     }
