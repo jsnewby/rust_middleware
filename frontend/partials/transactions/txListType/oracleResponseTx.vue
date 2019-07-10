@@ -46,7 +46,7 @@
           v-if="transaction.tx.response"
           title="response"
         >
-          {{ transaction.tx.response }}
+          {{ response }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -92,6 +92,15 @@ export default {
     transaction: {
       type: Object,
       required: true
+    }
+  },
+  computed: {
+    response () {
+      try {
+        return atob(this.transaction.tx.response)
+      } catch (error) {
+      }
+      return this.transaction.tx.response
     }
   }
 }
