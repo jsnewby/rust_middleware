@@ -40,7 +40,14 @@
       <div
         class="container-last-wrapper"
       >
+        <Account
+          v-if="firstPointerKey === 'account_pubkey'"
+          :value="firstPointerId"
+          title="Pointer Id"
+          icon
+        />
         <AppDefinition
+          v-else
           class="container-last-inner"
           title="Pointer Id"
         >
