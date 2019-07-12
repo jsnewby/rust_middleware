@@ -15,7 +15,7 @@
         @input="processInput"
       />
     </div>
-    <div v-if="transactions.length > 0">
+    <div v-if="transactions.length > 0 && !account.error">
       <TxList>
         <TXListItem
           v-for="(tx, index) of transactions"
@@ -29,8 +29,11 @@
     <div v-if="loading">
       Loading....
     </div>
-    <div v-if="!loading && transactions.length == 0">
+    <div v-if="!loading && !account.error &&transactions.length == 0">
       No matching transactions found for the selected type.
+    </div>
+    <div v-if="!loading && account.error">
+      {{ account.error }}
     </div>
   </div>
 </template>
