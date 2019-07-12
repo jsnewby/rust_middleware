@@ -92,18 +92,15 @@ impl BlockLoader {
     }
 
     pub fn start_fork_detection(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) {
-        loop {
+        debug!("Entering fork detection");
+        let _tx = _tx.clone();
+        let node = node.clone();
+        thread::spawn(move || loop {
             let node = node.clone();
             let _tx = _tx.clone();
-            let handle = thread::spawn(move || {
-                match BlockLoader::new_detect_forks(&node, &_tx) {
-                    Ok(x) => {
-                        if x {
-                            info!("Fork detected");
-                        }
-                    }
-                    Err(x) => error!("Error in fork detection {}", x),
-                }
+            let handle = thread::spawn(move || match BlockLoader::detect_forks(&node, &_tx) {
+                Ok(_) => {}
+                Err(x) => error!("Error in fork detection {}", x),
             });
             match handle.join() {
                 Ok(_) => {
@@ -114,11 +111,11 @@ impl BlockLoader {
                     error!("Error creating fork detection thread, exiting");
                     break;
                 }
-            };
-        }
+            }
+        });
     }
 
-    pub fn new_detect_forks(
+    pub fn inner_detect_forks(
         node: &Node,
         _tx: &std::sync::mpsc::Sender<i64>,
     ) -> MiddlewareResult<bool> {
@@ -150,7 +147,7 @@ impl BlockLoader {
                 break;
             }
 
-            let mut differences = vec!();
+            let mut differences = vec![];
             if !in_fork {
                 for i in 0..gen_from_db.micro_blocks.len() {
                     differences = BlockLoader::compare_micro_blocks(
@@ -168,105 +165,35 @@ impl BlockLoader {
                 }
             }
             if !in_fork {
+                debug!("No fork found. Exiting loop");
                 break;
             } else {
-                info!("{} detected at height {} with chain length {}\n\
-                       db generation: {:?}\n\
-                       chain generation: {:?}\n",
-                      if current_height == chain_length {
-                          "Fork"
-                      } else {
-                          "Micro Fork"
-                      },
-                      current_height, chain_length,
-                      gen_from_db, gen_from_server);
+                BlockLoader::invalidate_block_at_height(current_height, &conn, &_tx);
+                info!(
+                    "{} detected at height {} with chain length {}\n\
+                     db generation: {:?}\n\
+                     chain generation: {:?}\n",
+                    if current_height == chain_length {
+                        "Fork"
+                    } else {
+                        "Micro Fork"
+                    },
+                    current_height,
+                    chain_length,
+                    gen_from_db,
+                    gen_from_server
+                );
             }
         }
         Ok(fork_was_detected)
     }
 
-    /*
-     * We walk backward through the chain loading generations from the
-     * DB, and requesting them from the chain. We pause 1 second
-     * between each check, and only check 500 blocks (~1 day)
-     * back. For each pair of blocks we compare them using their eq()
-     * mehods. If false we delete the block from the DB (which
-     * cascades to delete the microblocks and transactions), and put
-     * the height onto the load queue.
-     *
-     * TODO: disassociate the TXs from the micro-blocks and keep them
-     * for reporting purposes.
-     */
-    pub fn detect_forks(
-        node: &Node,
-        from: i64,
-        to: i64,
-        _tx: &std::sync::mpsc::Sender<i64>,
-    ) -> MiddlewareResult<bool> {
-        let conn = PGCONNECTION.get()?;
-        let mut fork_detected = false;
-        let mut _height = KeyBlock::top_height(&conn)? - from;
-        let mut stop_height = _height - to;
+    pub fn detect_forks(node: &Node, _tx: &std::sync::mpsc::Sender<i64>) -> MiddlewareResult<()> {
         loop {
-            // first time through fork_detected will be false, on subsequent trips it will have the value
-            // of the last iteration. Putting it here so we can just continue when we find a fork, to save
-            // time.
-            if fork_detected {
-                info!("In fork: invalidating block at height {}", _height);
-                BlockLoader::invalidate_block_at_height(_height, &conn, &_tx)?;
-                fork_detected = false;
-            } else {
-                debug!("Block checks out at height {}", _height);
-                thread::sleep(std::time::Duration::new(2, 0));
-            }
-
-            _height -= 1;
-
-            if _height <= stop_height {
-                _height = KeyBlock::top_height(&conn)?;
-                stop_height = _height - to;
-                debug!(
-                    "Resetting fork detection loop: now from {} to {}",
-                    _height, stop_height
-                );
-            }
-
-            let jg: JsonGeneration = match JsonGeneration::get_generation_at_height(
-                &*SQLCONNECTION.get()?,
-                &conn,
-                _height,
-            ) {
-                Some(x) => x,
-                None => {
-                    error!("Couldn't load generation {} from DB", _height);
-                    fork_detected = true;
-                    continue;
-                }
-            };
-
-            let gen_from_server: JsonGeneration =
-                serde_json::from_value(node.get_generation_at_height(_height)?)?;
-            if !jg.eq(&gen_from_server) {
-                debug!("Generations don't match at height {}", _height);
-                fork_detected = true;
-                continue;
-            }
-
-            for i in 0..jg.micro_blocks.len() {
-                let differences = BlockLoader::compare_micro_blocks(
-                    &node,
-                    &conn,
-                    _height,
-                    jg.micro_blocks[i].clone(),
-                    jg.micro_blocks[i].clone(),
-                )?;
-                if differences.len() != 0 {
-                    info!("Microblocks differ: {:?}", differences);
-                    fork_detected = true;
-                }
-            }
+            BlockLoader::inner_detect_forks(node, _tx)?;
+            thread::sleep(std::time::Duration::new(5, 0));
         }
-        Ok(fork_detected)
+        Ok(())
     }
 
     /*
