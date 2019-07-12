@@ -59,6 +59,14 @@ export default {
       options: this.$store.state.filterOptions
     }
   },
+  async created () {
+    if (!Object.keys(this.$store.state.transactions.transactions).length) {
+      this.loading = true
+      await this.$store.dispatch('height')
+      await this.getAllTx()
+      this.loading = false
+    }
+  },
   methods: {
     async loadmore () {
       if (this.value === 'All') {

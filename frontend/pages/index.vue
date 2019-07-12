@@ -68,9 +68,12 @@ export default {
   },
   async mounted () {
     this.$store.dispatch('setupWebSocket')
-    if (Object.keys(this.$store.state.generations.generations).length === 0) {
+    if (!Object.keys(this.$store.state.generations.generations).length) {
       await this.$store.dispatch('height')
       this.$store.dispatch('generations/getLatestGenerations', 10)
+    }
+    if (!Object.keys(this.$store.state.transactions.transactions).length) {
+      await this.$store.dispatch('height')
       this.$store.dispatch('transactions/getLatestTransactions', { limit: 10 })
     }
   }

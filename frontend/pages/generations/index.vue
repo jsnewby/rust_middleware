@@ -49,6 +49,12 @@ export default {
       'generations'
     ])
   },
+  async mounted () {
+    if (!Object.keys(this.$store.state.generations.generations).length) {
+      await this.$store.dispatch('height')
+      this.$store.dispatch('generations/getLatestGenerations', 10)
+    }
+  },
   methods: {
     loadMoreGen () {
       this.$store.dispatch('generations/getLatestGenerations', this.limitGen)
