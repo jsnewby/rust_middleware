@@ -6,8 +6,16 @@ export const actions = {
       const acc = await axios.get(`${nodeUrl}/v2/accounts/${account}`)
       return acc.data
     } catch (e) {
-      console.log(e)
       commit('catchError', 'Error', { root: true })
+      const basicError = {
+        id: account,
+        balance: 0,
+        error: 'Unable to fetch account details'
+      }
+      if (e.response.status === 500) {
+        basicError.error = 'Account not found'
+      }
+      return basicError
     }
   }
 }
