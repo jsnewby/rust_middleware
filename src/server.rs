@@ -941,7 +941,7 @@ fn active_names(
             "select * from \
              names where \
              expires_at >= {} and \
-             owner ilike '{}' \
+             owner = '{}' \
              order by created_at_height desc \
              limit {} offset {} ",
             KeyBlock::top_height(&*connection).unwrap(),
@@ -976,7 +976,7 @@ fn all_names(
     let sql: String = match owner {
         Some(owner) => format!(
             "select * from names \
-             where owner ilike '{}' \
+             where owner = '{}' \
              order by created_at_height desc \
              limit {} offset {} ",
             sanitize(&owner),
