@@ -938,16 +938,17 @@ fn active_names(
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql: String = match owner {
         Some(owner) => format!(
-        "select * from \
-         names where \
-         expires_at >= {} and \
-         owner ilike '{}' \
-         order by created_at_height desc \
-         limit {} offset {} ",
-        KeyBlock::top_height(&*connection).unwrap(),
-        owner
-        limit_sql,
-        offset_sql),
+            "select * from \
+             names where \
+             expires_at >= {} and \
+             owner ilike '{}' \
+             order by created_at_height desc \
+             limit {} offset {} ",
+            KeyBlock::top_height(&*connection).unwrap(),
+            sanitize(&owner),
+            limit_sql,
+            offset_sql
+        ),
         _ => format!(
             "select * from \
              names where \
@@ -974,13 +975,14 @@ fn all_names(
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql: String = match owner {
         Some(owner) => format!(
-        "select * from names \
-         where owner ilike '{}' \
-         order by created_at_height desc \
-         limit {} offset {} ",
-         owner
-         limit_sql,
-         offset_sql),
+            "select * from names \
+             where owner ilike '{}' \
+             order by created_at_height desc \
+             limit {} offset {} ",
+            sanitize(&owner),
+            limit_sql,
+            offset_sql
+        ),
         _ => format!(
             "select * from names \
              order by created_at_height desc \
