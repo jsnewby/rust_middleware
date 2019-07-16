@@ -159,28 +159,6 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> Middl
     Ok(true)
 }
 
-/*
- * Detect forks iterates through the blocks in the DB asking for them and checking
- * that they match what we have in the DB.
- */
-fn detect_forks(url: &String, from: i64, to: i64, _tx: std::sync::mpsc::Sender<i64>) {
-    debug!("In detect_forks()");
-    let u = url.clone();
-    let u2 = u.clone();
-    thread::spawn(move || {
-        let node = node::Node::new(u2.clone());
-        loop {
-            debug!("Going into fork detection");
-            match loader::BlockLoader::detect_forks(&node, from, to, &_tx) {
-                Ok(_) => (),
-                Err(x) => error!("Error in detect_forks(): {}", x),
-            };
-            debug!("Sleeping.");
-            thread::sleep(std::time::Duration::new(2, 0));
-        }
-    });
-}
-
 fn main() {
     match env::var("LOG_DIR") {
         Ok(x) => {

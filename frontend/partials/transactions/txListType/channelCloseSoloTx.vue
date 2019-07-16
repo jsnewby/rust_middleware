@@ -18,29 +18,29 @@
         </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
-        <Account
-          v-if="transaction.tx.owner_id"
-          :value="transaction.tx.owner_id"
-          title="owner"
-          icon
-        />
+        <AccountGroup>
+          <Account
+            v-if="transaction.tx.from_id"
+            :value="transaction.tx.from_id"
+            title="From Account"
+            icon
+          />
+          <Account
+            v-if="transaction.tx.channel_id"
+            :value="transaction.tx.channel_id"
+            title="channel id"
+            icon
+          />
+        </AccountGroup>
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item ">
+      <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.block_height"
-          title="block_height"
+          v-if="transaction.tx.nonce"
+          title="nonce"
         >
-          {{ transaction.block_height }}
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.deposit"
-          title="Deposit"
-        >
-          <FormatAeUnit
-            :value="transaction.tx.deposit"
-          />
+          {{ transaction.tx.nonce }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -48,17 +48,13 @@
           v-if="transaction.tx.fee"
           title="tx fee"
         >
-          <FormatAeUnit
-            :value="transaction.tx.fee"
-          />
+          <FormatAeUnit :value="transaction.tx.fee" />
         </AppDefinition>
         <AppDefinition
           v-if="transaction.tx.cost"
           title="tx cost"
         >
-          <FormatAeUnit
-            :value="transaction.tx.cost"
-          />
+          <FormatAeUnit :value="transaction.tx.cost" />
         </AppDefinition>
       </div>
     </div>
@@ -67,16 +63,18 @@
 <script>
 import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
+import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
 
 export default {
-  name: 'ContractCreateTx',
+  name: 'ChannelCloseSoloTx',
   components: {
     LabelType,
     AppDefinition,
     FormatAeUnit,
+    AccountGroup,
     Account,
     Age
   },

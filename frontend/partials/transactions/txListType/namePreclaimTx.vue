@@ -32,17 +32,24 @@
             icon
           />
         </AccountGroup>
-        <AppDefinition
+        <Account
           v-if="transaction.tx.name"
+          :value="transaction.tx.name"
           title="name"
-          class="name"
-        >
-          {{ transaction.tx.name }}
-        </AppDefinition>
+          length="nochunk"
+          icon
+        />
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item" />
+      <div class="transaction-type-info-item">
+        <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
+        </AppDefinition>
+      </div>
       <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"

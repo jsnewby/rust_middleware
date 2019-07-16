@@ -37,10 +37,14 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.amount"
           title="Amount"
         >
           <FormatAeUnit :value="transaction.tx.amount" />
+        </AppDefinition>
+        <AppDefinition
+          title="gas"
+        >
+          <FormatAeUnit :value="transaction.tx.gas" />
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -51,10 +55,10 @@
           <FormatAeUnit :value="transaction.tx.fee" />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.gas_price"
+          title="gas price"
         >
-          <FormatAeUnit :value="transaction.tx.cost" />
+          <FormatAeUnit :value="transaction.tx.gas_price" />
         </AppDefinition>
       </div>
     </div>

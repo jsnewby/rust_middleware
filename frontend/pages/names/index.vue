@@ -15,7 +15,10 @@
       </NameList>
       <LoadMoreButton @update="loadMore" />
     </div>
-    <div v-else>
+    <div v-if="loading">
+      Loading....
+    </div>
+    <div v-if="!loading && Object.values(names).length == 0">
       Nothing to see here right now....
     </div>
   </div>
@@ -38,7 +41,8 @@ export default {
   },
   data () {
     return {
-      page: 1
+      page: 1,
+      loading: false
     }
   },
   computed: {
@@ -46,12 +50,14 @@ export default {
       'names'
     ])
   },
-  beforeMount () {
-    this.loadMore()
+  async beforeMount () {
+    this.loading = true
+    await this.loadMore()
+    this.loading = false
   },
   methods: {
-    loadMore () {
-      this.$store.dispatch('names/getNames', { 'page': this.page, 'limit': 10 })
+    async loadMore () {
+      await this.$store.dispatch('names/getNames', { 'page': this.page, 'limit': 10 })
       this.page += 1
     }
   }

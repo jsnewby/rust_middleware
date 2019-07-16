@@ -57,7 +57,7 @@ fn node_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Response {
     {
         Ok(x) => x,
         Err(e) => {
-            info!("non-200 response:\n{}", e.to_string());
+            info!("error response:\n{}", e.to_string());
             return Response::build()
                 .status(Status::new(500, "An error occurred"))
                 .finalize();
@@ -376,10 +376,8 @@ fn transaction_count_for_account(
     check_object(&account);
     let s_acc = sanitize(&account);
     let txtype_sql: String = match txtype {
-        Some(txtype) => {
-            format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype))
-        },
-        _ => { format!(" '{}') ", s_acc) }
+        Some(txtype) => format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype)),
+        _ => format!(" '{}') ", s_acc),
     };
     let sql = format!(
         "select count(1) from transactions where ( \
@@ -430,21 +428,23 @@ fn transactions_for_account(
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let txtype_sql: String = match txtype {
-        Some(txtype) => {
-            format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype))
-        },
-        _ => { format!(" '{}') ", s_acc) }
+        Some(txtype) => format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype)),
+        _ => format!(" '{}') ", s_acc),
     };
     let sql = format!(
         "SELECT m.time_, t.* FROM transactions t, micro_blocks m WHERE \
          m.id = t.micro_block_id AND \
          (t.tx->>'sender_id'='{}' OR \
          t.tx->>'account_id' = '{}' OR \
-         t.tx->>'recipient_id'='{}' or \
+         t.tx->>'recipient_id'='{}' OR \
+         t.tx->>'initiator_id'='{}' OR \
+         t.tx->>'responder_id'='{}' OR \
+         t.tx->>'from_id'='{}' OR \
+         t.tx->>'to_id'='{}' OR \
          t.tx->>'owner_id' = {}\
          order by m.time_ desc \
          limit {} offset {} ",
-        s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
+        s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
     );
     info!("{}", sql);
 
@@ -516,10 +516,8 @@ fn transactions_for_interval(
 ) -> Json<JsonTransactionList> {
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let txtype_sql: String = match txtype {
-        Some(txtype) => {
-            format!(" {}  and tx_type ilike '{}' ", to, sanitize(&txtype))
-            },
-        _ => { to.to_string() }
+        Some(txtype) => format!(" {}  and tx_type ilike '{}' ", to, sanitize(&txtype)),
+        _ => to.to_string(),
     };
     let sql = format!(
         "select t.* from transactions t, micro_blocks m, key_blocks k where \
@@ -566,7 +564,7 @@ fn transactions_for_contract_address(
          t.tx_type='ContractCallTx' and \
          t.tx->>'contract_id' = '{}' or \
          t.id in (select transaction_id from contract_identifiers where \
-         contract_identifier='{}')",
+         contract_identifier='{}') ORDER by t.block_height ASC",
         sanitize(&address),
         sanitize(&address)
     );
@@ -892,13 +890,13 @@ fn oracle_requests_responses(
         let response = match data {
             Some(x) => {
                 let mut response_value = x.clone();
-                let response_hash:String = row.get(4);
-                let response_timestamp:i64 = row.get(6);
+                let response_hash: String = row.get(4);
+                let response_timestamp: i64 = row.get(6);
                 response_value["timestamp"] = serde_json::to_value(&response_timestamp).unwrap();
-                response_value["hash"] =  serde_json::to_value(&response_hash).unwrap();
+                response_value["hash"] = serde_json::to_value(&response_hash).unwrap();
                 response_value
-            },
-            _=> { serde_json::json!(null) },
+            }
+            _ => serde_json::json!(null),
         };
         let result_set = json!({
             "query_id": query_id,
@@ -929,43 +927,69 @@ fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
     })
 }
 
-#[get("/names/active?<limit>&<page>")]
+#[get("/names/active?<limit>&<page>&<owner>")]
 fn active_names(
     _state: State<MiddlewareServer>,
     limit: Option<i32>,
     page: Option<i32>,
+    owner: Option<String>,
 ) -> Json<Vec<Name>> {
     let connection = PGCONNECTION.get().unwrap();
     let (offset_sql, limit_sql) = offset_limit(limit, page);
-    let sql = format!(
-        "select * from \
-         names where \
-         expires_at >= {} \
-         order by created_at_height desc \
-         limit {} offset {} ",
-        KeyBlock::top_height(&*connection).unwrap(),
-        limit_sql,
-        offset_sql
-    );
+    let sql: String = match owner {
+        Some(owner) => format!(
+            "select * from \
+             names where \
+             expires_at >= {} and \
+             owner = '{}' \
+             order by created_at_height desc \
+             limit {} offset {} ",
+            KeyBlock::top_height(&*connection).unwrap(),
+            sanitize(&owner),
+            limit_sql,
+            offset_sql
+        ),
+        _ => format!(
+            "select * from \
+             names where \
+             expires_at >= {} \
+             order by created_at_height desc \
+             limit {} offset {} ",
+            KeyBlock::top_height(&*connection).unwrap(),
+            limit_sql,
+            offset_sql
+        ),
+    };
     let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     Json(names)
 }
 
-#[get("/names?<limit>&<page>")]
+#[get("/names?<limit>&<page>&<owner>")]
 fn all_names(
     _state: State<MiddlewareServer>,
     limit: Option<i32>,
     page: Option<i32>,
+    owner: Option<String>,
 ) -> Json<Vec<Name>> {
     let connection = PGCONNECTION.get().unwrap();
     let (offset_sql, limit_sql) = offset_limit(limit, page);
-    let sql = format!(
-        "select * from names \
-         order by created_at_height desc \
-         limit {} offset {} ",
-        limit_sql,
-        offset_sql
-    );
+    let sql: String = match owner {
+        Some(owner) => format!(
+            "select * from names \
+             where owner = '{}' \
+             order by created_at_height desc \
+             limit {} offset {} ",
+            sanitize(&owner),
+            limit_sql,
+            offset_sql
+        ),
+        _ => format!(
+            "select * from names \
+             order by created_at_height desc \
+             limit {} offset {} ",
+            limit_sql, offset_sql
+        ),
+    };
     let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     Json(names)
 }

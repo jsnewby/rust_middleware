@@ -1,29 +1,45 @@
 <template>
   <div class="app-transactions">
     <PageHeader
-      title=" Transactions"
+      title="Transactions"
       :has-crumbs="true"
       :page="{to: '/transactions', name: 'Transactions'}"
     />
-    <TxList>
-      <TXListItem
-        v-for="(item, index) in Object.values(transactions).reverse()"
-        :key="index"
-        :data="item"
+    <div class="filter">
+      <multiselect
+        v-model="value"
+        :options="options"
+        :allow-empty="false"
+        :loading="loading"
+        placeholder="Select transaction type...."
+        @input="processInput"
       />
-    </TxList>
-    <LoadMoreButton @update="loadmore" />
+    </div>
+    <div v-if="Object.keys(transactions).length > 0">
+      <TxList>
+        <TXListItem
+          v-for="(item, index) in Object.values(transactions)"
+          :key="index"
+          :data="item"
+        />
+      </TxList>
+      <LoadMoreButton @update="loadmore" />
+    </div>
+    <div v-if="loading">
+      Loading....
+    </div>
+    <div v-if="!loading && Object.keys(transactions).length == 0">
+      No matching transactions found for the selected type.
+    </div>
   </div>
 </template>
 
 <script>
-
 import TxList from '../../partials/transactions/txList'
 import TXListItem from '../../partials/transactions/txListItem'
 import PageHeader from '../../components/PageHeader'
 import LoadMoreButton from '../../components/loadMoreButton'
-
-import { mapState } from 'vuex'
+import Multiselect from 'vue-multiselect'
 
 export default {
   name: 'AppTransactions',
@@ -31,22 +47,65 @@ export default {
     TxList,
     TXListItem,
     PageHeader,
-    LoadMoreButton
+    LoadMoreButton,
+    Multiselect
   },
   data () {
     return {
-      page: 1
+      typePage: 1,
+      loading: false,
+      value: 'All',
+      transactions: this.$store.state.transactions.transactions,
+      options: this.$store.state.filterOptions
     }
   },
-  computed: {
-    ...mapState('transactions', [
-      'transactions'
-    ])
+  async created () {
+    if (!Object.keys(this.$store.state.transactions.transactions).length) {
+      this.loading = true
+      await this.$store.dispatch('height')
+      await this.getAllTx()
+      this.loading = false
+    }
   },
   methods: {
-    loadmore () {
-      this.$store.dispatch('transactions/getLatestTransactions', { 'page': this.page, 'numTransactions': 10 })
-      this.page += 1
+    async loadmore () {
+      if (this.value === 'All') {
+        await this.getAllTx()
+      } else {
+        await this.getTxByType()
+      }
+    },
+    async getAllTx () {
+      const tx = await this.$store.dispatch(
+        'transactions/getLatestTransactions',
+        { limit: 10 }
+      )
+      tx.forEach(element => {
+        this.transactions = { ...this.transactions, [element.hash]: element }
+      })
+    },
+    async getTxByType () {
+      const tx = await this.$store.dispatch('transactions/getTxByType', {
+        page: this.typePage,
+        limit: 10,
+        txtype: this.value
+      })
+      tx.forEach(element => {
+        this.transactions = { ...this.transactions, [element.hash]: element }
+      })
+      this.typePage += 1
+    },
+    async processInput () {
+      if (this.value === 'All') {
+        this.tranasction = {}
+        this.transactions = this.$store.state.transactions.transactions
+      } else {
+        this.loading = true
+        this.typePage = 1
+        this.transactions = {}
+        await this.loadmore()
+        this.loading = false
+      }
     }
   }
 }

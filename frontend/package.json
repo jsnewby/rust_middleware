@@ -27,7 +27,8 @@
     "clipboard-copy": "3.0.0",
     "normalize-scss": "7.0.1",
     "nuxt": "2.8.1",
-    "vue": "2.6.10"
+    "vue": "2.6.10",
+    "vue-multiselect": "^2.1.6"
   },
   "devDependencies": {
     "@vue/eslint-config-standard": "4.0.0",

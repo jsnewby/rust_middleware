@@ -84,7 +84,15 @@ export default {
       return this.data.request ? this.data.request.query : '-'
     },
     response () {
-      return this.data.response ? this.data.response.response : '-'
+      let response = '-'
+      if (this.data.response) {
+        try {
+          response = atob(this.data.response.response)
+        } catch (error) {
+          response = this.data.response.response
+        }
+      }
+      return response
     }
   }
 }
@@ -182,7 +190,7 @@ export default {
       }
     }
     &-inner {
-      width: 50%;
+      width: 100%;
       &:nth-child(2n) {
         border-left: 2px solid $color-neutral-positive-2;
       }

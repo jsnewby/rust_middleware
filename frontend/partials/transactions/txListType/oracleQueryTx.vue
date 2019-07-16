@@ -20,28 +20,37 @@
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.tx.account_id"
-            :value="transaction.tx.account_id"
-            title="account"
-            icon
-          />
-          <Account
             v-if="transaction.tx.sender_id"
             :value="transaction.tx.sender_id"
             title="Sender"
             icon
           />
           <Account
-            v-if="transaction.tx.recipient_id"
-            :value="transaction.tx.recipient_id"
-            title="recipient"
+            v-if="transaction.tx.oracle_id"
+            :value="transaction.tx.oracle_id"
+            title="oracle"
             icon
           />
         </AccountGroup>
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item" />
+      <div class="transaction-type-info-item">
+        <AppDefinition
+          v-if="transaction.tx.query"
+          title="Query"
+        >
+          {{ transaction.tx.query }}
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.query_fee"
+          title="Query fee"
+        >
+          <FormatAeUnit
+            :value="transaction.tx.query_fee"
+          />
+        </AppDefinition>
+      </div>
       <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"
@@ -52,11 +61,11 @@
           />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.nonce"
+          title="nonce"
         >
           <FormatAeUnit
-            :value="transaction.tx.cost"
+            :value="transaction.tx.nonce"
           />
         </AppDefinition>
       </div>

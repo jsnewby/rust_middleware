@@ -71,7 +71,7 @@ export default {
   border-radius: 0.4rem;
   box-shadow: 0 0 16px 0 rgba(27, 68, 121, 0.1);
   margin-bottom: 1rem;
-  @media (min-width: 550px) {
+  @media (min-width: 768px) {
     flex-direction: row;
     border-radius: 0;
     box-shadow: none;
@@ -83,38 +83,30 @@ export default {
   display: flex;
   flex-direction: row;
   margin-bottom: 0.6rem;
-  @media (min-width: 550px) {
+  @media (min-width: 768px) {
     width: 50%;
     flex-direction: column;
     justify-content: space-between;
-  }
-  @media (min-width: 1600px) {
-    width: 50%;
-    flex-direction: row;
-    justify-content: flex-start;
   }
   &-inner {
     width: 50%;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    @media (min-width: 550px) {
+    @media (min-width: 768px) {
       width: 100%;
       flex-direction: row;
       justify-content: flex-start;
       align-items: center;
     }
-    @media (min-width: 1600px) {
-      width: auto;
-    }
     &:last-child {
       border-left: 2px solid $color-neutral-positive-2;
-      @media (min-width: 550px) {
+      @media (min-width: 768px) {
         border-left: none;
       }
-      @media (min-width: 1600px) {
+/*       @media (min-width: 1600px) {
         margin-left: 2rem;
-      }
+      } */
     }
   }
 }
@@ -122,13 +114,9 @@ export default {
   display: flex;
   align-items: baseline;
   flex-direction: column;
-  @media (min-width: 550px) {
+  @media (min-width: 768px) {
     width: 50%;
     border-left: 2px solid $color-neutral-positive-2;
-  }
-  @media (min-width: 1600px) {
-    flex-direction: row;
-    border-left: none;
   }
   &-wrapper {
     display: flex;
@@ -139,16 +127,11 @@ export default {
     &:last-child {
       padding-bottom: 0;
     }
-    @media (min-width: 550px) {
+    @media (min-width: 768px) {
       border-top: none;
       padding: 0;
       &:first-child {
         border-bottom: 2px solid $color-neutral-positive-2;
-      }
-    }
-    @media (min-width: 1600px) {
-      &:first-child {
-        border-bottom: none;
       }
     }
   }
@@ -157,13 +140,8 @@ export default {
     &:nth-child(2n) {
       border-left: 2px solid $color-neutral-positive-2;
     }
-    @media (min-width: 550px) {
+    @media (min-width: 768px) {
       &:nth-child(2n) {
-        border-left: 2px solid $color-neutral-positive-2;
-      }
-    }
-    @media (min-width: 1600px) {
-      &:nth-child(1n) {
         border-left: 2px solid $color-neutral-positive-2;
       }
     }

@@ -21,13 +21,6 @@
           icon
         />
       </div>
-      <div class="container-first-inner">
-        <Account
-          :value="data.name_hash"
-          title="Name Hash"
-          icon
-        />
-      </div>
     </div>
     <div class="container-last">
       <div class="container-last-wrapper">
@@ -47,22 +40,19 @@
       <div
         class="container-last-wrapper"
       >
-        <div class="container-last-inner">
-          <Account
-            v-if="firstPointerId"
-            :value="firstPointerId"
-            title="Pointer Id"
-            icon
-          />
-          <div v-else>
-            <AppDefinition
-              class="container-last-inner"
-              title="Pointer Id"
-            >
-              -
-            </appdefinition>
-          </div>
-        </div>
+        <Account
+          v-if="firstPointerKey === 'account_pubkey'"
+          :value="firstPointerId"
+          title="Pointer Id"
+          icon
+        />
+        <AppDefinition
+          v-else
+          class="container-last-inner"
+          title="Pointer Id"
+        >
+          {{ firstPointerId }}
+        </AppDefinition>
         <AppDefinition
           class="container-last-inner"
           title="Pointer Key"
@@ -96,7 +86,7 @@ export default {
       return this.data.pointers ? this.data.pointers[0].key : '-'
     },
     firstPointerId () {
-      return this.data.pointers ? this.data.pointers[0].id : null
+      return this.data.pointers ? this.data.pointers[0].id : '-'
     }
   }
 }
@@ -112,7 +102,7 @@ export default {
     border-radius: .4rem;
     box-shadow: 0 0 16px 0 rgba(27,68,121,0.10);
     margin-bottom: 1rem;
-    @media (min-width: 550px) {
+    @media (min-width: 768px) {
       flex-direction: row;
       border-radius: 0;
       box-shadow: none;
@@ -124,37 +114,51 @@ export default {
     display: flex;
     flex-direction: row;
     margin-bottom: .6rem;
-    @media (min-width: 550px) {
-      width: 40%;
+    @media (max-width: 425px) {
+      width: 100%;
       flex-direction: column;
       justify-content: space-between;
     }
-    @media (min-width: 1600px) {
+    @media (min-width: 768px) {
       width: 40%;
+      margin-top: 1.5em;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    @media (min-width: 2560px) {
+      margin-top: 1.5em;
       flex-direction: row;
       justify-content: flex-start;
     }
     &-inner {
-      width: 50%;
+      width: 40%;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      @media (min-width: 550px) {
+      @media (min-width: 320px) {
+        width: 100%;
+        height: 10%;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+      }
+      @media (min-width: 768px) {
         width: 100%;
         flex-direction: row;
         justify-content: flex-start;
         align-items: center;
       }
       @media (min-width: 1600px) {
-        width: auto;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
       }
+
       &:last-child {
         border-left: 2px solid $color-neutral-positive-2;
-        @media (min-width: 550px) {
+        @media (min-width: 768px) {
           border-left: none;
-        }
-        @media (min-width: 1600px) {
-          margin-left: 2rem;
         }
       }
     }
@@ -163,7 +167,7 @@ export default {
     display: flex;
     align-items: baseline;
     flex-direction: column;
-    @media (min-width: 550px) {
+    @media (min-width: 768px) {
       width: 80%;
       border-left: 2px solid $color-neutral-positive-2;
     }
@@ -180,7 +184,7 @@ export default {
       &:last-child {
         padding-bottom: 0;
       }
-      @media (min-width: 550px) {
+      @media (min-width: 768px) {
         border-top: none;
         padding: 0;
         &:first-child {
@@ -198,7 +202,7 @@ export default {
       &:nth-child(2n) {
         border-left: 2px solid $color-neutral-positive-2;
       }
-      @media (min-width: 550px) {
+      @media (min-width: 768px) {
         &:nth-child(2n) {
           border-left: 2px solid $color-neutral-positive-2;
         }

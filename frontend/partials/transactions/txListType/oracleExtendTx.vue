@@ -18,30 +18,15 @@
         </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
-        <AccountGroup>
-          <Account
-            v-if="transaction.tx.account_id"
-            :value="transaction.tx.account_id"
-            title="account"
-            icon
-          />
-          <Account
-            v-if="transaction.tx.sender_id"
-            :value="transaction.tx.sender_id"
-            title="Sender"
-            icon
-          />
-          <Account
-            v-if="transaction.tx.recipient_id"
-            :value="transaction.tx.recipient_id"
-            title="recipient"
-            icon
-          />
-        </AccountGroup>
+        <Account
+          v-if="transaction.tx.oracle_id"
+          :value="transaction.tx.oracle_id"
+          title="oracle"
+          icon
+        />
       </div>
     </div>
     <div class="transaction-type-info">
-      <div class="transaction-type-info-item" />
       <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"
@@ -50,14 +35,20 @@
           <FormatAeUnit
             :value="transaction.tx.fee"
           />
+        </appdefinition>
+      </div>
+      <div class="transaction-type-info-item">
+        <AppDefinition
+          v-if="transaction.tx.oracle_ttl"
+          title="oracle ttl type"
+        >
+          {{ transaction.tx.oracle_ttl.type }}
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.oracle_ttl"
+          title="oracle ttl value"
         >
-          <FormatAeUnit
-            :value="transaction.tx.cost"
-          />
+          {{ transaction.tx.oracle_ttl.value }}
         </AppDefinition>
       </div>
     </div>
@@ -66,7 +57,6 @@
 <script>
 import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
-import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
@@ -77,7 +67,6 @@ export default {
     LabelType,
     AppDefinition,
     FormatAeUnit,
-    AccountGroup,
     Account,
     Age
   },

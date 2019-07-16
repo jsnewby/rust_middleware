@@ -20,15 +20,15 @@
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
           <Account
-            v-if="transaction.caller_id"
-            :value="transaction.caller_id"
-            title="caller"
+            v-if="transaction.tx.from_id"
+            :value="transaction.tx.from_id"
+            title="From Account"
             icon
           />
           <Account
-            v-if="transaction.contract_id"
-            :value="transaction.contract_id"
-            title="contract"
+            v-if="transaction.tx.channel_id"
+            :value="transaction.tx.channel_id"
+            title="channel id"
             icon
           />
         </AccountGroup>
@@ -37,10 +37,14 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.amount"
-          title="Amount"
+          title="responder amount final"
         >
-          <FormatAeUnit :value="transaction.tx.amount" />
+          <FormatAeUnit :value="transaction.tx.responder_amount_final" />
+        </AppDefinition>
+        <AppDefinition
+          title="initiator amount final"
+        >
+          <FormatAeUnit :value="transaction.tx.initiator_amount_final" />
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
