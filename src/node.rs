@@ -123,14 +123,7 @@ impl Node {
             transfer.perform()?;
         }
         http_response.body = Some(String::from(std::str::from_utf8(&response)?));
-        if http_response.status != Some("200".to_string()) {
-            Err(MiddlewareError::new(&format!(
-                "Non-200 response received, error is {}, body:\n{}",
-                http_response.status?, http_response.body?
-            )))
-        } else {
-            Ok(http_response)
-        }
+        Ok(http_response)
     }
 
     pub fn post_naked(
