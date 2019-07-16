@@ -142,7 +142,7 @@ impl BlockLoader {
             if !gen_from_db.eq(&gen_from_server) {
                 debug!("Generations don't match at height {}", current_height);
                 fork_was_detected = true;
-                break;
+                in_fork = true;
             }
 
             let mut differences;
