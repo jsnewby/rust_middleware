@@ -234,16 +234,6 @@ pub fn clients_for_object(candidate: &Candidate) -> Vec<Client> {
     }
 }
 
-fn match_objects(objects: Vec<String>, tx: String) -> bool {
-    let tx_objects = get_objects(tx);
-    for object in objects {
-        if tx_objects.contains(&object) {
-            return true;
-        }
-    }
-    false
-}
-
 pub fn get_objects(tx: String) -> HashSet<String> {
     lazy_static! {
         static ref OBJECT_REGEX: Regex = Regex::new(
