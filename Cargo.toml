@@ -1,6 +1,6 @@
 [package]
 name = "aepp-middleware"
-version = "0.7.1"
+version = "0.8.0"
 authors = ["John Newby <@johnsnewby>", "Shubhendu Shekhar <@shekhar-shubhendu>", "Andrea Giacobino <@noandrea>" ]
 
 [features]
