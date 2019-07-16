@@ -57,7 +57,7 @@ fn node_get_handler(state: State<MiddlewareServer>, path: PathBuf) -> Response {
     {
         Ok(x) => x,
         Err(e) => {
-            info!("non-200 response:\n{}", e.to_string());
+            info!("error response:\n{}", e.to_string());
             return Response::build()
                 .status(Status::new(500, "An error occurred"))
                 .finalize();
@@ -564,7 +564,7 @@ fn transactions_for_contract_address(
          t.tx_type='ContractCallTx' and \
          t.tx->>'contract_id' = '{}' or \
          t.id in (select transaction_id from contract_identifiers where \
-         contract_identifier='{}')",
+         contract_identifier='{}') ORDER by t.block_height ASC",
         sanitize(&address),
         sanitize(&address)
     );
