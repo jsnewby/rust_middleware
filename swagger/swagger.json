@@ -1,0 +1,604 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "1.0",
+    "title": "aepp-middleware",
+    "description": "aepp-middleware api collection",
+    "contact": {}
+  },
+  "basePath": "/middleware",
+  "schemes": ["https"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "paths": {
+    "/channels/active": {
+      "get": {
+        "description": "Get Active Channel Names",
+        "summary": "/middleware/channels/active",
+        "operationId": "ChannelsActiveGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/channels/transactions/address/{address}": {
+      "get": {
+        "description": "Get all transactions for a state channel",
+        "summary": "/middleware/channels/transactions/address/{address}",
+        "operationId": "ChannelsTransactionsAddressGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "address",
+          "type": "string",
+          "required": true
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/contracts/all": {
+      "get": {
+        "description": "Get all the contracts",
+        "summary": "/middleware/contracts/all",
+        "operationId": "ContractsAllGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/contracts/transactions/address/{address}": {
+      "get": {
+        "description": "Get all the transactions for a contract",
+        "summary": "/middleware/contracts/transactions/address/{address}",
+        "operationId": "ContractsTransactionsAddressGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "address",
+          "type": "string",
+          "required": true,
+          "description": "Contract Address/id"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/contracts/calls/address/{address}": {
+      "get": {
+        "description": "Get contract calls for a provided contract",
+        "summary": "/middleware/contracts/calls/address/{address}",
+        "operationId": "ContractsCallsAddressGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "address",
+          "type": "string",
+          "required": true,
+          "description": "Contract Address/id"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/generations/{from}/{to}": {
+      "get": {
+        "description": "Get generations between a given range",
+        "summary": "/middleware/generations/{from}/{to}?{limit}&{page}",
+        "operationId": "GenerationsGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "from",
+          "type": "integer",
+          "required": true,
+          "description": "Start Generation or Key Block Number"
+        }, {
+          "in": "path",
+          "name": "to",
+          "type": "integer",
+          "required": true,
+          "description": "End Generation or Key Block Number"
+        }, {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/height/at/{milliseconds}": {
+      "get": {
+        "description": "Get block height at a given time(provided in milliseconds)",
+        "summary": "/middleware/height/at/{milliseconds}",
+        "operationId": "HeightAtGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "milliseconds",
+          "type": "integer",
+          "required": true,
+          "description": "Time in milliseconds"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/names/active": {
+      "get": {
+        "description": "Get a list of all the active names",
+        "summary": "/middleware/names/active?{limit}&{page}&{owner}",
+        "operationId": "NamesActiveGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "in": "query",
+          "name": "owner",
+          "type": "string",
+          "required": false,
+          "description": "Address of the owner account to filter the results"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/names/reverse/{account}": {
+      "get": {
+        "description": "Get a list of names mapped to the given address",
+        "summary": "/middleware/names/reverse/{account}?{limit}&{page}",
+        "operationId": "NamesReverseGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "in": "path",
+          "name": "account",
+          "type": "string",
+          "required": true,
+          "description": "Account address"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/oracles/list": {
+      "get": {
+        "description": "Get a list of oracles",
+        "summary": "/middleware/oracles/list?{limit}&{page}",
+        "operationId": "OraclesListGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/oracles/{oracle_id}": {
+      "get": {
+        "description": "Get a list of query and response for a given oracle",
+        "summary": "/middleware/oracles/{oracle_id}?{limit}&{page}",
+        "operationId": "OraclesGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "oracle_id",
+          "type": "string",
+          "required": true,
+          "description": "oracle address/id to get the query and responses"
+        }, {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/reward/height/{height}": {
+      "get": {
+        "description": "Get the block reward for a given block height",
+        "summary": "/middleware/reward/height/{height}",
+        "operationId": "RewardHeightGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "height",
+          "type": "integer",
+          "required": true,
+          "description": "Blockchain height"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/size/current": {
+      "get": {
+        "description": "Get the current of size of blockchain ",
+        "summary": "/middleware/size/current",
+        "operationId": "SizeCurrentGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/size/height/{height}": {
+      "get": {
+        "description": "Get size of blockchain at a given height",
+        "summary": "/middleware/size/height/{height}",
+        "operationId": "SizeHeightGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "height",
+          "type": "integer",
+          "required": true,
+          "description": "Blockchain height"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/transactions/account/{address}/count": {
+      "get": {
+        "description": "Get the count of transactions for a given account address",
+        "summary": "/middleware/transactions/account/{address}/count?{txtype}",
+        "operationId": "TransactionsAccountCountGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "address",
+          "type": "string",
+          "required": true,
+          "description": "Account address"
+        }, {
+          "in": "query",
+          "name": "txtype",
+          "type": "string",
+          "required": false,
+          "description": "Transaction Type"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/transactions/account/{sender}/to/{receiver}": {
+      "get": {
+        "description": "Get a list of transactions between two accounts",
+        "summary": "/middleware/transactions/account/{sender}/to/{receiver}",
+        "operationId": "TransactionsAccountGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "sender",
+          "type": "string",
+          "required": true,
+          "description": "Sender account address"
+        }, {
+          "in": "path",
+          "name": "receiver",
+          "type": "string",
+          "required": true,
+          "description": "Receiver account address"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/transactions/account/{account}": {
+      "get": {
+        "description": "Get list of transactions for a given account",
+        "summary": "/middleware/transactions/account/{account}?{limit}&{page}&{txtype}",
+        "operationId": "TransactionsListAccountGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "account",
+          "type": "string",
+          "required": true,
+          "description": "Account address"
+        }, {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/transactions/interval/{from}/{to}": {
+      "get": {
+        "description": "Get transactions between an interval of generations",
+        "summary": "/middleware/transactions/interval/{from}/{to}?{limit}&{page}&{txtype}",
+        "operationId": "TransactionsIntervalGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "from",
+          "type": "integer",
+          "required": true,
+          "description": "Start Generation/Key-block height"
+        }, {
+          "in": "path",
+          "name": "to",
+          "type": "integer",
+          "required": true,
+          "description": "End Generation/Key-block height"
+        }, {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "in": "query",
+          "name": "txtype",
+          "type": "string",
+          "required": false,
+          "description": "Transaction Type"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/transactions/rate/{from}/{to}": {
+      "get": {
+        "description": "Get transaction amount and count for the date interval",
+        "summary": "/middleware/transactions/rate/{from}/{to}",
+        "operationId": "TransactionsRateGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "from",
+          "type": "string",
+          "required": true,
+          "description": "Start Date(yyyymmdd)"
+        }, {
+          "in": "path",
+          "name": "to",
+          "type": "string",
+          "required": true,
+          "description": "End Date(yyyymmdd)"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/names": {
+      "get": {
+        "description": "get all names",
+        "summary": "/names?{limit}&{page}&{owner}",
+        "operationId": "NamesGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "description": "get middleware status",
+        "summary": "/status",
+        "operationId": "GetStatus",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/count/current": {
+      "get": {
+        "description": "get count of tranactions at the current height",
+        "summary": "/status",
+        "operationId": "GetCurrentCount",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    }
+  }
+}

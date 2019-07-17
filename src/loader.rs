@@ -12,7 +12,6 @@ use middleware_result::*;
 use models::*;
 use node::*;
 use serde_json;
-use std::slice::SliceConcatExt;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
@@ -142,13 +141,12 @@ impl BlockLoader {
                 serde_json::from_value(node.get_generation_at_height(current_height)?)?;
             if !gen_from_db.eq(&gen_from_server) {
                 debug!("Generations don't match at height {}", current_height);
-                in_fork = true;
                 fork_was_detected = true;
-                break;
+                in_fork = true;
             }
 
-            let mut differences = vec![];
-            if !in_fork {
+            if ! in_fork {
+                let mut differences;
                 for i in 0..gen_from_db.micro_blocks.len() {
                     differences = BlockLoader::compare_micro_blocks(
                         &node,
@@ -164,6 +162,7 @@ impl BlockLoader {
                     }
                 }
             }
+
             if !in_fork {
                 debug!("No fork found. Exiting loop");
                 break;
