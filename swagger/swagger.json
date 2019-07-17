@@ -6,7 +6,6 @@
     "description": "aepp-middleware api collection",
     "contact": {}
   },
-  "host": "mdw.aepps.com",
   "basePath": "/middleware",
   "schemes": ["https"],
   "consumes": ["application/json"],
