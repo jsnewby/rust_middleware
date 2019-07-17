@@ -1068,6 +1068,12 @@ fn status(_state: State<MiddlewareServer>) -> Response {
     response.finalize()
 }
 
+#[get("/api")]
+fn swagger() -> JsonValue {
+    let swagger_str = include_str!("../swagger/swagger.json");
+    serde_json::from_str(swagger_str).unwrap()
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -1098,6 +1104,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![reward_at_height])
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![status])
+            .mount("/middleware", routes![swagger])
             .mount("/middleware", routes![transaction_rate])
             .mount("/middleware", routes![transactions_for_account])
             .mount("/middleware", routes![transactions_for_account_to_account])
