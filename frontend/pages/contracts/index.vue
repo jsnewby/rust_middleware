@@ -51,7 +51,7 @@ export default {
       'contracts'
     ])
   },
-  async beforeMount () {
+  async mounted () {
     this.loading = true
     await this.loadMore()
     this.loading = false
