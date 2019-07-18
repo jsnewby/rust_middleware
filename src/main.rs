@@ -266,11 +266,11 @@ fn main() {
                 Some(_) => {
                     let fromto: Vec<String> = s.split('-').map(|x| String::from(x)).collect();
                     for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap() {
-                        loader.load_blocks(i);
+                        loader.load_blocks(i).unwrap();
                     }
                 }
                 None => {
-                    loader.load_blocks(s.parse::<i64>().unwrap());
+                    loader.load_blocks(s.parse::<i64>().unwrap()).unwrap();
                 }
             }
         }
