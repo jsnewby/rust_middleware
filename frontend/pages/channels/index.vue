@@ -5,13 +5,21 @@
       :page="{to: '/channels', name: 'Channels'}"
       title="State Channels"
     />
-    <ChannelList>
-      <Channel
-        v-for="(item, index) in channels"
-        :key="index"
-        :data="item"
-      />
-    </ChannelList>
+    <div v-if="!loading && channels.length">
+      <ChannelList>
+        <Channel
+          v-for="(item, index) in channels"
+          :key="index"
+          :data="item"
+        />
+      </ChannelList>
+    </div>
+    <div v-if="loading">
+      Loading....
+    </div>
+    <div v-if="!loading && channels.length == 0">
+      Nothing to see here right now....
+    </div>
   </div>
 </template>
 
@@ -30,7 +38,8 @@ export default {
   },
   data () {
     return {
-      page: 1
+      page: 1,
+      loading: false
     }
   },
   computed: {
