@@ -16,7 +16,9 @@ export const mutations = {
 export const actions = {
   getContracts: async function ({ rootState: { nodeUrl }, commit }, { page, limit }) {
     try {
-      const contracts = await axios.get(nodeUrl + '/middleware/contracts/all?limit=' + limit + '&page=' + page)
+      const url = `${nodeUrl}/middleware/contracts/all?limit=${limit}&page=${page}`
+      const contracts = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
       commit('setContracts', contracts.data)
       return contracts.data
     } catch (e) {
@@ -27,7 +29,9 @@ export const actions = {
 
   getContractTx: async function ({ rootState: { nodeUrl }, commit }, contractId) {
     try {
-      const contractTx = await axios.get(nodeUrl + '/middleware/contracts/transactions/address/' + contractId)
+      const url = `${nodeUrl}/middleware/contracts/transactions/address/${contractId}`
+      const contractTx = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
       return contractTx.data.transactions
     } catch (e) {
       console.log(e)

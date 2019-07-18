@@ -16,7 +16,9 @@ export const mutations = {
 export const actions = {
   getOracles: async function ({ rootState: { nodeUrl }, commit }, { page, limit }) {
     try {
-      const oracles = await axios.get(nodeUrl + '/middleware/oracles/list?limit=' + limit + '&page=' + page)
+      const url = `${nodeUrl}/middleware/oracles/list?limit=${limit}&page=${page}`
+      const oracles = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
       commit('setOracles', oracles.data)
       return oracles.data
     } catch (e) {
@@ -26,7 +28,9 @@ export const actions = {
   },
   getAllQueries: async function ({ rootState: { nodeUrl }, commit }, { oracleId, page, limit }) {
     try {
-      const queries = await axios.get(nodeUrl + '/middleware/oracles/' + oracleId + '?limit=' + limit + '&page=' + page)
+      const url = `${nodeUrl}/middleware/oracles/${oracleId}?limit=${limit}&page=${page}`
+      const queries = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
       return queries.data
     } catch (e) {
       console.log(e)
