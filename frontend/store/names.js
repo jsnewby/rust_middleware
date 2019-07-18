@@ -2,7 +2,7 @@ import Vue from 'vue'
 import axios from 'axios'
 
 export const state = () => ({
-  names: []
+  names: {}
 })
 
 export const mutations = {
