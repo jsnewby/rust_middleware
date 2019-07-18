@@ -1039,6 +1039,7 @@ fn height_at_epoch(
 #[get("/status")]
 fn status(_state: State<MiddlewareServer>) -> Response {
     let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    let version = env!("CARGO_PKG_VERSION");
     let top_key_block = KeyBlock::load_at_height(&PGCONNECTION.get().unwrap(), _height).unwrap();
     let utc: DateTime<Utc> = Utc::now();
     let seconds_since_last_block = (utc.timestamp_millis() - top_key_block.time) / 1000;
@@ -1062,6 +1063,7 @@ fn status(_state: State<MiddlewareServer>) -> Response {
             "queue_length": queue_length,
             "seconds_since_last_block": seconds_since_last_block,
             "OK": ok,
+            "version": version,
         })
         .to_string(),
     ));
