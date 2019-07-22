@@ -60,17 +60,21 @@
         <AppTableBody>
           <AppTableRow extend>
             <AppTableCell extend>
-              <AppDefinition
-                type="list"
-                title="Hash"
+              <nuxt-link
+                :to="`/generations/${data.height}`"
               >
-                <FormatAddress
-                  v-if="data.hash"
-                  :value="data.hash"
-                  length="full"
-                  icon
-                />
-              </AppDefinition>
+                <AppDefinition
+                  type="list"
+                  title="Hash"
+                >
+                  <FormatAddress
+                    v-if="data.hash"
+                    :value="data.hash"
+                    length="full"
+                    icon
+                  />
+                </AppDefinition>
+              </nuxt-link>
             </AppTableCell>
           </AppTableRow>
           <AppTableRow>
