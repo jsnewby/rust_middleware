@@ -22,7 +22,36 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
-          <AppTableRow extend>
+          <AppTableRow
+            v-if="data.arguments"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Arguments"
+              >
+                {{ data.arguments.arguments }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.arguments"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Method"
+              >
+                {{ data.arguments.function }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.ttl"
+            extend
+          >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
