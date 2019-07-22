@@ -44,12 +44,6 @@
           </nuxt-link>
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.nonce"
-          title="nonce"
-        >
-          {{ transaction.tx.nonce }}
-        </AppDefinition>
-        <AppDefinition
           title="gas"
         >
           <FormatAeUnit :value="transaction.tx.gas" />

@@ -39,6 +39,9 @@ export default {
       if (call) {
         tx.arguments = call.arguments
         tx.callinfo = call.callinfo
+        if (call.result) {
+          tx.result = call.result
+        }
       }
     }
     return { contract: params.id, transactions }

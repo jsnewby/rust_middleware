@@ -49,6 +49,58 @@
             </AppTableCell>
           </AppTableRow>
           <AppTableRow
+            v-if="data.callinfo && data.callinfo.return_type"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Return Type"
+              >
+                {{ data.callinfo.return_type }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.callinfo && data.callinfo.return_value"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Return Value"
+              >
+                {{ data.callinfo.return_value }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.result"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Return Value (Decoded)"
+              >
+                {{ data.result }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.callinfo && data.callinfo.log"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="log"
+              >
+                {{ data.callinfo.log }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
             v-if="data.ttl"
             extend
           >
