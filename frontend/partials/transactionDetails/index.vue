@@ -105,7 +105,7 @@ export default {
 
 <style scoped lang="scss">
   .transaction-details {
-    margin-top: 2rem;
+    margin-bottom: 2rem;
   }
   .block-height-wrapper {
     display: flex;
