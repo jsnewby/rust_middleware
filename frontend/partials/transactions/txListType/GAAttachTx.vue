@@ -29,19 +29,18 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item ">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.gas"
           title="gas"
         >
           <FormatAeUnit
             :value="transaction.tx.gas"
-          />
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.gas_price"
-          title="gas price"
-        >
-          <FormatAeUnit
-            :value="transaction.tx.gas_price"
           />
         </AppDefinition>
       </div>
@@ -55,11 +54,11 @@
           />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.gas_price"
+          title="gas price"
         >
           <FormatAeUnit
-            :value="transaction.tx.cost"
+            :value="transaction.tx.gas_price"
           />
         </AppDefinition>
       </div>

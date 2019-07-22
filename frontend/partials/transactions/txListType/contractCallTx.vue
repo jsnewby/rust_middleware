@@ -37,9 +37,17 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          title="Amount"
+          title="Block Height"
         >
-          <FormatAeUnit :value="transaction.tx.amount" />
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
         </AppDefinition>
         <AppDefinition
           title="gas"
@@ -48,6 +56,11 @@
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
+        <AppDefinition
+          title="Amount"
+        >
+          <FormatAeUnit :value="transaction.tx.amount" />
+        </AppDefinition>
         <AppDefinition
           v-if="transaction.tx.fee"
           title="tx fee"

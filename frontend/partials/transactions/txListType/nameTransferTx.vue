@@ -33,10 +33,9 @@
           />
         </AccountGroup>
         <Account
-          v-if="transaction.tx.name"
-          :value="transaction.tx.name"
+          v-if="transaction.tx.name_id"
+          :value="transaction.tx.name_id"
           title="name"
-          length="nochunk"
           icon
         />
       </div>
@@ -44,10 +43,11 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.name_id"
-          title="name id"
+          title="Block Height"
         >
-          {{ transaction.tx.name_id }}
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">

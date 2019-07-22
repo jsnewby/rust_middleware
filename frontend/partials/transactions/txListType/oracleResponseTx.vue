@@ -51,19 +51,18 @@
       </div>
       <div class="transaction-type-info-item">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.fee"
           title="tx fee"
         >
           <FormatAeUnit
             :value="transaction.tx.fee"
-          />
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
-        >
-          <FormatAeUnit
-            :value="transaction.tx.cost"
           />
         </AppDefinition>
       </div>

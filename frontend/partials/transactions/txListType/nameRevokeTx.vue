@@ -32,30 +32,22 @@
             icon
           />
         </AccountGroup>
-        <AppDefinition
-          v-if="transaction.tx.name"
-          title="name"
-          class="name"
-        >
-          {{ transaction.tx.name }}
-        </AppDefinition>
       </div>
     </div>
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.nonce"
           title="nonce"
         >
           {{ transaction.tx.nonce }}
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.deposit"
-          title="Deposit"
-        >
-          <FormatAeUnit
-            :value="transaction.tx.deposit"
-          />
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">

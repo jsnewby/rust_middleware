@@ -37,6 +37,21 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.fee"
+          title="tx fee"
+        >
+          <FormatAeUnit :value="transaction.tx.fee" />
+        </AppDefinition>
+      </div>
+      <div class="transaction-type-info-item">
+        <AppDefinition
           title="responder amount final"
         >
           <FormatAeUnit :value="transaction.tx.responder_amount_final" />
@@ -45,20 +60,6 @@
           title="initiator amount final"
         >
           <FormatAeUnit :value="transaction.tx.initiator_amount_final" />
-        </AppDefinition>
-      </div>
-      <div class="transaction-type-info-item">
-        <AppDefinition
-          v-if="transaction.tx.fee"
-          title="tx fee"
-        >
-          <FormatAeUnit :value="transaction.tx.fee" />
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
-        >
-          <FormatAeUnit :value="transaction.tx.cost" />
         </AppDefinition>
       </div>
     </div>

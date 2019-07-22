@@ -32,21 +32,28 @@
             icon
           />
         </AccountGroup>
+        <Account
+          v-if="transaction.tx.state_hash"
+          :value="transaction.tx.state_hash"
+          title="state hash"
+          icon
+        />
       </div>
     </div>
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.round"
           title="round"
         >
           {{ transaction.tx.round }}
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.state_hash"
-          title="state hash"
-        >
-          {{ transaction.tx.state_hash }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -57,10 +64,10 @@
           <FormatAeUnit :value="transaction.tx.fee" />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.nonce"
+          title="nonce"
         >
-          <FormatAeUnit :value="transaction.tx.cost" />
+          {{ transaction.tx.nonce }}
         </AppDefinition>
       </div>
     </div>
