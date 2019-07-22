@@ -586,7 +586,7 @@ fn calls_for_contract_address(
     address: String,
 ) -> Json<Vec<JsonValue>> {
     check_object(&address);
-    let sql = "SELECT t.hash, contract_id, caller_id, arguments, callinfo FROM \
+    let sql = "SELECT t.hash, contract_id, caller_id, arguments, callinfo, result FROM \
                contract_calls c join transactions t on t.id=c.transaction_id WHERE \
                contract_id = $1";
     let mut calls = Vec::new();
@@ -601,12 +601,14 @@ fn calls_for_contract_address(
         let caller_id: String = row.get(2);
         let arguments: serde_json::Value = row.get(3);
         let callinfo: serde_json::Value = row.get(4);
+        let result: serde_json::Value = row.get(5);
         calls.push(json!({
             "transaction_id": transaction_id,
             "contract_id": contract_id,
             "caller_id": caller_id,
             "arguments": arguments,
-            "callinfo": callinfo
+            "callinfo": callinfo,
+            "result": result,
         }));
     }
     Json(calls)
