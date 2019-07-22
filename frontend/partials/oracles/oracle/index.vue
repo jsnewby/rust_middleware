@@ -20,10 +20,12 @@
     <div class="container-last">
       <div class="container-last-wrapper">
         <AppDefinition
-          class="container-last-inner"
           title="Block Height"
+          class="container-last-inner"
         >
-          {{ data.block_height }}
+          <nuxt-link :to="`/generations/${data.block_height}`">
+            {{ data.block_height }}
+          </nuxt-link>
         </AppDefinition>
         <AppDefinition
           class="container-last-inner"

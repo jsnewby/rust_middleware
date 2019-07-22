@@ -13,7 +13,9 @@ export const mutations = {
 export const actions = {
   getChannels: async function ({ rootState: { nodeUrl }, commit }) {
     try {
-      const channels = await axios.get(nodeUrl + '/middleware/channels/active')
+      const url = `${nodeUrl}/middleware/channels/active`
+      const channels = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
       commit('setChannels', channels.data)
       return channels.data
     } catch (e) {
@@ -23,7 +25,9 @@ export const actions = {
   },
   getChannelTx: async function ({ rootState: { nodeUrl }, commit }, channelId) {
     try {
-      const channelTx = await axios.get(nodeUrl + '/middleware/channels/transactions/address/' + channelId)
+      const url = `${nodeUrl}/middleware/channels/transactions/address/${channelId}`
+      const channelTx = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
       return channelTx.data.transactions
     } catch (e) {
       console.log(e)

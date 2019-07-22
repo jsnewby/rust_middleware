@@ -86,9 +86,11 @@ export const mutations = {
 }
 
 export const actions = {
-  async height ({ state, rootState: { nodeUrl }, commit }) {
+  async height ({ rootState: { nodeUrl }, commit }) {
     try {
-      const { height } = (await axios.get(nodeUrl + '/v2/key-blocks/current/height')).data
+      const url = `${nodeUrl}/v2/key-blocks/current/height`
+      const { height } = (await axios.get(url)).data
+      console.info('MDW 🔗 ' + url)
       commit('setHeight', height)
       return height
     } catch (e) {

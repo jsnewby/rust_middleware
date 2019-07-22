@@ -29,18 +29,17 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item ">
         <AppDefinition
-          v-if="transaction.block_height"
-          title="block_height"
+          title="Block Height"
         >
-          {{ transaction.block_height }}
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.deposit"
-          title="Deposit"
+          v-if="transaction.tx.abi_version"
+          title="abi version"
         >
-          <FormatAeUnit
-            :value="transaction.tx.deposit"
-          />
+          {{ transaction.tx.abi_version }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -53,12 +52,10 @@
           />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.vm_version"
+          title="vm version"
         >
-          <FormatAeUnit
-            :value="transaction.tx.cost"
-          />
+          {{ transaction.tx.vm_version }}
         </AppDefinition>
       </div>
     </div>

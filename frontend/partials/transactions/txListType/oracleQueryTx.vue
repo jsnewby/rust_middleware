@@ -37,21 +37,12 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.query"
-          title="Query"
+          title="Block Height"
         >
-          {{ transaction.tx.query }}
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
         </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.query_fee"
-          title="Query fee"
-        >
-          <FormatAeUnit
-            :value="transaction.tx.query_fee"
-          />
-        </AppDefinition>
-      </div>
-      <div class="transaction-type-info-item">
         <AppDefinition
           v-if="transaction.tx.fee"
           title="tx fee"
@@ -64,8 +55,22 @@
           v-if="transaction.tx.nonce"
           title="nonce"
         >
+          {{ transaction.tx.nonce }}
+        </AppDefinition>
+      </div>
+      <div class="transaction-type-info-item">
+        <AppDefinition
+          v-if="transaction.tx.query"
+          title="Query"
+        >
+          {{ transaction.tx.query }}
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.query_fee"
+          title="Query fee"
+        >
           <FormatAeUnit
-            :value="transaction.tx.nonce"
+            :value="transaction.tx.query_fee"
           />
         </AppDefinition>
       </div>

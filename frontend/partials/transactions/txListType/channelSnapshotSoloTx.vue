@@ -10,12 +10,6 @@
             />
           </div>
         </nuxt-link>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
@@ -37,16 +31,17 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.nonce"
           title="nonce"
         >
           {{ transaction.tx.nonce }}
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.state_hash"
-          title="state hash"
-        >
-          {{ transaction.tx.state_hash }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -55,12 +50,6 @@
           title="tx fee"
         >
           <FormatAeUnit :value="transaction.tx.fee" />
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
-        >
-          <FormatAeUnit :value="transaction.tx.cost" />
         </AppDefinition>
       </div>
     </div>
@@ -71,7 +60,6 @@ import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
 
 export default {
@@ -81,8 +69,7 @@ export default {
     AppDefinition,
     FormatAeUnit,
     AccountGroup,
-    Account,
-    Age
+    Account
   },
   props: {
     transaction: {

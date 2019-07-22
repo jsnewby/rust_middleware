@@ -6,14 +6,14 @@
       :page="{to: '/transactions', name: 'Transactions'}"
       :subpage="{to: `/transactions/${$route.params.transaction}`, name: 'Transaction Overview'}"
     />
+    <TransactionDetails
+      :status="loading"
+      :data="transaction"
+    />
     <GenerationDetails
       :data="generation"
       :dynamic-data="height"
       :status="loading"
-    />
-    <TransactionDetails
-      :status="loading"
-      :data="transaction"
     />
   </div>
 </template>

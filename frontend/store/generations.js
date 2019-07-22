@@ -34,10 +34,20 @@ export const mutations = {
 }
 
 export const actions = {
-  getLatestGenerations: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, maxBlocks) {
+  getLatestGenerations: async function ({ state, rootState: { height }, commit, dispatch }, maxBlocks) {
     try {
-      const { start, end } = calculateBlocksToFetch(height, state.lastFetchedGen, maxBlocks)
-      const generations = await axios.get(nodeUrl + '/middleware/generations/' + start + '/' + end)
+      const range = calculateBlocksToFetch(height, state.lastFetchedGen, maxBlocks)
+      return await dispatch('getGenerationByRange', range)
+    } catch (e) {
+      console.log(e)
+      commit('catchError', 'Error', { root: true })
+    }
+  },
+  getGenerationByRange: async function ({ rootState: { nodeUrl }, commit }, { start, end }) {
+    try {
+      const url = `${nodeUrl}/middleware/generations/${start}/${end}`
+      const generations = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
       commit('setGenerations', generations.data.data)
       commit('setLastFetched', start)
       return generations.data.data
@@ -46,19 +56,11 @@ export const actions = {
       commit('catchError', 'Error', { root: true })
     }
   },
-  getGenerationByRange: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, { start, end }) {
+  getGenerationByHash: async function ({ rootState: { nodeUrl }, commit, dispatch }, keyHash) {
     try {
-      const generations = await axios.get(nodeUrl + '/middleware/generations/' + start + '/' + end)
-      commit('setGenerations', generations.data.data)
-      return generations.data.data
-    } catch (e) {
-      console.log(e)
-      commit('catchError', 'Error', { root: true })
-    }
-  },
-  getGenerationByHash: async function ({ state, rootState: { nodeUrl, height }, commit, dispatch }, keyHash) {
-    try {
-      const generations = await axios.get(nodeUrl + '/v2/key-blocks/hash/' + keyHash)
+      const url = `${nodeUrl}/v2/key-blocks/hash/${keyHash}`
+      const generations = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
       commit('setGenerations', generations.data)
       await dispatch('getGenerationByRange', { start: generations.data.height, end: generations.data.height })
       return generations.data.data

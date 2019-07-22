@@ -37,12 +37,25 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item ">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.amount"
           title="Amount"
         >
           <FormatAeUnit
             :value="transaction.tx.amount"
           />
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.round"
+          title="round"
+        >
+          {{ transaction.tx.round }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -55,12 +68,10 @@
           />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.tx.nonce"
+          title="nonce"
         >
-          <FormatAeUnit
-            :value="transaction.tx.cost"
-          />
+          {{ transaction.tx.nonce }}
         </AppDefinition>
       </div>
     </div>
