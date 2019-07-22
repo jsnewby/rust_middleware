@@ -141,17 +141,21 @@
               extend
             >
               <AppTableCell extend>
-                <AppDefinition
-                  type="list"
-                  title="Prev key hash"
+                <nuxt-link
+                  :to="`/generations/${data.height-1}`"
                 >
-                  <FormatAddress
-                    v-if="data.prev_key_hash"
-                    :value="data.prev_key_hash"
-                    length="full"
-                    icon
-                  />
-                </AppDefinition>
+                  <AppDefinition
+                    type="list"
+                    title="Prev key hash"
+                  >
+                    <FormatAddress
+                      v-if="data.prev_key_hash"
+                      :value="data.prev_key_hash"
+                      length="full"
+                      icon
+                    />
+                  </AppDefinition>
+                </nuxt-link>
               </AppTableCell>
             </AppTableRow>
             <AppTableRow extend>
