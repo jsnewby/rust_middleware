@@ -1002,7 +1002,7 @@ fn search_names(_state: State<MiddlewareServer>, query: String) -> Json<Vec<Name
         "select * from names \
          where name like '%{}%' \
          order by created_at_height desc",
-        query
+        sanitize(&query)
     );
     let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     Json(names)
