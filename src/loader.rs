@@ -145,7 +145,7 @@ impl BlockLoader {
                 in_fork = true;
             }
 
-            if ! in_fork {
+            if !in_fork {
                 let mut differences;
                 for i in 0..gen_from_db.micro_blocks.len() {
                     differences = BlockLoader::compare_micro_blocks(
@@ -404,13 +404,14 @@ impl BlockLoader {
         } else if transaction.is_channel_creation() {
             InsertableChannelIdentifier::from_tx(tx_id, &transaction)?.save(&connection)?;
         } else if transaction.is_name_transaction() {
-            Self::handle_name_transaction(connection, transaction)?;
+            Self::handle_name_transaction(connection, tx_id, transaction)?;
         }
         Ok(())
     }
 
     pub fn handle_name_transaction(
         connection: &PgConnection,
+        tx_id: i32,
         transaction: &JsonTransaction,
     ) -> MiddlewareResult<()> {
         debug!("Name tx: {:?}", transaction);
@@ -418,7 +419,7 @@ impl BlockLoader {
             match ttype {
                 "NameClaimTx" => {
                     debug!("NameClaimTx: {:?}", transaction);
-                    if let Some(name) = InsertableName::new_from_transaction(transaction) {
+                    if let Some(name) = InsertableName::new_from_transaction(tx_id, transaction) {
                         name.save(connection)?;
                     }
                 }

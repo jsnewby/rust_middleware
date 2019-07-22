@@ -61,6 +61,7 @@ table! {
         owner -> Varchar,
         expires_at -> Int8,
         pointers -> Nullable<Jsonb>,
+        transaction_id -> Int4,
     }
 }
 
@@ -105,6 +106,7 @@ joinable!(channel_identifiers -> transactions (transaction_id));
 joinable!(contract_calls -> transactions (transaction_id));
 joinable!(contract_identifiers -> transactions (transaction_id));
 joinable!(micro_blocks -> key_blocks (key_block_id));
+joinable!(names -> transactions (transaction_id));
 joinable!(oracle_queries -> transactions (transaction_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
 

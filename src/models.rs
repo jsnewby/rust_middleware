@@ -749,10 +749,10 @@ pub struct InsertableName {
     pub owner: String,
     pub expires_at: i64,
     pub pointers: Option<serde_json::Value>,
+    pub transaction_id: i32,
 }
 
 impl InsertableName {
-    
     pub const NAME_CLAIM_MAX_EXPIRATION: i64 = 50000;
 
     pub fn new(
@@ -762,6 +762,7 @@ impl InsertableName {
         _created_at_height: i64,
         _owner: &str,
         _expires_at: i64,
+        _transaction_id: i32,
     ) -> Self {
         InsertableName {
             name: _name.to_string(),
@@ -771,10 +772,11 @@ impl InsertableName {
             owner: _owner.to_string(),
             expires_at: _expires_at,
             pointers: None,
+            transaction_id: _transaction_id,
         }
     }
 
-    pub fn new_from_transaction(transaction: &JsonTransaction) -> Option<Self> {
+    pub fn new_from_transaction(tx_id: i32, transaction: &JsonTransaction) -> Option<Self> {
         let ttype = transaction.tx["type"].as_str()?;
         if ttype != "NameClaimTx" {
             return None;
@@ -783,7 +785,8 @@ impl InsertableName {
         let _name_hash = super::hashing::get_name_id(&_name).unwrap(); // TODO
         let _tx_hash = transaction.hash.clone();
         let _account_id = transaction.tx["account_id"].as_str()?;
-        let _expires_at = InsertableName::NAME_CLAIM_MAX_EXPIRATION + transaction.block_height as i64;
+        let _expires_at =
+            InsertableName::NAME_CLAIM_MAX_EXPIRATION + transaction.block_height as i64;
 
         Some(InsertableName::new(
             &_name.to_string(),
@@ -792,6 +795,7 @@ impl InsertableName {
             transaction.block_height as i64,
             &_account_id,
             _expires_at,
+            tx_id,
         ))
     }
 
@@ -818,6 +822,7 @@ pub struct Name {
     pub owner: String,
     pub expires_at: i64,
     pub pointers: Option<serde_json::Value>,
+    pub transaction_id: i32,
 }
 
 impl Name {
@@ -867,7 +872,7 @@ impl InsertableContractCall {
     pub fn request(
         url: &str,
         source: &JsonTransaction,
-        transaction_id: i32,
+        _transaction_id: i32,
     ) -> MiddlewareResult<Option<Self>> {
         match source.tx["type"].as_str() {
             Some(x) => {
@@ -930,7 +935,7 @@ impl InsertableContractCall {
             .send()?;
         let result = serde_json::from_str(&result.text()?)?;
         Ok(Some(Self {
-            transaction_id,
+            transaction_id: _transaction_id,
             contract_id: contract_id.to_string(),
             caller_id: caller_id.to_string(),
             arguments,
