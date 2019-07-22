@@ -37,5 +37,16 @@ export const actions = {
       console.log(e)
       commit('catchError', 'Error', { root: true })
     }
+  },
+  getContractCalls: async function ({ rootState: { nodeUrl }, commit }, contractId) {
+    try {
+      const url = `${nodeUrl}/middleware/contracts/calls/address/${contractId}`
+      const contractCalls = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
+      return contractCalls.data
+    } catch (e) {
+      console.log(e)
+      commit('catchError', 'Error', { root: true })
+    }
   }
 }
