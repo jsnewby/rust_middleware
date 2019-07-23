@@ -212,6 +212,14 @@ fn main() {
                 .help("Load specific heights, values separated by comma, ranges with from-to accepted")
                 .takes_value(true),
             )
+        .arg(
+            Arg::with_name("websocket")
+                .short("w")
+                .long("websocket")
+                .help("Activate websocket (only valid when -p (populate) option also set")
+                .requires("populate")
+                .takes_value(false),
+            )
         .get_matches();
 
     let url = env::var("NODE_URL")
@@ -223,6 +231,7 @@ fn main() {
     let verify = matches.is_present("verify");
     let heights = matches.is_present("heights");
     let daemonize = matches.is_present("daemonize");
+    let websocket = matches.is_present("websocket");
 
     if daemonize {
         let daemonize = Daemonize::new();
@@ -294,6 +303,9 @@ fn main() {
         populate_thread = Some(thread::spawn(move || {
             loader.start();
         }));
+        if websocket {
+            websocket::start_ws();
+        }
     }
 
     if serve {
@@ -302,7 +314,6 @@ fn main() {
             dest_url: url.to_string(),
             port: 3013,
         };
-        websocket::start_ws(); //start the websocket server
         ms.start();
         loop {
             // just to stop main() thread exiting.
