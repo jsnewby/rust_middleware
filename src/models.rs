@@ -914,7 +914,7 @@ impl InsertableContractCall {
         debug!("Return from aesophia: {}", output);
         let arguments: serde_json::Value = serde_json::from_str(&output)?;
         // TODO -- clean up this hacky shit
-        let node = Node::new(std::env::var("NODE_URL").unwrap());
+        let node = Node::new(std::env::var("NODE_URL")?);
         // ^^^^^ should be safe here, but this needs to be fixed ASAP
         let callinfo = node.transaction_info(&source.hash)?["call_info"].to_owned();
         debug!("callinfo: {:?}", callinfo.to_string());

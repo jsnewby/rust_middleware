@@ -141,4 +141,10 @@ impl std::convert::From<bigdecimal::ParseBigDecimalError> for MiddlewareError {
     }
 }
 
+impl std::convert::From<std::env::VarError> for MiddlewareError {
+    fn from(err: std::env::VarError) -> Self {
+        MiddlewareError::new(&err.to_string())
+    }
+}
+
 pub type MiddlewareResult<T> = Result<T, MiddlewareError>;
