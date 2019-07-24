@@ -17,7 +17,7 @@
       <AppNav>
         <AppNavLink
           to="/"
-          exact="true"
+          :exact="true"
         >
           Dashboard
         </AppNavLink>
