@@ -73,6 +73,12 @@
             :value="transaction.tx.query_fee"
           />
         </AppDefinition>
+        <AppDefinition
+          v-if="transaction.time"
+          title="Time"
+        >
+          {{ transaction.time | timestampToUTC }}
+        </AppDefinition>
       </div>
     </div>
   </div>
@@ -84,6 +90,7 @@ import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
+import timestampToUTC from '../../../plugins/filters/timestampToUTC'
 
 export default {
   name: 'OracleQueryTx',
@@ -94,6 +101,9 @@ export default {
     AccountGroup,
     Account,
     Age
+  },
+  filters: {
+    timestampToUTC
   },
   props: {
     transaction: {
