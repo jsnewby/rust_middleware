@@ -844,6 +844,14 @@ impl Name {
             Err(e) => Err(MiddlewareError::new(&e.to_string())),
         }
     }
+    pub fn find_by_name(connection: &PgConnection, query: &str) -> MiddlewareResult<Vec<Self>> {
+        use schema::names::dsl::*;
+        let result = names.filter(name.like(query)).load::<Self>(connection);
+        match result {
+            Ok(x) => Ok(x),
+            Err(e) => Err(MiddlewareError::new(&e.to_string())),
+        }
+    }
 }
 
 #[derive(Insertable)]

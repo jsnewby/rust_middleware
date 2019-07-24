@@ -973,7 +973,6 @@ fn all_names(
     page: Option<i32>,
     owner: Option<String>,
 ) -> Json<Vec<Name>> {
-    let connection = PGCONNECTION.get().unwrap();
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql: String = match owner {
         Some(owner) => format!(
@@ -998,13 +997,9 @@ fn all_names(
 
 #[get("/names/<query>")]
 fn search_names(_state: State<MiddlewareServer>, query: String) -> Json<Vec<Name>> {
-    let sql = format!(
-        "select * from names \
-         where name like '%{}%' \
-         order by created_at_height desc",
-        sanitize(&query)
-    );
-    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    let connection = PGCONNECTION.get().unwrap();
+    let _name_query = format!("%{}%", query);
+    let names = Name::find_by_name(&connection, &_name_query).unwrap();
     Json(names)
 }
 
