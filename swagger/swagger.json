@@ -172,6 +172,28 @@
         }
       }
     },
+    "/names/{name}": {
+      "get": {
+        "description": "Get a list of all the active names",
+        "summary": "/middleware/names/{name}",
+        "operationId": "NamesSearchGet",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "String to match and find the name against"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
     "/names/active": {
       "get": {
         "description": "Get a list of all the active names",
