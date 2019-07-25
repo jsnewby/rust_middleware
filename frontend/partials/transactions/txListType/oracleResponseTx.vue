@@ -10,12 +10,6 @@
             />
           </div>
         </nuxt-link>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
@@ -74,7 +68,6 @@ import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
 
 export default {
@@ -84,8 +77,7 @@ export default {
     AppDefinition,
     FormatAeUnit,
     AccountGroup,
-    Account,
-    Age
+    Account
   },
   props: {
     transaction: {

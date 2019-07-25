@@ -55,6 +55,13 @@
             :value="transaction.tx.fee"
           />
         </AppDefinition>
+        <AppDefinition
+          v-if="transaction.time"
+          title="Time"
+          class="tx-time"
+        >
+          {{ transaction.time | timestampToUTC }}
+        </AppDefinition>
       </div>
     </div>
   </div>
@@ -65,6 +72,7 @@ import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
+import timestampToUTC from '../../../plugins/filters/timestampToUTC'
 
 export default {
   name: 'SpendTx',
@@ -74,6 +82,9 @@ export default {
     FormatAeUnit,
     AccountGroup,
     Account
+  },
+  filters: {
+    timestampToUTC
   },
   props: {
     transaction: {

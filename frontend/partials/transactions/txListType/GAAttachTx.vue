@@ -10,12 +10,6 @@
             />
           </div>
         </nuxt-link>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <Account
@@ -61,6 +55,13 @@
             :value="transaction.tx.gas_price"
           />
         </AppDefinition>
+        <AppDefinition
+          v-if="transaction.time"
+          title="Time"
+          class="tx-time"
+        >
+          {{ transaction.time | timestampToUTC }}
+        </AppDefinition>
       </div>
     </div>
   </div>
@@ -69,8 +70,8 @@
 import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
+import timestampToUTC from '../../../plugins/filters/timestampToUTC'
 
 export default {
   name: 'GAAttachTx',
@@ -78,8 +79,10 @@ export default {
     LabelType,
     AppDefinition,
     FormatAeUnit,
-    Account,
-    Age
+    Account
+  },
+  filters: {
+    timestampToUTC
   },
   props: {
     transaction: {

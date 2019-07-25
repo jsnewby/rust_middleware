@@ -15,7 +15,10 @@
     </div>
     <AppNavAccordion>
       <AppNav>
-        <AppNavLink to="/">
+        <AppNavLink
+          to="/"
+          :exact="true"
+        >
           Dashboard
         </AppNavLink>
         <AppNavLink to="/generations">
@@ -35,6 +38,13 @@
         </AppNavLink>
         <AppNavLink to="/oracles">
           Oracles
+        </AppNavLink>
+        <AppNavLink
+          :to="this.$store.state.swaggerHub"
+          :external="true"
+          external-value="Swagger Hub"
+        >
+          Swagger Hub
         </AppNavLink>
       </AppNav>
     </AppNavAccordion>
