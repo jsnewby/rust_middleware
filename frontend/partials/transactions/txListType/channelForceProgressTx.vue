@@ -10,12 +10,6 @@
             />
           </div>
         </nuxt-link>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
@@ -55,6 +49,12 @@
         >
           {{ transaction.tx.round }}
         </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
+        </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
         <AppDefinition
@@ -64,10 +64,10 @@
           <FormatAeUnit :value="transaction.tx.fee" />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.nonce"
-          title="nonce"
+          v-if="transaction.time"
+          title="Time"
         >
-          {{ transaction.tx.nonce }}
+          {{ transaction.time | timestampToUTC }}
         </AppDefinition>
       </div>
     </div>
@@ -78,8 +78,8 @@ import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
+import timestampToUTC from '../../../plugins/filters/timestampToUTC'
 
 export default {
   name: 'ChannelForceProgressTx',
@@ -88,8 +88,10 @@ export default {
     AppDefinition,
     FormatAeUnit,
     AccountGroup,
-    Account,
-    Age
+    Account
+  },
+  filters: {
+    timestampToUTC
   },
   props: {
     transaction: {
