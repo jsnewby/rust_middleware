@@ -10,12 +10,6 @@
             />
           </div>
         </nuxt-link>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
@@ -69,6 +63,7 @@
         <AppDefinition
           v-if="transaction.time"
           title="Time"
+          class="tx-time"
         >
           {{ transaction.time | timestampToUTC }}
         </AppDefinition>
@@ -81,7 +76,6 @@ import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
 import timestampToUTC from '../../../plugins/filters/timestampToUTC'
 
@@ -92,8 +86,7 @@ export default {
     AppDefinition,
     FormatAeUnit,
     AccountGroup,
-    Account,
-    Age
+    Account
   },
   filters: {
     timestampToUTC
