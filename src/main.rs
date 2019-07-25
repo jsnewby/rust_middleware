@@ -252,15 +252,17 @@ fn main() {
         return;
     }
 
-    // Run migrations
-    let connection = PGCONNECTION.get().unwrap();
-    let mut migration_output = Vec::new();
-    let migration_result =
-        embedded_migrations::run_with_output(&*connection, &mut migration_output);
-    for line in migration_output.iter() {
-        info!("migration out: {}", line);
+    // Run migrations iff populate set
+    if populate {
+        let connection = PGCONNECTION.get().unwrap();
+        let mut migration_output = Vec::new();
+        let migration_result =
+            embedded_migrations::run_with_output(&*connection, &mut migration_output);
+        for line in migration_output.iter() {
+            info!("migration out: {}", line);
+        }
+        migration_result.unwrap();
     }
-    migration_result.unwrap();
 
     /*
      * The `heights` argument is of this form: 1,10-15,1000 which
