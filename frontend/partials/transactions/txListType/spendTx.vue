@@ -58,6 +58,7 @@
         <AppDefinition
           v-if="transaction.time"
           title="Time"
+          class="tx-time"
         >
           {{ transaction.time | timestampToUTC }}
         </AppDefinition>
