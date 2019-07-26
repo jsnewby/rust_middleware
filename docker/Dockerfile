@@ -12,6 +12,7 @@ RUN cargo build --release
 RUN rm src/*.rs && rm -rf target/release/deps/aepp_middleware*
 COPY ./src/ ./src/
 COPY ./migrations/ ./migrations/
+COPY ./swagger/ ./swagger/
 RUN cargo build --release
 
 FROM debian:stretch-slim
