@@ -8,6 +8,7 @@ export const state = () => ({
   swaggerHub: process.env.swaggerHub,
   error: '',
   height: 0,
+  status: {},
   ws: null,
   wsConnected: false,
   filterOptions: [
@@ -78,6 +79,9 @@ export const mutations = {
   setHeight (state, height) {
     Object.assign(state, { height })
   },
+  setStatus (state, status) {
+    state.status = status
+  },
   createWsClient (state) {
     state.ws = new WebSocket(state.wsUrl)
   },
@@ -94,6 +98,17 @@ export const actions = {
       console.info('MDW 🔗 ' + url)
       commit('setHeight', height)
       return height
+    } catch (e) {
+      commit('catchError', 'Error', { root: true })
+    }
+  },
+  async status ({ rootState: { nodeUrl }, commit }) {
+    try {
+      const url = `${nodeUrl}/middleware/status`
+      const status = (await axios.get(url)).data
+      console.info('MDW 🔗 ' + url)
+      commit('setStatus', status)
+      return status
     } catch (e) {
       commit('catchError', 'Error', { root: true })
     }
