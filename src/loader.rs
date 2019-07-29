@@ -7,20 +7,70 @@ use diesel::sql_query;
 use diesel::Connection;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
+use dotenv::dotenv;
 use middleware_result::MiddlewareResult;
 use middleware_result::*;
 use models::*;
 use node::*;
+use r2d2::Pool;
+use r2d2_diesel::ConnectionManager;
+use r2d2_postgres::PostgresConnectionManager;
 use serde_json;
+use std::env;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
 use std::thread;
 use websocket::Candidate;
-use PARANOIA_LEVEL;
-use PGCONNECTION;
-use SQLCONNECTION;
 
-use crate::ParanoiaLevel;
+lazy_static! {
+    pub static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = ConnectionManager::<PgConnection>::new(database_url);
+        let pool = r2d2::Pool::builder()
+            .max_size(20) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
+}
+
+lazy_static! {
+    pub static ref SQLCONNECTION: Arc<Pool<PostgresConnectionManager>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = PostgresConnectionManager::new
+            (database_url, r2d2_postgres::TlsMode::None).unwrap();
+        let pool = r2d2::Pool::builder()
+            .max_size(3) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
+}
+
+#[derive(PartialEq)]
+pub enum ParanoiaLevel {
+    Normal,
+    High,
+}
+
+lazy_static! {
+    pub static ref PARANOIA_LEVEL: ParanoiaLevel = {
+        let paranoia_level = env::var("PARANOIA_LEVEL");
+        match paranoia_level {
+            Ok(x) => {
+                if x.eq(&String::from("high")) {
+                    ParanoiaLevel::High
+                } else {
+                    ParanoiaLevel::Normal
+                }
+            }
+            _ => ParanoiaLevel::Normal,
+        }
+    };
+}
 
 use super::websocket;
 

@@ -29,7 +29,7 @@ use std::str::FromStr;
 use middleware_result::{MiddlewareError, MiddlewareResult};
 use node::Node;
 
-use SQLCONNECTION;
+use loader::SQLCONNECTION;
 
 #[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
 #[table_name = "key_blocks"]
@@ -857,6 +857,18 @@ impl Name {
             Err(e) => Err(MiddlewareError::new(&e.to_string())),
         }
     }
+}
+
+#[derive(Queryable, QueryableByName)]
+#[table_name = "contract_calls"]
+pub struct ContractCall {
+    pub id: i32,
+    pub transaction_id: i32,
+    pub contract_id: String,
+    pub caller_id: String,
+    pub arguments: serde_json::Value,
+    pub callinfo: Option<serde_json::Value>,
+    pub result: Option<serde_json::Value>,
 }
 
 #[derive(Insertable)]
