@@ -31,9 +31,13 @@ use node::Node;
 
 use loader::SQLCONNECTION;
 
-#[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
+#[derive(
+    Associations, Deserialize, Identifiable, Queryable, QueryableByName, Hash, PartialEq, Eq,
+)]
 #[table_name = "key_blocks"]
+#[has_many(micro_blocks)]
 pub struct KeyBlock {
+    #[sql_type = "diesel::sql_types::Int4"]
     pub id: i32,
     pub hash: String,
     pub height: i64,
@@ -269,14 +273,12 @@ fn zero_vec_i32() -> Vec<i32> {
     vec![0]
 }
 
-#[derive(Identifiable, Associations, Queryable, QueryableByName)]
-#[belongs_to(KeyBlock)]
+#[derive(Deserialize, Associations, Identifiable, Queryable, QueryableByName)]
 #[table_name = "micro_blocks"]
+#[belongs_to(KeyBlock)]
 pub struct MicroBlock {
     pub id: i32,
-    #[sql_type = "diesel::sql_types::Int4"]
-    #[column_name = "key_block_id"]
-    pub key_block: Option<KeyBlock>,
+    pub key_block_id: i32,
     pub hash: String,
     pub pof_hash: String,
     pub prev_hash: String,
@@ -404,7 +406,7 @@ impl JsonGeneration {
     }
 }
 
-#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize)]
+#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations)]
 #[table_name = "transactions"]
 pub struct Transaction {
     pub id: i32,
