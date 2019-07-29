@@ -171,7 +171,7 @@ impl BlockLoader {
         let conn = PGCONNECTION.get()?;
         let mut fork_was_detected = false;
         let chain_length = KeyBlock::top_height(&conn)?;
-        let mut current_height = chain_length;
+        let current_height = chain_length;
 
         loop {
             let mut in_fork = false;
@@ -217,7 +217,7 @@ impl BlockLoader {
                 debug!("No fork found. Exiting loop");
                 break;
             } else {
-                BlockLoader::invalidate_block_at_height(current_height, &conn, &_tx);
+                BlockLoader::invalidate_block_at_height(current_height, &conn, &_tx)?;
                 info!(
                     "{} detected at height {} with chain length {}\n\
                      db generation: {:?}\n\
@@ -397,7 +397,7 @@ impl BlockLoader {
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::object,
             data: serde_json::to_value(&generation.key_block)?,
-        });
+        })?;
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::key_blocks,
             data: serde_json::to_value(&generation.key_block)?,
@@ -409,7 +409,7 @@ impl BlockLoader {
             websocket::broadcast_ws(&Candidate {
                 payload: WsPayload::object,
                 data: serde_json::to_value(&mb)?,
-            });
+            })?;
             websocket::broadcast_ws(&Candidate {
                 payload: WsPayload::micro_blocks,
                 data: serde_json::to_value(&mb)?,
@@ -526,7 +526,7 @@ impl BlockLoader {
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::object,
             data: serde_json::to_value(trans)?,
-        });
+        })?;
         let mut results: Vec<Transaction> = sql_query(sql).get_results(conn)?;
         match results.pop() {
             Some(x) => {

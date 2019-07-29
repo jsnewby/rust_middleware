@@ -54,5 +54,15 @@ pub fn test_contract_call() {
         .first::<KeyBlock>(conn)
         .unwrap();
     let micro_blocks: Vec<MicroBlock> = MicroBlock::belonging_to(&key_block).load(conn).unwrap();
-    assert_eq!(
+    assert_eq!(micro_blocks.len(), 1);
+    let transactions: Vec<Transaction> = Transaction::belonging_to(&micro_blocks[0])
+        .load(conn)
+        .unwrap();
+    assert_eq!(transactions.len(), 1);
+}
+
+#[test]
+pub fn test_oracle_queries() {
+    load_blocks(vec![34424]);
+    let conn = &*PGCONNECTION.get().unwrap();
 }

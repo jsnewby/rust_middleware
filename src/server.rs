@@ -16,7 +16,6 @@ use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rust_decimal::Decimal;
 use serde_json;
-use std::env;
 use std::io::Cursor;
 use std::path::PathBuf;
 

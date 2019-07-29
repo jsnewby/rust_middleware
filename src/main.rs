@@ -50,7 +50,6 @@ extern crate serde_json;
 extern crate ws;
 
 extern crate aepp_middleware;
-use aepp_middleware::*;
 
 use std::thread;
 use std::thread::JoinHandle;
@@ -75,20 +74,12 @@ use server::MiddlewareServer;
 pub mod models;
 
 use daemonize::Daemonize;
-use diesel::PgConnection;
-use dotenv::dotenv;
-use r2d2::Pool;
-use r2d2_diesel::ConnectionManager;
-use r2d2_postgres::PostgresConnectionManager;
-use std::sync::Arc;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 embed_migrations!("migrations/");
 
-use loader::PARANOIA_LEVEL;
 use loader::PGCONNECTION;
-use loader::SQLCONNECTION;
 
 /*
  * This function does two things--initially it asks the DB for the
@@ -194,9 +185,9 @@ fn main() {
     if daemonize {
         let daemonize = Daemonize::new();
         if let Ok(x) = env::var("PID_FILE") {
-            daemonize.pid_file(x).start();
+            daemonize.pid_file(x).start().unwrap();
         } else {
-            daemonize.start();
+            daemonize.start().unwrap();
         }
     }
 
@@ -289,7 +280,7 @@ fn main() {
      */
     match populate_thread {
         Some(x) => {
-            x.join();
+            x.join().unwrap();
             ()
         }
         None => (),

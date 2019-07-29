@@ -86,7 +86,7 @@ impl KeyBlock {
     /**
      * return the height that has time >= of the epoch input value
      */
-    pub fn height_at_epoch(conn: &PgConnection, epoch: i64) -> MiddlewareResult<Option<i64>> {
+    pub fn height_at_epoch(_conn: &PgConnection, epoch: i64) -> MiddlewareResult<Option<i64>> {
         let rows = SQLCONNECTION.get()?.query(
             "SELECT MIN(height) FROM key_blocks WHERE time_ >= $1",
             &[&epoch],
@@ -273,9 +273,12 @@ fn zero_vec_i32() -> Vec<i32> {
     vec![0]
 }
 
-#[derive(Deserialize, Associations, Identifiable, Queryable, QueryableByName)]
+#[derive(
+    Deserialize, Associations, Identifiable, Queryable, QueryableByName, Hash, Eq, PartialEq,
+)]
 #[table_name = "micro_blocks"]
 #[belongs_to(KeyBlock)]
+#[has_many(transactions)]
 pub struct MicroBlock {
     pub id: i32,
     pub key_block_id: i32,
@@ -408,6 +411,7 @@ impl JsonGeneration {
 
 #[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations)]
 #[table_name = "transactions"]
+#[belongs_to(MicroBlock)]
 pub struct Transaction {
     pub id: i32,
     pub micro_block_id: Option<i32>,
@@ -415,9 +419,11 @@ pub struct Transaction {
     pub block_hash: String,
     pub hash: String,
     pub signatures: String,
+    pub tx_type: String,
+    pub tx: serde_json::Value,
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
-    pub tx: serde_json::Value,
+    pub valid: bool,
 }
 
 #[derive(Serialize)]
