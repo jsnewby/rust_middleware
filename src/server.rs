@@ -19,9 +19,8 @@ use serde_json;
 use std::io::Cursor;
 use std::path::PathBuf;
 
-use SQLCONNECTION;
-
-use PGCONNECTION;
+use loader::PGCONNECTION;
+use loader::SQLCONNECTION;
 
 pub struct MiddlewareServer {
     pub node: Node,

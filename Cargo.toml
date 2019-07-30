@@ -3,10 +3,19 @@ name = "aepp-middleware"
 version = "0.8.2"
 authors = ["John Newby <@johnsnewby>", "Shubhendu Shekhar <@shekhar-shubhendu>", "Andrea Giacobino <@noandrea>" ]
 
+[lib]
+name = "aepp_middleware"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mdw"
+path = "src/main.rs"
+
 [features]
 client = [ ]
 
 [dependencies]
+assert-json-diff = "1.0.0"
 backtrace = "0.2"
 base58="0.1.0"
 base58check = "0.0.1"

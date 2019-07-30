@@ -29,11 +29,15 @@ use std::str::FromStr;
 use middleware_result::{MiddlewareError, MiddlewareResult};
 use node::Node;
 
-use SQLCONNECTION;
+use loader::SQLCONNECTION;
 
-#[derive(Queryable, QueryableByName, Hash, PartialEq, Eq)]
+#[derive(
+    Associations, Deserialize, Identifiable, Queryable, QueryableByName, Hash, PartialEq, Eq,
+)]
 #[table_name = "key_blocks"]
+#[has_many(micro_blocks)]
 pub struct KeyBlock {
+    #[sql_type = "diesel::sql_types::Int4"]
     pub id: i32,
     pub hash: String,
     pub height: i64,
@@ -82,7 +86,7 @@ impl KeyBlock {
     /**
      * return the height that has time >= of the epoch input value
      */
-    pub fn height_at_epoch(conn: &PgConnection, epoch: i64) -> MiddlewareResult<Option<i64>> {
+    pub fn height_at_epoch(_conn: &PgConnection, epoch: i64) -> MiddlewareResult<Option<i64>> {
         let rows = SQLCONNECTION.get()?.query(
             "SELECT MIN(height) FROM key_blocks WHERE time_ >= $1",
             &[&epoch],
@@ -269,14 +273,15 @@ fn zero_vec_i32() -> Vec<i32> {
     vec![0]
 }
 
-#[derive(Identifiable, Associations, Queryable, QueryableByName)]
-#[belongs_to(KeyBlock)]
+#[derive(
+    Deserialize, Associations, Identifiable, Queryable, QueryableByName, Hash, Eq, PartialEq,
+)]
 #[table_name = "micro_blocks"]
+#[belongs_to(KeyBlock)]
+#[has_many(transactions)]
 pub struct MicroBlock {
     pub id: i32,
-    #[sql_type = "diesel::sql_types::Int4"]
-    #[column_name = "key_block_id"]
-    pub key_block: Option<KeyBlock>,
+    pub key_block_id: i32,
     pub hash: String,
     pub pof_hash: String,
     pub prev_hash: String,
@@ -404,8 +409,9 @@ impl JsonGeneration {
     }
 }
 
-#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize)]
+#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations)]
 #[table_name = "transactions"]
+#[belongs_to(MicroBlock)]
 pub struct Transaction {
     pub id: i32,
     pub micro_block_id: Option<i32>,
@@ -413,9 +419,11 @@ pub struct Transaction {
     pub block_hash: String,
     pub hash: String,
     pub signatures: String,
+    pub tx_type: String,
+    pub tx: serde_json::Value,
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
-    pub tx: serde_json::Value,
+    pub valid: bool,
 }
 
 #[derive(Serialize)]
@@ -857,6 +865,18 @@ impl Name {
             Err(e) => Err(MiddlewareError::new(&e.to_string())),
         }
     }
+}
+
+#[derive(Queryable, QueryableByName)]
+#[table_name = "contract_calls"]
+pub struct ContractCall {
+    pub id: i32,
+    pub transaction_id: i32,
+    pub contract_id: String,
+    pub caller_id: String,
+    pub arguments: serde_json::Value,
+    pub callinfo: Option<serde_json::Value>,
+    pub result: Option<serde_json::Value>,
 }
 
 #[derive(Insertable)]

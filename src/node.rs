@@ -7,12 +7,12 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::str;
 
+use loader::SQLCONNECTION;
 use middleware_result::MiddlewareError;
 use middleware_result::MiddlewareResult;
 use models::InsertableMicroBlock;
 use models::JsonKeyBlock;
 use models::JsonTransaction;
-use SQLCONNECTION;
 
 #[derive(Debug)]
 pub struct HttpResponse {

@@ -29,7 +29,7 @@ impl std::error::Error for MiddlewareError {
     fn description(&self) -> &str {
         &self.details
     }
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         // Generic error, underlying cause isn't tracked.
         None
     }
@@ -47,8 +47,8 @@ impl From<r2d2::Error> for MiddlewareError {
     }
 }
 
-impl From<Box<std::error::Error>> for MiddlewareError {
-    fn from(err: Box<std::error::Error>) -> Self {
+impl From<Box<dyn std::error::Error>> for MiddlewareError {
+    fn from(err: Box<dyn std::error::Error>) -> Self {
         MiddlewareError::new(&err.to_string())
     }
 }

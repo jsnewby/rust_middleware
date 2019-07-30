@@ -37,7 +37,7 @@ table! {
 table! {
     micro_blocks (id) {
         id -> Int4,
-        key_block_id -> Nullable<Int4>,
+        key_block_id -> Int4,
         hash -> Varchar,
         pof_hash -> Varchar,
         prev_hash -> Varchar,
