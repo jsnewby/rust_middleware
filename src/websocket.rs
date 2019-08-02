@@ -110,15 +110,19 @@ impl Subscriptions {
 
     pub fn client_unsubscribe(&mut self, client: Client) {
         debug!("Unsubscribing client {:?}", client);
-        let mut objs: HashSet<Object> = match self.object_subs_fwd.get(&client) {
+        let objs: HashSet<Object> = match self.object_subs_fwd.get(&client) {
             Some(x) => (*x).to_owned(),
             None => HashSet::new(),
         };
         for object in objs.iter() {
             self.object_unsubscribe(client.clone(), object.to_string());
         }
-        for payload in &[ WsPayload::key_blocks, WsPayload::micro_blocks,
-                          WsPayload::transactions, WsPayload::tx_update ] {
+        for payload in &[
+            WsPayload::key_blocks,
+            WsPayload::micro_blocks,
+            WsPayload::transactions,
+            WsPayload::tx_update,
+        ] {
             self.vanilla_unsubscribe(payload, &client);
         }
         debug!("Subs for client now {:?}", self.subs_for_client(client));
@@ -138,7 +142,7 @@ impl Subscriptions {
         if self.tx_sub.contains(&client) {
             subs.push(WsPayload::tx_update.to_string());
         }
-        let mut objs: HashSet<Object> = match self.object_subs_fwd.get(&client) {
+        let objs: HashSet<Object> = match self.object_subs_fwd.get(&client) {
             Some(x) => (*x).to_owned(),
             None => HashSet::new(),
         };
@@ -352,7 +356,7 @@ impl Handler for Client {
             _ => (),
         }
         self.out
-            .send(json!(subs_for_client(self.clone())).to_string());
+            .send(json!(subs_for_client(self.clone())).to_string())?;
         Ok(())
     }
 

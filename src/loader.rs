@@ -7,20 +7,70 @@ use diesel::sql_query;
 use diesel::Connection;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
+use dotenv::dotenv;
 use middleware_result::MiddlewareResult;
 use middleware_result::*;
 use models::*;
 use node::*;
+use r2d2::Pool;
+use r2d2_diesel::ConnectionManager;
+use r2d2_postgres::PostgresConnectionManager;
 use serde_json;
+use std::env;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
 use std::thread;
 use websocket::Candidate;
-use PARANOIA_LEVEL;
-use PGCONNECTION;
-use SQLCONNECTION;
 
-use crate::ParanoiaLevel;
+lazy_static! {
+    pub static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = ConnectionManager::<PgConnection>::new(database_url);
+        let pool = r2d2::Pool::builder()
+            .max_size(20) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
+}
+
+lazy_static! {
+    pub static ref SQLCONNECTION: Arc<Pool<PostgresConnectionManager>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = PostgresConnectionManager::new
+            (database_url, r2d2_postgres::TlsMode::None).unwrap();
+        let pool = r2d2::Pool::builder()
+            .max_size(3) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
+}
+
+#[derive(PartialEq)]
+pub enum ParanoiaLevel {
+    Normal,
+    High,
+}
+
+lazy_static! {
+    pub static ref PARANOIA_LEVEL: ParanoiaLevel = {
+        let paranoia_level = env::var("PARANOIA_LEVEL");
+        match paranoia_level {
+            Ok(x) => {
+                if x.eq(&String::from("high")) {
+                    ParanoiaLevel::High
+                } else {
+                    ParanoiaLevel::Normal
+                }
+            }
+            _ => ParanoiaLevel::Normal,
+        }
+    };
+}
 
 use super::websocket;
 
@@ -121,7 +171,7 @@ impl BlockLoader {
         let conn = PGCONNECTION.get()?;
         let mut fork_was_detected = false;
         let chain_length = KeyBlock::top_height(&conn)?;
-        let mut current_height = chain_length;
+        let current_height = chain_length;
 
         loop {
             let mut in_fork = false;
@@ -167,7 +217,7 @@ impl BlockLoader {
                 debug!("No fork found. Exiting loop");
                 break;
             } else {
-                BlockLoader::invalidate_block_at_height(current_height, &conn, &_tx);
+                BlockLoader::invalidate_block_at_height(current_height, &conn, &_tx)?;
                 info!(
                     "{} detected at height {} with chain length {}\n\
                      db generation: {:?}\n\
@@ -347,7 +397,7 @@ impl BlockLoader {
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::object,
             data: serde_json::to_value(&generation.key_block)?,
-        });
+        })?;
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::key_blocks,
             data: serde_json::to_value(&generation.key_block)?,
@@ -359,7 +409,7 @@ impl BlockLoader {
             websocket::broadcast_ws(&Candidate {
                 payload: WsPayload::object,
                 data: serde_json::to_value(&mb)?,
-            });
+            })?;
             websocket::broadcast_ws(&Candidate {
                 payload: WsPayload::micro_blocks,
                 data: serde_json::to_value(&mb)?,
@@ -476,7 +526,7 @@ impl BlockLoader {
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::object,
             data: serde_json::to_value(trans)?,
-        });
+        })?;
         let mut results: Vec<Transaction> = sql_query(sql).get_results(conn)?;
         match results.pop() {
             Some(x) => {
