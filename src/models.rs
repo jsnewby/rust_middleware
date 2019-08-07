@@ -424,6 +424,7 @@ pub struct Transaction {
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub valid: bool,
+    pub encoded_tx: String
 }
 
 #[derive(Serialize)]
@@ -537,6 +538,7 @@ pub struct InsertableTransaction {
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub tx: serde_json::Value,
+    pub encoded_tx: String
 }
 
 impl InsertableTransaction {
@@ -578,6 +580,7 @@ impl InsertableTransaction {
             fee,
             size: jt.tx.to_string().len() as i32,
             tx: serde_json::from_str(&jt.tx.to_string())?,
+            encoded_tx: base64::encode(&jt.tx.to_string())
         })
     }
 }
