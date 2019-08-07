@@ -479,14 +479,16 @@ impl Transaction {
         match &transaction.encoded_tx {
             Some(encoded_tx) => {
                 let mut tx = transaction.clone();
-                tx.tx = serde_json::from_str(
-                    &String::from_utf8(base64::decode(&encoded_tx).unwrap()).unwrap(),
-                )
-                .unwrap();
+                tx.tx = Transaction::decode_tx(encoded_tx);
                 tx
             }
             _ => transaction.clone(),
         }
+    }
+
+    pub fn decode_tx(encoded_tx: &str) -> serde_json::Value {
+        serde_json::from_str(&String::from_utf8(base64::decode(&encoded_tx).unwrap()).unwrap())
+            .unwrap()
     }
 }
 
@@ -511,7 +513,7 @@ impl JsonTransaction {
             block_hash: t.block_hash.clone(),
             hash: t.hash.clone(),
             signatures,
-            tx: t.tx.clone(),
+            tx: Transaction::check_encoded(t).tx,
         }
     }
 
