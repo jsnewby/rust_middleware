@@ -424,7 +424,7 @@ pub struct Transaction {
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub valid: bool,
-    pub encoded_tx: String
+    pub encoded_tx: String,
 }
 
 #[derive(Serialize)]
@@ -438,12 +438,19 @@ impl Transaction {
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
         let sql = format!("select * from transactions where hash='{}'", _hash);
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
-        Some(_transactions.pop()?)
+        match _transactions.pop() {
+            Some(tx) => Some(Transaction::check_encoded(tx)),
+            _ => None,
+        }
     }
 
     pub fn load_for_micro_block(conn: &PgConnection, mb_hash: &String) -> Option<Vec<Transaction>> {
         let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}'", mb_hash);
-        let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
+        let mut _transactions = vec![];
+        for mut tx in sql_query(sql).load(conn).unwrap() {
+            tx = Transaction::check_encoded(tx);
+            _transactions.push(tx);
+        }
         Some(_transactions)
     }
 
@@ -466,6 +473,16 @@ impl Transaction {
             v.push(Rate {count: row.get(0), amount: row.get(1), date: dt.format("%Y-%m-%d").to_string() });
         }
         Ok(v)
+    }
+
+    pub fn check_encoded(mut tx: Transaction) -> Transaction {
+        if tx.encoded_tx != "" {
+            tx.tx = serde_json::from_str(
+                &String::from_utf8(base64::decode(&tx.encoded_tx).unwrap()).unwrap(),
+            )
+            .unwrap();
+        }
+        return tx;
     }
 }
 
@@ -538,7 +555,7 @@ pub struct InsertableTransaction {
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub tx: serde_json::Value,
-    pub encoded_tx: String
+    pub encoded_tx: String,
 }
 
 impl InsertableTransaction {
@@ -582,12 +599,12 @@ impl InsertableTransaction {
             fee,
             size: jt.tx.to_string().len() as i32,
             tx: serde_json::from_str(&cleaned_tx)?,
-            encoded_tx
+            encoded_tx,
         })
     }
 
     pub fn clean_tx_string(tx_str: &str) -> String {
-        return tx_str.replace("\\u0000", "")
+        return tx_str.replace("\\u0000", "");
     }
 }
 
