@@ -87,7 +87,7 @@ table! {
         fee -> Numeric,
         size -> Int4,
         valid -> Bool,
-        encoded_tx -> Varchar,
+        encoded_tx -> Nullable<Varchar>,
     }
 }
 
