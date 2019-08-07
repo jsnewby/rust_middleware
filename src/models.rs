@@ -486,7 +486,7 @@ impl Transaction {
         }
     }
 
-    pub fn decode_tx(encoded_tx: &str) -> serde_json::Value {
+    pub fn decode_tx(encoded_tx: &String) -> serde_json::Value {
         serde_json::from_str(&String::from_utf8(base64::decode(&encoded_tx).unwrap()).unwrap())
             .unwrap()
     }
