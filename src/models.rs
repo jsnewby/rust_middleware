@@ -569,6 +569,8 @@ impl InsertableTransaction {
             serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
         let fee_str = fee_number.to_string();
         let fee = bigdecimal::BigDecimal::from_str(&fee_str)?.with_scale(0);
+        let cleaned_tx = InsertableTransaction::clean_tx_string(&jt.tx.to_string());
+        let encoded_tx = base64::encode(&jt.tx.to_string());
         // the above with_scale(0) seems to suppress a weird bug, should not be necessary
         Ok(InsertableTransaction {
             micro_block_id,
@@ -579,9 +581,13 @@ impl InsertableTransaction {
             tx_type,
             fee,
             size: jt.tx.to_string().len() as i32,
-            tx: serde_json::from_str(&jt.tx.to_string())?,
-            encoded_tx: base64::encode(&jt.tx.to_string())
+            tx: serde_json::from_str(&cleaned_tx)?,
+            encoded_tx
         })
+    }
+
+    pub fn clean_tx_string(tx_str: &str) -> String {
+        return tx_str.replace("\\u0000", "")
     }
 }
 
