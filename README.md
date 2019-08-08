@@ -85,7 +85,7 @@ The middleware will automatically set up its DB on initialization, and run migra
 
 ```
 cargo build --release # make a release build--this will take a long long time
-./target/release/aepp-middleware # + flags below
+./target/release/mdw # + flags below
 ```
 
 ### Flags
