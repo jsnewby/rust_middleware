@@ -456,7 +456,12 @@ fn transactions_for_account(
         let hash: String = row.get(5);
         let sig: String = row.get(6);
         let signatures: Vec<String> = sig.split(' ').map(|s| s.to_string()).collect();
-        let tx: serde_json::Value = row.get(8);
+        let tx: serde_json::Value = match row.get_opt(12).unwrap().unwrap() {
+                Some(encoded_tx) => {
+                    Transaction::decode_tx(&encoded_tx)
+                }
+                _ => row.get(8),
+            };
         results.push(json!({
             "time" : time,
             "block_height": block_height,
@@ -629,7 +634,7 @@ fn generations_by_range(
          k.prev_hash, k.prev_key_hash, k.state_hash, k.target, k.time_, k.\"version\", \
          m.hash, m.pof_hash, m.prev_hash, m.prev_key_hash, m.signature, \
          m.state_hash, m.time_, m.txs_hash, m.\"version\", \
-         t.block_hash, t.block_height, t.hash, t.signatures, t.tx \
+         t.block_hash, t.block_height, t.hash, t.signatures, t.tx, t.encoded_tx \
          from key_blocks k left join micro_blocks m on k.id = m.key_block_id \
          left join transactions t on m.id = t.micro_block_id \
          where k.height >={} and k.height <={} \
@@ -649,7 +654,12 @@ fn generations_by_range(
             let block_height: i32 = row.get(22);
             let hash: String = row.get(23);
             let signatures: String = row.get(24);
-            let tx_: serde_json::Value = row.get(25);
+            let tx_: serde_json::Value = match row.get_opt(26).unwrap().unwrap() {
+                Some(encoded_tx) => {
+                    Transaction::decode_tx(&encoded_tx)
+                }
+                _ => row.get(25),
+            };
             transaction = json!({
                 "block_hash": block_hash,
                 "block_height": block_height,

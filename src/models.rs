@@ -409,7 +409,7 @@ impl JsonGeneration {
     }
 }
 
-#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations)]
+#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations, Clone)]
 #[table_name = "transactions"]
 #[belongs_to(MicroBlock)]
 pub struct Transaction {
@@ -424,6 +424,7 @@ pub struct Transaction {
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub valid: bool,
+    pub encoded_tx: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -437,13 +438,20 @@ impl Transaction {
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
         let sql = format!("select * from transactions where hash='{}'", _hash);
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
-        Some(_transactions.pop()?)
+        match _transactions.pop() {
+            Some(tx) => Some(Transaction::check_encoded(&tx)),
+            _ => None,
+        }
     }
 
     pub fn load_for_micro_block(conn: &PgConnection, mb_hash: &String) -> Option<Vec<Transaction>> {
         let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}'", mb_hash);
-        let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
-        Some(_transactions)
+        let _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
+        let txs = _transactions
+            .iter()
+            .map(Transaction::check_encoded)
+            .collect();
+        Some(txs)
     }
 
     pub fn rate(
@@ -465,6 +473,22 @@ impl Transaction {
             v.push(Rate {count: row.get(0), amount: row.get(1), date: dt.format("%Y-%m-%d").to_string() });
         }
         Ok(v)
+    }
+
+    pub fn check_encoded(transaction: &Transaction) -> Transaction {
+        match &transaction.encoded_tx {
+            Some(encoded_tx) => {
+                let mut tx = transaction.clone();
+                tx.tx = Transaction::decode_tx(encoded_tx);
+                tx
+            }
+            _ => transaction.clone(),
+        }
+    }
+
+    pub fn decode_tx(encoded_tx: &String) -> serde_json::Value {
+        serde_json::from_str(&String::from_utf8(base64::decode(&encoded_tx).unwrap()).unwrap())
+            .unwrap()
     }
 }
 
@@ -489,7 +513,7 @@ impl JsonTransaction {
             block_hash: t.block_hash.clone(),
             hash: t.hash.clone(),
             signatures,
-            tx: t.tx.clone(),
+            tx: Transaction::check_encoded(t).tx,
         }
     }
 
@@ -537,6 +561,7 @@ pub struct InsertableTransaction {
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
     pub tx: serde_json::Value,
+    pub encoded_tx: Option<String>,
 }
 
 impl InsertableTransaction {
@@ -567,6 +592,8 @@ impl InsertableTransaction {
             serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
         let fee_str = fee_number.to_string();
         let fee = bigdecimal::BigDecimal::from_str(&fee_str)?.with_scale(0);
+        let cleaned_tx = InsertableTransaction::clean_tx_string(&jt.tx.to_string());
+        let encoded_tx = Some(base64::encode(&jt.tx.to_string()));
         // the above with_scale(0) seems to suppress a weird bug, should not be necessary
         Ok(InsertableTransaction {
             micro_block_id,
@@ -577,8 +604,13 @@ impl InsertableTransaction {
             tx_type,
             fee,
             size: jt.tx.to_string().len() as i32,
-            tx: serde_json::from_str(&jt.tx.to_string())?,
+            tx: serde_json::from_str(&cleaned_tx)?,
+            encoded_tx,
         })
+    }
+
+    pub fn clean_tx_string(tx_str: &str) -> String {
+        tx_str.replace("\\u0000", "")
     }
 }
 
