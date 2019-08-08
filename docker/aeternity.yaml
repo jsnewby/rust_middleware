@@ -19,11 +19,6 @@ keys:
 
 chain:
   persist: true
-  hard_forks:
-    "1": 0
-    "2": 2
-    "3": 4
-
 
 mining:
   autostart: false
