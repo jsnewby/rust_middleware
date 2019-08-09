@@ -64,7 +64,6 @@ export default {
 
   .app-table-accordion {
     width: 100%;
-    height: 100%;
     &-button {
       @extend %face-uppercase-xs;
       color: $color-neutral-negative-1;
