@@ -113,7 +113,10 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
-          <AppTableRow extend>
+          <AppTableRow
+            v-if="data.nonce"
+            extend
+          >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
@@ -123,7 +126,10 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
-          <AppTableRow extend>
+          <AppTableRow
+            v-if="data.signatures"
+            extend
+          >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
@@ -133,6 +139,19 @@
                   :value="data.signatures[0]"
                   length="full"
                 />
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.tx.tx"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Embedded Tx"
+              >
+                {{ data.tx.tx }}
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
