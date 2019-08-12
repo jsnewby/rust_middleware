@@ -454,8 +454,8 @@ fn transactions_for_account(
         let block_height: i32 = row.get(3);
         let block_hash: String = row.get(4);
         let hash: String = row.get(5);
-        let sig: String = row.get(6);
-        let signatures: Vec<String> = sig.split(' ').map(|s| s.to_string()).collect();
+        let sig: Option<String> = row.get(6);
+        let signatures = Transaction::deserialize_signatures(&sig);
         let tx: serde_json::Value = match row.get_opt(12).unwrap().unwrap() {
                 Some(encoded_tx) => {
                     Transaction::decode_tx(&encoded_tx)
@@ -653,7 +653,8 @@ fn generations_by_range(
             let block_hash: String = val;
             let block_height: i32 = row.get(22);
             let hash: String = row.get(23);
-            let signatures: String = row.get(24);
+            let sig: Option<String> = row.get(24);
+            let signatures = Transaction::deserialize_signatures(&sig);
             let tx_: serde_json::Value = match row.get_opt(26).unwrap().unwrap() {
                 Some(encoded_tx) => {
                     Transaction::decode_tx(&encoded_tx)
