@@ -497,6 +497,7 @@ pub struct JsonTransaction {
     pub block_height: i32,
     pub block_hash: String,
     pub hash: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub signatures: Option<Vec<String>>,
     pub tx: serde_json::Value,
 }
@@ -596,7 +597,7 @@ impl InsertableTransaction {
                     sig_str.push_str(&sig[i].clone());
                 }
                 Some(sig_str)
-            },
+            }
             _ => None,
         };
 
