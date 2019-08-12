@@ -46,8 +46,8 @@ export const actions = {
   },
   getTransactionByHash: async function ({ rootState: { nodeUrl }, commit }, hash) {
     try {
-      const url = `${nodeUrl}/v2/transactions/{hash}`
-      const tx = await axios.get(nodeUrl + '/v2/transactions/' + hash)
+      const url = `${nodeUrl}/v2/transactions/${hash}`
+      const tx = await axios.get(url)
       console.info('MDW 🔗 ' + url)
       commit('setTransactions', [tx.data])
       return tx.data
