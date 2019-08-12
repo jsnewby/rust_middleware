@@ -435,6 +435,7 @@ fn transactions_for_account(
          m.id = t.micro_block_id AND \
          (t.tx->>'sender_id'='{}' OR \
          t.tx->>'account_id' = '{}' OR \
+         t.tx->>'ga_id' = '{}' OR \
          t.tx->>'caller_id' = '{}' OR \
          t.tx->>'recipient_id'='{}' OR \
          t.tx->>'initiator_id'='{}' OR \
@@ -444,7 +445,7 @@ fn transactions_for_account(
          t.tx->>'owner_id' = {}\
          order by m.time_ desc \
          limit {} offset {} ",
-        s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
+        s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
     );
     info!("{}", sql);
 
