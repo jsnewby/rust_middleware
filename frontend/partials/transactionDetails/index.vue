@@ -136,7 +136,9 @@
                 title="Signatures"
               >
                 <FormatAddress
-                  :value="data.signatures[0]"
+                  v-for="(sig, index) in data.signatures"
+                  :key="index"
+                  :value="sig"
                   length="full"
                 />
               </AppDefinition>
