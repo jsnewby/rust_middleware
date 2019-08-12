@@ -81,7 +81,7 @@ table! {
         block_height -> Int4,
         block_hash -> Varchar,
         hash -> Varchar,
-        signatures -> Text,
+        signatures -> Nullable<Text>,
         tx_type -> Varchar,
         tx -> Jsonb,
         fee -> Numeric,
