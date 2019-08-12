@@ -22,5 +22,5 @@ COPY --from=build /aepp-middleware/target/release/mdw /app/aepp-middleware
 WORKDIR /app
 COPY ./docker/Rocket.toml ./Rocket.toml
 ENTRYPOINT ["/app/aepp-middleware"]
-CMD ["-p", "-s"]
+CMD ["-p", "-s", "-w"]
 EXPOSE 80 3020

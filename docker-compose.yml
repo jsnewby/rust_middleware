@@ -7,7 +7,7 @@ services:
     ports:
       - "8080:80"
       - "3020:3020"
-    entrypoint: ./docker/wait-for-it.sh node:3013 -- ./aepp-middleware -p -s
+    entrypoint: ./docker/wait-for-it.sh node:3013 -- ./aepp-middleware -p -s -w
     environment:
       - NODE_URL=node:3013
       - AESOPHIA_URL=compiler:3080
