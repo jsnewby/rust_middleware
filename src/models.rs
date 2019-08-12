@@ -490,6 +490,16 @@ impl Transaction {
         serde_json::from_str(&String::from_utf8(base64::decode(&encoded_tx).unwrap()).unwrap())
             .unwrap()
     }
+
+    pub fn deserialize_signatures(sig: &Option<String>) -> Option<Vec<String>> {
+        match sig {
+            Some(result) => {
+                let signatures: Vec<String> = result.split(' ').map(|s| s.to_string()).collect();
+                Some(signatures)
+            },
+            _ => None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -504,17 +514,7 @@ pub struct JsonTransaction {
 
 impl JsonTransaction {
     pub fn from_transaction(t: &Transaction) -> JsonTransaction {
-        let signatures = match &t.signatures {
-            Some(sig) => {
-                let mut signatures: Vec<String> = vec![];
-                let _s = sig.split(" ");
-                for s in _s {
-                    signatures.push(String::from(s));
-                }
-                Some(signatures)
-            }
-            _ => None,
-        };
+        let signatures = Transaction::deserialize_signatures(&t.signatures);
         JsonTransaction {
             block_height: t.block_height,
             block_hash: t.block_hash.clone(),
