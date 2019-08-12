@@ -418,7 +418,7 @@ pub struct Transaction {
     pub block_height: i32,
     pub block_hash: String,
     pub hash: String,
-    pub signatures: String,
+    pub signatures: Option<String>,
     pub tx_type: String,
     pub tx: serde_json::Value,
     pub fee: bigdecimal::BigDecimal,
@@ -497,17 +497,24 @@ pub struct JsonTransaction {
     pub block_height: i32,
     pub block_hash: String,
     pub hash: String,
-    pub signatures: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signatures: Option<Vec<String>>,
     pub tx: serde_json::Value,
 }
 
 impl JsonTransaction {
     pub fn from_transaction(t: &Transaction) -> JsonTransaction {
-        let mut signatures: Vec<String> = vec![];
-        let _s = t.signatures.split(" ");
-        for s in _s {
-            signatures.push(String::from(s));
-        }
+        let signatures = match &t.signatures {
+            Some(sig) => {
+                let mut signatures: Vec<String> = vec![];
+                let _s = sig.split(" ");
+                for s in _s {
+                    signatures.push(String::from(s));
+                }
+                Some(signatures)
+            }
+            _ => None,
+        };
         JsonTransaction {
             block_height: t.block_height,
             block_hash: t.block_hash.clone(),
@@ -556,7 +563,7 @@ pub struct InsertableTransaction {
     pub block_height: i32,
     pub block_hash: String,
     pub hash: String,
-    pub signatures: String,
+    pub signatures: Option<String>,
     pub tx_type: String,
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
@@ -580,13 +587,19 @@ impl InsertableTransaction {
         tx_type: String,
         micro_block_id: Option<i32>,
     ) -> MiddlewareResult<InsertableTransaction> {
-        let mut signatures = String::new();
-        for i in 0..jt.signatures.len() {
-            if i > 0 {
-                signatures.push_str(" ");
+        let signatures = match &jt.signatures {
+            Some(sig) => {
+                let mut sig_str = String::new();
+                for i in 0..sig.len() {
+                    if i > 0 {
+                        sig_str.push_str(" ");
+                    }
+                    sig_str.push_str(&sig[i].clone());
+                }
+                Some(sig_str)
             }
-            signatures.push_str(&jt.signatures[i].clone());
-        }
+            _ => None,
+        };
 
         let fee_number: serde_json::Number =
             serde::de::Deserialize::deserialize(jt.tx["fee"].to_owned())?;
