@@ -613,10 +613,9 @@ impl BlockLoader {
         let top_max = std::cmp::max(top_chain, top_db);
         let mut i = top_max;
         loop {
-            if self.compare_chain_and_db(i, &conn)? {
-                println!("Height {} OK", i);
-            } else {
-                println!("Height {} not OK", i);
+            match self.compare_chain_and_db(i, &conn) {
+                Ok(_height) => println!("Height {} OK", i),
+                Err(e) => println!("Height {} not OK: {}", i, e.to_string()),
             }
             i -= 1;
             _verified += 1;
