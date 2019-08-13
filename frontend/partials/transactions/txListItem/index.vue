@@ -30,7 +30,6 @@ import ChannelWithdrawTx from '../txListType/channelWithdrawTx.vue'
 import ChannelSettleTx from '../txListType/channelSettleTx.vue'
 import ChannelSnapshotSoloTx from '../txListType/channelSnapshotSoloTx.vue'
 import GAAttachTx from '../txListType/gaAttachTx.vue'
-import GAMetaTx from '../txListType/gaMetaTx.vue'
 
 export default {
   name: 'TXListItem',
@@ -56,8 +55,7 @@ export default {
     ChannelSlashTx,
     ChannelSettleTx,
     ChannelSnapshotSoloTx,
-    GAAttachTx,
-    GAMetaTx
+    GAAttachTx
   },
   props: {
     data: {
