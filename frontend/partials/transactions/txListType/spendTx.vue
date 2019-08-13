@@ -73,6 +73,7 @@ import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
 import timestampToUTC from '../../../plugins/filters/timestampToUTC'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'SpendTx',
@@ -99,7 +100,7 @@ export default {
   },
   computed: {
     updateType () {
-      const txType = this.transaction.tx.type.replace(/([A-Z])/g, ' $1')
+      const txType = transformTxType(this.transaction)
       if (this.address && this.transaction.tx.type === 'SpendTx') {
         if (this.address === this.transaction.tx.sender_id) {
           return `${txType} OUT`

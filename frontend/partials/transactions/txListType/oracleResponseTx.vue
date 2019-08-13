@@ -5,7 +5,7 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              :title="transformTxType(transaction)"
               fill="red"
             />
           </div>
@@ -69,6 +69,7 @@ import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'OracleResponseTx',
@@ -78,6 +79,9 @@ export default {
     FormatAeUnit,
     AccountGroup,
     Account
+  },
+  filters: {
+    transformTxType
   },
   props: {
     transaction: {

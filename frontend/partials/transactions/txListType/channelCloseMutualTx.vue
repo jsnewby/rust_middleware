@@ -5,7 +5,7 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              :title="transformTxType(transaction)"
               fill="red"
             />
           </div>
@@ -73,6 +73,7 @@ import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
 import timestampToUTC from '../../../plugins/filters/timestampToUTC'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'ChannelCloseMutualTx',
@@ -84,7 +85,8 @@ export default {
     Account
   },
   filters: {
-    timestampToUTC
+    timestampToUTC,
+    transformTxType
   },
   props: {
     transaction: {

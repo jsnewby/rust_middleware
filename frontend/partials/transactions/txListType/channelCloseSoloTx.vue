@@ -5,7 +5,7 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              :title="transformTxType(transaction)"
               fill="red"
             />
           </div>
@@ -36,9 +36,7 @@
     </div>
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
-        <AppDefinition
-          title="Block Height"
-        >
+        <AppDefinition title="Block Height">
           <nuxt-link :to="`/generations/${transaction.block_height}`">
             {{ transaction.block_height }}
           </nuxt-link>
@@ -75,6 +73,7 @@ import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
 import timestampToUTC from '../../../plugins/filters/timestampToUTC'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'ChannelCloseSoloTx',
@@ -86,7 +85,8 @@ export default {
     Account
   },
   filters: {
-    timestampToUTC
+    timestampToUTC,
+    transformTxType
   },
   props: {
     transaction: {
