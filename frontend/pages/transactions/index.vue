@@ -40,6 +40,7 @@ import TXListItem from '../../partials/transactions/txListItem'
 import PageHeader from '../../components/PageHeader'
 import LoadMoreButton from '../../components/loadMoreButton'
 import Multiselect from 'vue-multiselect'
+import { transformMetaTx } from '../../store/utils'
 
 export default {
   name: 'AppTransactions',
@@ -81,6 +82,7 @@ export default {
         { limit: 10 }
       )
       tx.forEach(element => {
+        element = element.tx.type === 'GAMetaTx' ? transformMetaTx(element) : element
         this.transactions = { ...this.transactions, [element.hash]: element }
       })
     },
@@ -91,6 +93,7 @@ export default {
         txtype: this.value
       })
       tx.forEach(element => {
+        element = element.tx.type === 'GAMetaTx' ? transformMetaTx(element) : element
         this.transactions = { ...this.transactions, [element.hash]: element }
       })
       this.typePage += 1

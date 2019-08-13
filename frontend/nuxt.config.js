@@ -21,7 +21,10 @@ module.exports = {
   /*
   ** Customize the progress-bar color
   */
-  loading: { color: '#fff' },
+  loading: {
+    continuous: true,
+    color: '#FF0D6A'
+  },
 
   /*
   ** Global CSS
@@ -36,7 +39,8 @@ module.exports = {
   env: {
     middlewareURL: process.env.NUXT_APP_NODE_URL || 'https://testnet.mdw.aepps.com',
     middlewareWS: process.env.NUXT_APP_NODE_WS || 'wss://testnet.mdw.aepps.com/websocket',
-    networkName: process.env.NUXT_APP_NETWORK_NAME || 'TEST NET'
+    networkName: process.env.NUXT_APP_NETWORK_NAME || 'TEST NET',
+    swaggerHub: process.env.NUXT_APP_SWAGGER_HUB || 'https://app.swaggerhub.com/apis-docs/sshekhar/aepp-middleware/1.0'
   },
   /*
   ** Plugins to load before mounting the App

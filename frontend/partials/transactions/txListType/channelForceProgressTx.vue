@@ -5,17 +5,11 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              :title="transformTxType(transaction)"
               fill="red"
             />
           </div>
         </nuxt-link>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
@@ -32,10 +26,23 @@
             icon
           />
         </AccountGroup>
+        <Account
+          v-if="transaction.tx.state_hash"
+          :value="transaction.tx.state_hash"
+          title="state hash"
+          icon
+        />
       </div>
     </div>
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
+        <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
         <AppDefinition
           v-if="transaction.tx.round"
           title="round"
@@ -43,10 +50,10 @@
           {{ transaction.tx.round }}
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.state_hash"
-          title="state hash"
+          v-if="transaction.tx.nonce"
+          title="nonce"
         >
-          {{ transaction.tx.state_hash }}
+          {{ transaction.tx.nonce }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -57,10 +64,10 @@
           <FormatAeUnit :value="transaction.tx.fee" />
         </AppDefinition>
         <AppDefinition
-          v-if="transaction.tx.cost"
-          title="tx cost"
+          v-if="transaction.time"
+          title="Time"
         >
-          <FormatAeUnit :value="transaction.tx.cost" />
+          {{ transaction.time | timestampToUTC }}
         </AppDefinition>
       </div>
     </div>
@@ -71,8 +78,9 @@ import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
+import timestampToUTC from '../../../plugins/filters/timestampToUTC'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'ChannelForceProgressTx',
@@ -81,8 +89,11 @@ export default {
     AppDefinition,
     FormatAeUnit,
     AccountGroup,
-    Account,
-    Age
+    Account
+  },
+  filters: {
+    timestampToUTC,
+    transformTxType
   },
   props: {
     transaction: {

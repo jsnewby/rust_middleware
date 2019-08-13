@@ -5,10 +5,10 @@
       :has-crumbs="true"
       :page="{to: '/names', name: 'Names'}"
     />
-    <div v-if="Object.values(names).length">
+    <div v-if="!loading && names.length > 0">
       <NameList>
         <Name
-          v-for="(item, index) in Object.values(names)"
+          v-for="(item, index) of names"
           :key="index"
           :data="item"
         />
@@ -18,7 +18,7 @@
     <div v-if="loading">
       Loading....
     </div>
-    <div v-if="!loading && Object.values(names).length == 0">
+    <div v-if="!loading && names.length == 0">
       Nothing to see here right now....
     </div>
   </div>
@@ -50,7 +50,7 @@ export default {
       'names'
     ])
   },
-  async beforeMount () {
+  async mounted () {
     this.loading = true
     await this.loadMore()
     this.loading = false

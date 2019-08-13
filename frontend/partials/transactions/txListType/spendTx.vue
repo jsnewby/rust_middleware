@@ -31,6 +31,13 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.amount"
           title="Amount"
         >
@@ -48,6 +55,13 @@
             :value="transaction.tx.fee"
           />
         </AppDefinition>
+        <AppDefinition
+          v-if="transaction.time"
+          title="Time"
+          class="tx-time"
+        >
+          {{ transaction.time | timestampToUTC }}
+        </AppDefinition>
       </div>
     </div>
   </div>
@@ -58,6 +72,8 @@ import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
+import timestampToUTC from '../../../plugins/filters/timestampToUTC'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'SpendTx',
@@ -67,6 +83,9 @@ export default {
     FormatAeUnit,
     AccountGroup,
     Account
+  },
+  filters: {
+    timestampToUTC
   },
   props: {
     transaction: {
@@ -81,7 +100,7 @@ export default {
   },
   computed: {
     updateType () {
-      const txType = this.transaction.tx.type.replace(/([A-Z])/g, ' $1')
+      const txType = transformTxType(this.transaction)
       if (this.address && this.transaction.tx.type === 'SpendTx') {
         if (this.address === this.transaction.tx.sender_id) {
           return `${txType} OUT`

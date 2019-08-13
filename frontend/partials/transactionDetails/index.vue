@@ -22,7 +22,88 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
-          <AppTableRow extend>
+          <AppTableRow
+            v-if="data.arguments"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Arguments"
+              >
+                {{ data.arguments.arguments }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.arguments"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Method"
+              >
+                {{ data.arguments.function }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.callinfo && data.callinfo.return_type"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Return Type"
+              >
+                {{ data.callinfo.return_type }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.callinfo && data.callinfo.return_value"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Return Value"
+              >
+                {{ data.callinfo.return_value }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.result"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Return Value (Decoded)"
+              >
+                {{ data.result }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.callinfo && data.callinfo.log"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="log"
+              >
+                {{ data.callinfo.log }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.ttl"
+            extend
+          >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
@@ -32,7 +113,10 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
-          <AppTableRow extend>
+          <AppTableRow
+            v-if="data.nonce"
+            extend
+          >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
@@ -42,16 +126,73 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
-          <AppTableRow extend>
+          <AppTableRow
+            v-if="data.signatures"
+            extend
+          >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
                 title="Signatures"
               >
                 <FormatAddress
-                  :value="data.signatures[0]"
+                  v-for="(sig, index) in data.signatures"
+                  :key="index"
+                  :value="sig"
                   length="full"
                 />
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.ga_id"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="ga id"
+              >
+                {{ data.ga_id }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.gas"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Gas"
+              >
+                {{ data.gas }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.gas_price"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Gas Price"
+              >
+                {{ data.gas_price }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.auth_data"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Auth Data"
+              >
+                {{ data.auth_data }}
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
@@ -105,7 +246,7 @@ export default {
 
 <style scoped lang="scss">
   .transaction-details {
-    margin-top: 2rem;
+    margin-bottom: 2rem;
   }
   .block-height-wrapper {
     display: flex;

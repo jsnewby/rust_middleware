@@ -6,14 +6,14 @@
       :page="{to: '/transactions', name: 'Transactions'}"
       :subpage="{to: `/transactions/${$route.params.transaction}`, name: 'Transaction Overview'}"
     />
+    <TransactionDetails
+      :status="loading"
+      :data="transaction"
+    />
     <GenerationDetails
       :data="generation"
       :dynamic-data="height"
       :status="loading"
-    />
-    <TransactionDetails
-      :status="loading"
-      :data="transaction"
     />
   </div>
 </template>
@@ -22,6 +22,7 @@
 import GenerationDetails from '../../../partials/generationDetails'
 import TransactionDetails from '../../../partials/transactionDetails'
 import PageHeader from '../../../components/PageHeader'
+import { transformMetaTx } from '../../../store/utils'
 
 export default {
   name: 'AppTransaction',
@@ -47,6 +48,9 @@ export default {
     }
     if (!txDetails) {
       txDetails = await store.dispatch('transactions/getTransactionByHash', transaction)
+    }
+    if (txDetails.tx.type === 'GAMetaTx') {
+      txDetails = transformMetaTx(txDetails)
     }
     if (store.generations) {
       generation = store.generations.generations[txDetails.block_height]

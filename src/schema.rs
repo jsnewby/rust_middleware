@@ -37,7 +37,7 @@ table! {
 table! {
     micro_blocks (id) {
         id -> Int4,
-        key_block_id -> Nullable<Int4>,
+        key_block_id -> Int4,
         hash -> Varchar,
         pof_hash -> Varchar,
         prev_hash -> Varchar,
@@ -61,6 +61,7 @@ table! {
         owner -> Varchar,
         expires_at -> Int8,
         pointers -> Nullable<Jsonb>,
+        transaction_id -> Int4,
     }
 }
 
@@ -80,12 +81,13 @@ table! {
         block_height -> Int4,
         block_hash -> Varchar,
         hash -> Varchar,
-        signatures -> Text,
+        signatures -> Nullable<Text>,
         tx_type -> Varchar,
         tx -> Jsonb,
         fee -> Numeric,
         size -> Int4,
         valid -> Bool,
+        encoded_tx -> Nullable<Varchar>,
     }
 }
 
@@ -105,6 +107,7 @@ joinable!(channel_identifiers -> transactions (transaction_id));
 joinable!(contract_calls -> transactions (transaction_id));
 joinable!(contract_identifiers -> transactions (transaction_id));
 joinable!(micro_blocks -> key_blocks (key_block_id));
+joinable!(names -> transactions (transaction_id));
 joinable!(oracle_queries -> transactions (transaction_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
 

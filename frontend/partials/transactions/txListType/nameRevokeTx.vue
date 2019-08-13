@@ -5,17 +5,11 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              :title="transformTxType(transaction)"
               fill="red"
             />
           </div>
         </nuxt-link>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
@@ -32,30 +26,22 @@
             icon
           />
         </AccountGroup>
-        <AppDefinition
-          v-if="transaction.tx.name"
-          title="name"
-          class="name"
-        >
-          {{ transaction.tx.name }}
-        </AppDefinition>
       </div>
     </div>
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.nonce"
           title="nonce"
         >
           {{ transaction.tx.nonce }}
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.deposit"
-          title="Deposit"
-        >
-          <FormatAeUnit
-            :value="transaction.tx.deposit"
-          />
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
@@ -67,6 +53,13 @@
             :value="transaction.tx.fee"
           />
         </AppDefinition>
+        <AppDefinition
+          v-if="transaction.time"
+          title="Time"
+          class="tx-time"
+        >
+          {{ transaction.time | timestampToUTC }}
+        </AppDefinition>
       </div>
     </div>
   </div>
@@ -76,8 +69,9 @@ import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
+import timestampToUTC from '../../../plugins/filters/timestampToUTC'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'NameRevokeTx',
@@ -86,8 +80,11 @@ export default {
     AppDefinition,
     FormatAeUnit,
     AccountGroup,
-    Account,
-    Age
+    Account
+  },
+  filters: {
+    timestampToUTC,
+    transformTxType
   },
   props: {
     transaction: {

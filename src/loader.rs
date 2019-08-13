@@ -7,20 +7,70 @@ use diesel::sql_query;
 use diesel::Connection;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
+use dotenv::dotenv;
 use middleware_result::MiddlewareResult;
 use middleware_result::*;
 use models::*;
 use node::*;
+use r2d2::Pool;
+use r2d2_diesel::ConnectionManager;
+use r2d2_postgres::PostgresConnectionManager;
 use serde_json;
+use std::env;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
 use std::thread;
 use websocket::Candidate;
-use PARANOIA_LEVEL;
-use PGCONNECTION;
-use SQLCONNECTION;
 
-use crate::ParanoiaLevel;
+lazy_static! {
+    pub static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = ConnectionManager::<PgConnection>::new(database_url);
+        let pool = r2d2::Pool::builder()
+            .max_size(20) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
+}
+
+lazy_static! {
+    pub static ref SQLCONNECTION: Arc<Pool<PostgresConnectionManager>> = {
+        dotenv().ok(); // Grabbing ENV vars
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let manager = PostgresConnectionManager::new
+            (database_url, r2d2_postgres::TlsMode::None).unwrap();
+        let pool = r2d2::Pool::builder()
+            .max_size(3) // only used for emergencies...
+            .build(manager)
+            .expect("Failed to create pool.");
+        Arc::new(pool)
+    };
+}
+
+#[derive(PartialEq)]
+pub enum ParanoiaLevel {
+    Normal,
+    High,
+}
+
+lazy_static! {
+    pub static ref PARANOIA_LEVEL: ParanoiaLevel = {
+        let paranoia_level = env::var("PARANOIA_LEVEL");
+        match paranoia_level {
+            Ok(x) => {
+                if x.eq(&String::from("high")) {
+                    ParanoiaLevel::High
+                } else {
+                    ParanoiaLevel::Normal
+                }
+            }
+            _ => ParanoiaLevel::Normal,
+        }
+    };
+}
 
 use super::websocket;
 
@@ -121,7 +171,7 @@ impl BlockLoader {
         let conn = PGCONNECTION.get()?;
         let mut fork_was_detected = false;
         let chain_length = KeyBlock::top_height(&conn)?;
-        let mut current_height = chain_length;
+        let current_height = chain_length;
 
         loop {
             let mut in_fork = false;
@@ -145,7 +195,7 @@ impl BlockLoader {
                 in_fork = true;
             }
 
-            if ! in_fork {
+            if !in_fork {
                 let mut differences;
                 for i in 0..gen_from_db.micro_blocks.len() {
                     differences = BlockLoader::compare_micro_blocks(
@@ -167,7 +217,7 @@ impl BlockLoader {
                 debug!("No fork found. Exiting loop");
                 break;
             } else {
-                BlockLoader::invalidate_block_at_height(current_height, &conn, &_tx);
+                BlockLoader::invalidate_block_at_height(current_height, &conn, &_tx)?;
                 info!(
                     "{} detected at height {} with chain length {}\n\
                      db generation: {:?}\n\
@@ -347,7 +397,7 @@ impl BlockLoader {
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::object,
             data: serde_json::to_value(&generation.key_block)?,
-        });
+        })?;
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::key_blocks,
             data: serde_json::to_value(&generation.key_block)?,
@@ -359,7 +409,7 @@ impl BlockLoader {
             websocket::broadcast_ws(&Candidate {
                 payload: WsPayload::object,
                 data: serde_json::to_value(&mb)?,
-            });
+            })?;
             websocket::broadcast_ws(&Candidate {
                 payload: WsPayload::micro_blocks,
                 data: serde_json::to_value(&mb)?,
@@ -404,13 +454,14 @@ impl BlockLoader {
         } else if transaction.is_channel_creation() {
             InsertableChannelIdentifier::from_tx(tx_id, &transaction)?.save(&connection)?;
         } else if transaction.is_name_transaction() {
-            Self::handle_name_transaction(connection, transaction)?;
+            Self::handle_name_transaction(connection, tx_id, transaction)?;
         }
         Ok(())
     }
 
     pub fn handle_name_transaction(
         connection: &PgConnection,
+        tx_id: i32,
         transaction: &JsonTransaction,
     ) -> MiddlewareResult<()> {
         debug!("Name tx: {:?}", transaction);
@@ -418,7 +469,7 @@ impl BlockLoader {
             match ttype {
                 "NameClaimTx" => {
                     debug!("NameClaimTx: {:?}", transaction);
-                    if let Some(name) = InsertableName::new_from_transaction(transaction) {
+                    if let Some(name) = InsertableName::new_from_transaction(tx_id, transaction) {
                         name.save(connection)?;
                     }
                 }
@@ -475,7 +526,7 @@ impl BlockLoader {
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::object,
             data: serde_json::to_value(trans)?,
-        });
+        })?;
         let mut results: Vec<Transaction> = sql_query(sql).get_results(conn)?;
         match results.pop() {
             Some(x) => {
@@ -562,10 +613,9 @@ impl BlockLoader {
         let top_max = std::cmp::max(top_chain, top_db);
         let mut i = top_max;
         loop {
-            if self.compare_chain_and_db(i, &conn)? {
-                println!("Height {} OK", i);
-            } else {
-                println!("Height {} not OK", i);
+            match self.compare_chain_and_db(i, &conn) {
+                Ok(_height) => println!("Height {} OK", i),
+                Err(e) => println!("Height {} not OK: {}", i, e.to_string()),
             }
             i -= 1;
             _verified += 1;
@@ -629,14 +679,15 @@ impl BlockLoader {
         let mut chain_mb_hashes = chain_gen["micro_blocks"].as_array()?.clone();
         chain_mb_hashes.sort_by(|a, b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
         if db_mb_hashes.len() != chain_mb_hashes.len() {
-            debug!(
+            let err = format!(
                 "{} Microblock array size differs: {} chain vs {} db",
                 block_db.height,
                 chain_mb_hashes.len(),
                 block_db.hash.len()
             );
+            debug!("{}", err);
+            return Err(MiddlewareError::new(&err));
         } else {
-            let mut all_good = true;
             for i in 0..db_mb_hashes.len() {
                 let chain_mb_hash = String::from(chain_mb_hashes[i].as_str()?);
                 let db_mb_hash = db_mb_hashes[i].clone();
@@ -648,14 +699,13 @@ impl BlockLoader {
                     chain_mb_hash,
                 )?;
                 if differences.len() != 0 {
-                    debug!("Transactions differ: {:?}", differences);
-                    all_good = false;
+                    let err = format!("Transactions differ: {:?}", differences);
+                    debug!("{}", err);
+                    return Err(MiddlewareError::new(&err));
                 }
             }
-            if all_good {
-                debug!("{} OK", block_db.height);
-            }
         }
+        debug!("{} OK", block_db.height);
         Ok(block_db.height)
     }
 

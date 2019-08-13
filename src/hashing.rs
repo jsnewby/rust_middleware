@@ -62,8 +62,8 @@ pub fn gen_contract_id(owner_id: &String, nonce: i64) -> String {
 fn blake2bdigest(v: &Vec<u8>) -> Vec<u8> {
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.input(v);
-    let hash = hasher.vec_result();
-    hash
+
+    hasher.vec_result()
 }
 
 pub fn gen_oracle_query_id(sender_id: &String, nonce: i64, recipient_id: &String) -> String {

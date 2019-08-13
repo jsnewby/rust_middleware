@@ -5,8 +5,10 @@ export const state = () => ({
   nodeUrl: process.env.middlewareURL,
   wsUrl: process.env.middlewareWS,
   networkName: process.env.networkName,
+  swaggerHub: process.env.swaggerHub,
   error: '',
   height: 0,
+  status: {},
   ws: null,
   wsConnected: false,
   filterOptions: [
@@ -22,6 +24,7 @@ export const state = () => ({
     'NameTransferTx',
     'NameRevokeTx',
     'GAAttachTx',
+    'GAMetaTx',
     'ContractCallTx',
     'ContractCreateTx',
     'ChannelCreateTx',
@@ -77,6 +80,9 @@ export const mutations = {
   setHeight (state, height) {
     Object.assign(state, { height })
   },
+  setStatus (state, status) {
+    state.status = status
+  },
   createWsClient (state) {
     state.ws = new WebSocket(state.wsUrl)
   },
@@ -86,11 +92,24 @@ export const mutations = {
 }
 
 export const actions = {
-  async height ({ state, rootState: { nodeUrl }, commit }) {
+  async height ({ rootState: { nodeUrl }, commit }) {
     try {
-      const { height } = (await axios.get(nodeUrl + '/v2/key-blocks/current/height')).data
+      const url = `${nodeUrl}/v2/key-blocks/current/height`
+      const { height } = (await axios.get(url)).data
+      console.info('MDW 🔗 ' + url)
       commit('setHeight', height)
       return height
+    } catch (e) {
+      commit('catchError', 'Error', { root: true })
+    }
+  },
+  async status ({ rootState: { nodeUrl }, commit }) {
+    try {
+      const url = `${nodeUrl}/middleware/status`
+      const status = (await axios.get(url)).data
+      console.info('MDW 🔗 ' + url)
+      commit('setStatus', status)
+      return status
     } catch (e) {
       commit('catchError', 'Error', { root: true })
     }

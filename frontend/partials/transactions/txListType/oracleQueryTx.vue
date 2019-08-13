@@ -5,17 +5,11 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              :title="transformTxType(transaction)"
               fill="red"
             />
           </div>
         </nuxt-link>
-        <AppDefinition
-          v-if="transaction.tx.time"
-          title="Age"
-        >
-          <Age :time="transaction.tx.time" />
-        </AppDefinition>
       </div>
       <div class="transaction-main-info-inner accounts">
         <AccountGroup>
@@ -37,6 +31,29 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
+          title="Block Height"
+        >
+          <nuxt-link :to="`/generations/${transaction.block_height}`">
+            {{ transaction.block_height }}
+          </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.fee"
+          title="tx fee"
+        >
+          <FormatAeUnit
+            :value="transaction.tx.fee"
+          />
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
+        </AppDefinition>
+      </div>
+      <div class="transaction-type-info-item">
+        <AppDefinition
           v-if="transaction.tx.query"
           title="Query"
         >
@@ -50,23 +67,12 @@
             :value="transaction.tx.query_fee"
           />
         </AppDefinition>
-      </div>
-      <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.fee"
-          title="tx fee"
+          v-if="transaction.time"
+          title="Time"
+          class="tx-time"
         >
-          <FormatAeUnit
-            :value="transaction.tx.fee"
-          />
-        </AppDefinition>
-        <AppDefinition
-          v-if="transaction.tx.nonce"
-          title="nonce"
-        >
-          <FormatAeUnit
-            :value="transaction.tx.nonce"
-          />
+          {{ transaction.time | timestampToUTC }}
         </AppDefinition>
       </div>
     </div>
@@ -77,8 +83,9 @@ import AppDefinition from '../../../components/appDefinition'
 import FormatAeUnit from '../../../components/formatAeUnit'
 import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
-import Age from '../../../components/age'
 import LabelType from '../../../components/labelType'
+import timestampToUTC from '../../../plugins/filters/timestampToUTC'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'OracleQueryTx',
@@ -87,8 +94,11 @@ export default {
     AppDefinition,
     FormatAeUnit,
     AccountGroup,
-    Account,
-    Age
+    Account
+  },
+  filters: {
+    timestampToUTC,
+    transformTxType
   },
   props: {
     transaction: {

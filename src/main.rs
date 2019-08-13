@@ -6,6 +6,7 @@
 extern crate backtrace;
 extern crate base58;
 extern crate base58check;
+extern crate base64;
 extern crate bigdecimal;
 extern crate blake2;
 extern crate blake2b;
@@ -49,6 +50,8 @@ extern crate postgres;
 extern crate serde_json;
 extern crate ws;
 
+extern crate aepp_middleware;
+
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -72,65 +75,12 @@ use server::MiddlewareServer;
 pub mod models;
 
 use daemonize::Daemonize;
-use diesel::PgConnection;
-use dotenv::dotenv;
-use r2d2::Pool;
-use r2d2_diesel::ConnectionManager;
-use r2d2_postgres::PostgresConnectionManager;
-use std::sync::Arc;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 embed_migrations!("migrations/");
 
-lazy_static! {
-    static ref PGCONNECTION: Arc<Pool<ConnectionManager<PgConnection>>> = {
-        dotenv().ok(); // Grabbing ENV vars
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-        let manager = ConnectionManager::<PgConnection>::new(database_url);
-        let pool = r2d2::Pool::builder()
-            .max_size(20) // only used for emergencies...
-            .build(manager)
-            .expect("Failed to create pool.");
-        Arc::new(pool)
-    };
-}
-
-lazy_static! {
-    static ref SQLCONNECTION: Arc<Pool<PostgresConnectionManager>> = {
-        dotenv().ok(); // Grabbing ENV vars
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-        let manager = PostgresConnectionManager::new
-            (database_url, r2d2_postgres::TlsMode::None).unwrap();
-        let pool = r2d2::Pool::builder()
-            .max_size(3) // only used for emergencies...
-            .build(manager)
-            .expect("Failed to create pool.");
-        Arc::new(pool)
-    };
-}
-
-#[derive(PartialEq)]
-enum ParanoiaLevel {
-    Normal,
-    High,
-}
-
-lazy_static! {
-    static ref PARANOIA_LEVEL: ParanoiaLevel = {
-        let paranoia_level = env::var("PARANOIA_LEVEL");
-        match paranoia_level {
-            Ok(x) => {
-                if x.eq(&String::from("high")) {
-                    ParanoiaLevel::High
-                } else {
-                    ParanoiaLevel::Normal
-                }
-            }
-            _ => ParanoiaLevel::Normal,
-        }
-    };
-}
+use loader::PGCONNECTION;
 
 /*
  * This function does two things--initially it asks the DB for the
@@ -236,9 +186,9 @@ fn main() {
     if daemonize {
         let daemonize = Daemonize::new();
         if let Ok(x) = env::var("PID_FILE") {
-            daemonize.pid_file(x).start();
+            daemonize.pid_file(x).start().unwrap();
         } else {
-            daemonize.start();
+            daemonize.start().unwrap();
         }
     }
 
@@ -252,15 +202,17 @@ fn main() {
         return;
     }
 
-    // Run migrations
-    let connection = PGCONNECTION.get().unwrap();
-    let mut migration_output = Vec::new();
-    let migration_result =
-        embedded_migrations::run_with_output(&*connection, &mut migration_output);
-    for line in migration_output.iter() {
-        info!("migration out: {}", line);
+    // Run migrations iff populate set
+    if populate {
+        let connection = PGCONNECTION.get().unwrap();
+        let mut migration_output = Vec::new();
+        let migration_result =
+            embedded_migrations::run_with_output(&*connection, &mut migration_output);
+        for line in migration_output.iter() {
+            info!("migration out: {}", line);
+        }
+        migration_result.unwrap();
     }
-    migration_result.unwrap();
 
     /*
      * The `heights` argument is of this form: 1,10-15,1000 which
@@ -275,11 +227,11 @@ fn main() {
                 Some(_) => {
                     let fromto: Vec<String> = s.split('-').map(|x| String::from(x)).collect();
                     for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap() {
-                        loader.load_blocks(i);
+                        loader.load_blocks(i).unwrap();
                     }
                 }
                 None => {
-                    loader.load_blocks(s.parse::<i64>().unwrap());
+                    loader.load_blocks(s.parse::<i64>().unwrap()).unwrap();
                 }
             }
         }
@@ -329,7 +281,7 @@ fn main() {
      */
     match populate_thread {
         Some(x) => {
-            x.join();
+            x.join().unwrap();
             ()
         }
         None => (),

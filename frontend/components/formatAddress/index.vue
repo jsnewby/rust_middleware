@@ -6,7 +6,33 @@
     class="format-address"
   >
     <template v-if="length === 'responsive'">
-      <nuxt-link :to="link">
+      <div
+        v-if="link === ''"
+      >
+        <span class="first-chunk">
+          <span
+            v-for="chunk in chunked.slice(0, 3)"
+            :key="chunk"
+          >
+            {{ chunk }}
+          </span>
+        </span>
+        <span class="middle-chunk">
+          ...
+        </span>
+        <span class="last-chunk">
+          <span
+            v-for="chunk in chunked.slice(15, 18)"
+            :key="chunk"
+          >
+            {{ chunk }}
+          </span>
+        </span>
+      </div>
+      <nuxt-link
+        v-else
+        :to="link"
+      >
         <span class="first-chunk">
           <span
             v-for="chunk in chunked.slice(0, 3)"
@@ -29,7 +55,20 @@
       </nuxt-link>
     </template>
     <template v-if="length === 'full'">
-      <nuxt-link :to="link">
+      <div
+        v-if="link === ''"
+      >
+        <span
+          v-for="chunk in chunked"
+          :key="chunk.id"
+        >
+          {{ chunk }}
+        </span>
+      </div>
+      <nuxt-link
+        v-else
+        :to="link"
+      >
         <span
           v-for="chunk in chunked"
           :key="chunk.id"
@@ -39,7 +78,15 @@
       </nuxt-link>
     </template>
     <template v-if="length === 'nochunk'">
-      <nuxt-link :to="link">
+      <div
+        v-if="link === ''"
+      >
+        {{ value }}
+      </div>
+      <nuxt-link
+        v-else
+        :to="link"
+      >
         {{ value }}
       </nuxt-link>
     </template>

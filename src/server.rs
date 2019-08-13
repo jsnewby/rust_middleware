@@ -19,9 +19,8 @@ use serde_json;
 use std::io::Cursor;
 use std::path::PathBuf;
 
-use SQLCONNECTION;
-
-use PGCONNECTION;
+use loader::PGCONNECTION;
+use loader::SQLCONNECTION;
 
 pub struct MiddlewareServer {
     pub node: Node,
@@ -436,6 +435,8 @@ fn transactions_for_account(
          m.id = t.micro_block_id AND \
          (t.tx->>'sender_id'='{}' OR \
          t.tx->>'account_id' = '{}' OR \
+         t.tx->>'ga_id' = '{}' OR \
+         t.tx->>'caller_id' = '{}' OR \
          t.tx->>'recipient_id'='{}' OR \
          t.tx->>'initiator_id'='{}' OR \
          t.tx->>'responder_id'='{}' OR \
@@ -444,7 +445,7 @@ fn transactions_for_account(
          t.tx->>'owner_id' = {}\
          order by m.time_ desc \
          limit {} offset {} ",
-        s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
+        s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
     );
     info!("{}", sql);
 
@@ -454,9 +455,14 @@ fn transactions_for_account(
         let block_height: i32 = row.get(3);
         let block_hash: String = row.get(4);
         let hash: String = row.get(5);
-        let sig: String = row.get(6);
-        let signatures: Vec<String> = sig.split(' ').map(|s| s.to_string()).collect();
-        let tx: serde_json::Value = row.get(8);
+        let sig: Option<String> = row.get(6);
+        let signatures = Transaction::deserialize_signatures(&sig);
+        let tx: serde_json::Value = match row.get_opt(12).unwrap().unwrap() {
+                Some(encoded_tx) => {
+                    Transaction::decode_tx(&encoded_tx)
+                }
+                _ => row.get(8),
+            };
         results.push(json!({
             "time" : time,
             "block_height": block_height,
@@ -586,7 +592,7 @@ fn calls_for_contract_address(
     address: String,
 ) -> Json<Vec<JsonValue>> {
     check_object(&address);
-    let sql = "SELECT t.hash, contract_id, caller_id, arguments, callinfo FROM \
+    let sql = "SELECT t.hash, contract_id, caller_id, arguments, callinfo, result FROM \
                contract_calls c join transactions t on t.id=c.transaction_id WHERE \
                contract_id = $1";
     let mut calls = Vec::new();
@@ -601,12 +607,14 @@ fn calls_for_contract_address(
         let caller_id: String = row.get(2);
         let arguments: serde_json::Value = row.get(3);
         let callinfo: serde_json::Value = row.get(4);
+        let result: serde_json::Value = row.get(5);
         calls.push(json!({
             "transaction_id": transaction_id,
             "contract_id": contract_id,
             "caller_id": caller_id,
             "arguments": arguments,
-            "callinfo": callinfo
+            "callinfo": callinfo,
+            "result": result,
         }));
     }
     Json(calls)
@@ -627,7 +635,7 @@ fn generations_by_range(
          k.prev_hash, k.prev_key_hash, k.state_hash, k.target, k.time_, k.\"version\", \
          m.hash, m.pof_hash, m.prev_hash, m.prev_key_hash, m.signature, \
          m.state_hash, m.time_, m.txs_hash, m.\"version\", \
-         t.block_hash, t.block_height, t.hash, t.signatures, t.tx \
+         t.block_hash, t.block_height, t.hash, t.signatures, t.tx, t.encoded_tx \
          from key_blocks k left join micro_blocks m on k.id = m.key_block_id \
          left join transactions t on m.id = t.micro_block_id \
          where k.height >={} and k.height <={} \
@@ -646,8 +654,14 @@ fn generations_by_range(
             let block_hash: String = val;
             let block_height: i32 = row.get(22);
             let hash: String = row.get(23);
-            let signatures: String = row.get(24);
-            let tx_: serde_json::Value = row.get(25);
+            let sig: Option<String> = row.get(24);
+            let signatures = Transaction::deserialize_signatures(&sig);
+            let tx_: serde_json::Value = match row.get_opt(26).unwrap().unwrap() {
+                Some(encoded_tx) => {
+                    Transaction::decode_tx(&encoded_tx)
+                }
+                _ => row.get(25),
+            };
             transaction = json!({
                 "block_hash": block_hash,
                 "block_height": block_height,
@@ -971,7 +985,6 @@ fn all_names(
     page: Option<i32>,
     owner: Option<String>,
 ) -> Json<Vec<Name>> {
-    let connection = PGCONNECTION.get().unwrap();
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql: String = match owner {
         Some(owner) => format!(
@@ -991,6 +1004,14 @@ fn all_names(
         ),
     };
     let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    Json(names)
+}
+
+#[get("/names/<query>")]
+fn search_names(_state: State<MiddlewareServer>, query: String) -> Json<Vec<Name>> {
+    let connection = PGCONNECTION.get().unwrap();
+    let _name_query = format!("%{}%", query);
+    let names = Name::find_by_name(&connection, &_name_query).unwrap();
     Json(names)
 }
 
@@ -1039,6 +1060,7 @@ fn height_at_epoch(
 #[get("/status")]
 fn status(_state: State<MiddlewareServer>) -> Response {
     let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    let version = env!("CARGO_PKG_VERSION");
     let top_key_block = KeyBlock::load_at_height(&PGCONNECTION.get().unwrap(), _height).unwrap();
     let utc: DateTime<Utc> = Utc::now();
     let seconds_since_last_block = (utc.timestamp_millis() - top_key_block.time) / 1000;
@@ -1062,6 +1084,7 @@ fn status(_state: State<MiddlewareServer>) -> Response {
             "queue_length": queue_length,
             "seconds_since_last_block": seconds_since_last_block,
             "OK": ok,
+            "version": version,
         })
         .to_string(),
     ));
@@ -1102,6 +1125,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
             .mount("/middleware", routes![reward_at_height])
+            .mount("/middleware", routes![search_names])
             .mount("/middleware", routes![size])
             .mount("/middleware", routes![status])
             .mount("/middleware", routes![swagger])
