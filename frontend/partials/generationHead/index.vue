@@ -186,8 +186,6 @@ import AppPanel from '../../components/appPanel'
 import BlockHeight from '../../components/blockHeight'
 import LabelType from '../../components/labelType'
 import Age from '../../components/age'
-// import TimeStamp from '../../components/timeStamp'
-// import FormatAeUnit from '../../components/formatAeUnit'
 import FormatAddress from '../../components/formatAddress'
 import Account from '../../components/account'
 import Confirmations from '../../components/confirmations'
@@ -209,9 +207,7 @@ export default {
     Account,
     LabelType,
     AppTableAccordion,
-    // TimeStamp,
     Age,
-    // FormatAeUnit,
     FormatAddress,
     Confirmations
   },
