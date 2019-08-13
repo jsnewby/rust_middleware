@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import axios from 'axios'
+import { transformMetaTx } from './utils'
 
 export const state = () => ({
   transactions: {},
@@ -9,7 +10,10 @@ export const state = () => ({
 export const mutations = {
   setTransactions (state, transactions) {
     for (let i = 0; i < transactions.length; i++) {
-      const transaction = transactions[i]
+      let transaction = transactions[i]
+      if (transaction.tx.type === 'GAMetaTx') {
+        transaction = transformMetaTx(transaction)
+      }
       if (!state.transactions.hasOwnProperty(transaction.hash)) {
         Vue.set(state.transactions, transaction.hash, transaction)
       }
