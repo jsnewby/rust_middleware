@@ -113,7 +113,10 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
-          <AppTableRow extend>
+          <AppTableRow
+            v-if="data.nonce"
+            extend
+          >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
@@ -123,16 +126,73 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
-          <AppTableRow extend>
+          <AppTableRow
+            v-if="data.signatures"
+            extend
+          >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
                 title="Signatures"
               >
                 <FormatAddress
-                  :value="data.signatures[0]"
+                  v-for="(sig, index) in data.signatures"
+                  :key="index"
+                  :value="sig"
                   length="full"
                 />
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.ga_id"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="ga id"
+              >
+                {{ data.ga_id }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.gas"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Gas"
+              >
+                {{ data.gas }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.gas_price"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Gas Price"
+              >
+                {{ data.gas_price }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.auth_data"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Auth Data"
+              >
+                {{ data.auth_data }}
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>

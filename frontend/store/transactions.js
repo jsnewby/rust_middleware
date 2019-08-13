@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import axios from 'axios'
+import { transformMetaTx } from './utils'
 
 export const state = () => ({
   transactions: {},
@@ -9,7 +10,10 @@ export const state = () => ({
 export const mutations = {
   setTransactions (state, transactions) {
     for (let i = 0; i < transactions.length; i++) {
-      const transaction = transactions[i]
+      let transaction = transactions[i]
+      if (transaction.tx.type === 'GAMetaTx') {
+        transaction = transformMetaTx(transaction)
+      }
       if (!state.transactions.hasOwnProperty(transaction.hash)) {
         Vue.set(state.transactions, transaction.hash, transaction)
       }
@@ -46,8 +50,8 @@ export const actions = {
   },
   getTransactionByHash: async function ({ rootState: { nodeUrl }, commit }, hash) {
     try {
-      const url = `${nodeUrl}/v2/transactions/{hash}`
-      const tx = await axios.get(nodeUrl + '/v2/transactions/' + hash)
+      const url = `${nodeUrl}/v2/transactions/${hash}`
+      const tx = await axios.get(url)
       console.info('MDW 🔗 ' + url)
       commit('setTransactions', [tx.data])
       return tx.data

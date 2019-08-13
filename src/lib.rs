@@ -6,6 +6,7 @@
 extern crate backtrace;
 extern crate base58;
 extern crate base58check;
+extern crate base64;
 extern crate bigdecimal;
 extern crate blake2;
 extern crate blake2b;

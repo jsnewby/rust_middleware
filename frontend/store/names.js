@@ -1,14 +1,11 @@
-import Vue from 'vue'
 import axios from 'axios'
 export const state = () => ({
-  names: {}
+  names: []
 })
 
 export const mutations = {
   setNames (state, names) {
-    for (let name of names) {
-      Vue.set(state.names, name.id, name)
-    }
+    state.names = [...state.names, ...names]
   }
 }
 

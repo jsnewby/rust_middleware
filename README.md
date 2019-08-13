@@ -52,6 +52,15 @@ There is a hosted middleware for the æternity mainnet at http://mdw.aepps.com/,
 - copy `.env.example` to `.env`
 - if you want to use a different DB name, edit `scripts/prepare-db.sql`, `.env` and `Rocket.toml`
 
+### Run via Docker
+
+This setup runs node, compiler, postgres and middleware together.
+
+- Install Docker and Docker Compose.
+- Update `docker/aeternity.yaml` as per your requirement.
+- Copy `.env.example` to `.env` and if required, edit the node and compiler version.
+- From the project root run, run `docker-compose up`
+
 ### Tips and tricks
 
 You can run several instances of the middleware simultaneously, with different options. A sensible way of doing this would be one or more using the `-s` option to serve clients, and one (and only one) with the `-p` option, populating the database.
@@ -85,7 +94,7 @@ The middleware will automatically set up its DB on initialization, and run migra
 
 ```
 cargo build --release # make a release build--this will take a long long time
-./target/release/aepp-middleware # + flags below
+./target/release/mdw # + flags below
 ```
 
 ### Flags

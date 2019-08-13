@@ -24,6 +24,7 @@ export const state = () => ({
     'NameTransferTx',
     'NameRevokeTx',
     'GAAttachTx',
+    'GAMetaTx',
     'ContractCallTx',
     'ContractCreateTx',
     'ChannelCreateTx',

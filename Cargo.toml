@@ -17,8 +17,9 @@ client = [ ]
 [dependencies]
 assert-json-diff = "1.0.0"
 backtrace = "0.2"
-base58="0.1.0"
+base58 = "0.1.0"
 base58check = "0.0.1"
+base64 = "0.10.1"
 bigdecimal = { version = "0.0.14", features = ["serde",] }
 blake2 = "0.8.0"
 blake2b = "0.7.0"

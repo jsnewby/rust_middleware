@@ -5,7 +5,7 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transaction.tx.type.replace(/([A-Z])/g, ' $1')"
+              :title="transformTxType(transaction)"
               fill="red"
             />
           </div>
@@ -30,9 +30,7 @@
     </div>
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
-        <AppDefinition
-          title="Block Height"
-        >
+        <AppDefinition title="Block Height">
           <nuxt-link :to="`/generations/${transaction.block_height}`">
             {{ transaction.block_height }}
           </nuxt-link>
@@ -41,9 +39,7 @@
           v-if="transaction.tx.channel_reserve"
           title="Channel Reserve"
         >
-          <FormatAeUnit
-            :value="transaction.tx.channel_reserve"
-          />
+          <FormatAeUnit :value="transaction.tx.channel_reserve" />
         </AppDefinition>
         <AppDefinition
           v-if="transaction.tx.lock_period"
@@ -57,9 +53,7 @@
           v-if="transaction.tx.fee"
           title="tx fee"
         >
-          <FormatAeUnit
-            :value="transaction.tx.fee"
-          />
+          <FormatAeUnit :value="transaction.tx.fee" />
         </AppDefinition>
         <AppDefinition
           v-if="transaction.time"
@@ -79,6 +73,7 @@ import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
 import timestampToUTC from '../../../plugins/filters/timestampToUTC'
+import { transformTxType } from '../../../store/utils'
 
 export default {
   name: 'ChannelCreateTx',
@@ -90,7 +85,8 @@ export default {
     Account
   },
   filters: {
-    timestampToUTC
+    timestampToUTC,
+    transformTxType
   },
   props: {
     transaction: {

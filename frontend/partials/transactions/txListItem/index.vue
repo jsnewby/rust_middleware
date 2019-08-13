@@ -29,7 +29,7 @@ import ChannelSlashTx from '../txListType/channelSlashTx.vue'
 import ChannelWithdrawTx from '../txListType/channelWithdrawTx.vue'
 import ChannelSettleTx from '../txListType/channelSettleTx.vue'
 import ChannelSnapshotSoloTx from '../txListType/channelSnapshotSoloTx.vue'
-import GAAttachTx from '../txListType/GAAttachTx.vue'
+import GAAttachTx from '../txListType/gaAttachTx.vue'
 
 export default {
   name: 'TXListItem',
