@@ -680,14 +680,15 @@ impl BlockLoader {
         let mut chain_mb_hashes = chain_gen["micro_blocks"].as_array()?.clone();
         chain_mb_hashes.sort_by(|a, b| a.as_str().unwrap().cmp(b.as_str().unwrap()));
         if db_mb_hashes.len() != chain_mb_hashes.len() {
-            debug!(
+            let err = format!(
                 "{} Microblock array size differs: {} chain vs {} db",
                 block_db.height,
                 chain_mb_hashes.len(),
                 block_db.hash.len()
             );
+            debug!("{}", err);
+            return Err(MiddlewareError::new(&err));
         } else {
-            let mut all_good = true;
             for i in 0..db_mb_hashes.len() {
                 let chain_mb_hash = String::from(chain_mb_hashes[i].as_str()?);
                 let db_mb_hash = db_mb_hashes[i].clone();
@@ -699,14 +700,13 @@ impl BlockLoader {
                     chain_mb_hash,
                 )?;
                 if differences.len() != 0 {
-                    debug!("Transactions differ: {:?}", differences);
-                    all_good = false;
+                    let err = format!("Transactions differ: {:?}", differences);
+                    debug!("{}", err);
+                    return Err(MiddlewareError::new(&err));
                 }
             }
-            if all_good {
-                debug!("{} OK", block_db.height);
-            }
         }
+        debug!("{} OK", block_db.height);
         Ok(block_db.height)
     }
 
