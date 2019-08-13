@@ -23,3 +23,26 @@ export const times = (count, func) => {
   }
   return results
 }
+
+export const transformMetaTx = (txDetails) => {
+  return {
+    block_height: txDetails.block_height,
+    block_hash: txDetails.block_hash,
+    gas: txDetails.tx.gas,
+    hash: txDetails.hash,
+    ga_id: txDetails.tx.ga_id,
+    gas_price: txDetails.tx.gas_price,
+    fee: txDetails.tx.fee,
+    abi_version: txDetails.tx.abi_version,
+    auth_data: txDetails.tx.auth_data,
+    tx: txDetails.tx.tx.tx
+  }
+}
+
+export const transformTxType = (transaction) => {
+  let txType = transaction.tx.type.replace(/([A-Z])/g, ' $1')
+  if (transaction.ga_id) {
+    txType += ' (GA)'
+  }
+  return txType
+}
