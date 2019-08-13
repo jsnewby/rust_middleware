@@ -145,15 +145,54 @@
             </AppTableCell>
           </AppTableRow>
           <AppTableRow
-            v-if="data.tx.tx"
+            v-if="data.ga_id"
             extend
           >
             <AppTableCell extend>
               <AppDefinition
                 type="list"
-                title="Embedded Tx"
+                title="ga id"
               >
-                {{ data.tx.tx }}
+                {{ data.ga_id }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.gas"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Gas"
+              >
+                {{ data.gas }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.gas_price"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Gas Price"
+              >
+                {{ data.gas_price }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.auth_data"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Auth Data"
+              >
+                {{ data.auth_data }}
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
