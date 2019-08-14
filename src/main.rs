@@ -202,8 +202,8 @@ fn main() {
         return;
     }
 
-    // Run migrations iff populate set
-    if populate {
+    // Run migrations if populate or heights set
+    if populate || heights {
         let connection = PGCONNECTION.get().unwrap();
         let mut migration_output = Vec::new();
         let migration_result =
