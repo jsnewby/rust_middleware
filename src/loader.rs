@@ -196,19 +196,26 @@ impl BlockLoader {
             }
 
             if !in_fork {
-                let mut differences;
                 for i in 0..gen_from_db.micro_blocks.len() {
-                    differences = BlockLoader::compare_micro_blocks(
+                    match BlockLoader::compare_micro_blocks(
                         &node,
                         &conn,
                         current_height,
                         gen_from_db.micro_blocks[i].clone(),
                         gen_from_db.micro_blocks[i].clone(),
-                    )?;
-                    if differences.len() != 0 {
-                        info!("Microblocks differ: {:?}", differences);
-                        fork_was_detected = true;
-                        in_fork = true;
+                    ) {
+                        Ok(differences) => {
+                            if differences.len() != 0 {
+                                info!("Microblocks differ: {:?}", differences);
+                                fork_was_detected = true;
+                                in_fork = true;
+                            }
+                        }
+                        Err(e) => {
+                            error!("Error in comparison of micro blocks");
+                            fork_was_detected = true;
+                            in_fork = true;
+                        }
                     }
                 }
             }
