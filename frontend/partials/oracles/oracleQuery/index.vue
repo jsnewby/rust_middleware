@@ -65,6 +65,7 @@
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
 import AppDefinition from '../../../components/appDefinition'
+import decodeBase64 from '../../../plugins/filters/decodeBase64'
 
 export default {
   name: 'OracleQuery',
@@ -81,18 +82,13 @@ export default {
   },
   computed: {
     request () {
-      return this.data.request ? this.data.request.query : '-'
+      return this.data.request ? decodeBase64(this.data.request.query) : '-'
     },
     response () {
-      let response = '-'
       if (this.data.response) {
-        try {
-          response = atob(this.data.response.response)
-        } catch (error) {
-          response = this.data.response.response
-        }
+        return decodeBase64(this.data.response.response)
       }
-      return response
+      return '-'
     }
   }
 }
