@@ -145,6 +145,19 @@
             </AppTableCell>
           </AppTableRow>
           <AppTableRow
+            v-if="payload"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Payload"
+              >
+                {{ payload }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
             v-if="data.ga_id"
             extend
           >
@@ -221,6 +234,7 @@ import AppDefinition from '../../components/appDefinition'
 import AppPanel from '../../components/appPanel'
 import FormatAddress from '../../components/formatAddress'
 import TxlistItem from '../../partials/transactions/txListItem'
+import decodeBase64 from '../../plugins/filters/decodeBase64'
 
 export default {
   name: 'TransactionDetails',
@@ -231,7 +245,6 @@ export default {
     AppTableBody,
     AppDefinition,
     AppPanel,
-    // TimeStamp,
     FormatAddress,
     TxlistItem
   },
@@ -239,6 +252,14 @@ export default {
     data: {
       type: Object,
       default: undefined
+    }
+  },
+  computed: {
+    payload () {
+      if (this.data.tx.payload) {
+        return decodeBase64(this.data.tx.payload.substring(3))
+      }
+      return ''
     }
   }
 }
