@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader
-      title="Account"
+      title="Faucet"
       :has-crumbs="true"
       :page="{to: '/faucet', name: 'Testnet Faucet'}"
     />
@@ -132,6 +132,11 @@ export default {
       tx_hash: '',
       errorMessage: '',
       loading: false
+    }
+  },
+  beforeMount () {
+    if (this.$store.state.faucetNetwork !== this.$store.state.status.network_id) {
+      this.$router.push('/')
     }
   },
   mounted () {
