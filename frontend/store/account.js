@@ -21,9 +21,9 @@ export const actions = {
     }
   },
 
-  createFaucetTx: async function ({ commit }, account) {
+  createFaucetTx: async function ({ rootState: { faucetApi }, commit }, account) {
     try {
-      const url = `https://testnet.faucet.aepps.com/account/${account}`
+      const url = `${faucetApi}/${account}`
       const acc = await axios.post(url)
       console.info('MDW 🔗 ' + url)
       return acc.data
