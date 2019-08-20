@@ -244,6 +244,7 @@ impl BlockLoader {
                     gen_from_server
                 );
             }
+            thread::sleep(std::time::Duration::new(blocks_since_last_fork+1, 0));
         }
         Ok(fork_was_detected)
     }
