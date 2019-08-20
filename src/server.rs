@@ -445,7 +445,18 @@ fn transactions_for_account(
          t.tx->>'owner_id' = {}\
          order by m.time_ desc \
          limit {} offset {} ",
-        s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, s_acc, txtype_sql, limit_sql, offset_sql
+        s_acc,
+        s_acc,
+        s_acc,
+        s_acc,
+        s_acc,
+        s_acc,
+        s_acc,
+        s_acc,
+        s_acc,
+        txtype_sql,
+        limit_sql,
+        offset_sql
     );
     info!("{}", sql);
 
@@ -458,11 +469,9 @@ fn transactions_for_account(
         let sig: Option<String> = row.get(6);
         let signatures = Transaction::deserialize_signatures(&sig);
         let tx: serde_json::Value = match row.get_opt(12).unwrap().unwrap() {
-                Some(encoded_tx) => {
-                    Transaction::decode_tx(&encoded_tx)
-                }
-                _ => row.get(8),
-            };
+            Some(encoded_tx) => Transaction::decode_tx(&encoded_tx),
+            _ => row.get(8),
+        };
         results.push(json!({
             "time" : time,
             "block_height": block_height,
@@ -526,12 +535,7 @@ fn transactions_for_interval(
         _ => to.to_string(),
     };
     let sql = format!(
-        "select t.* from transactions t, micro_blocks m, key_blocks k where \
-         t.micro_block_id=m.id and \
-         m.key_block_id=k.id and \
-         k.height >={} and k.height <= {} \
-         order by k.height desc, t.id desc \
-         limit {} offset {} ",
+        "select t.* from transactions t where t.block_height >= {} and t.block_height <= {} order by t.block_height desc, t.id desc limit {} offset {}",
         from, txtype_sql, limit_sql, offset_sql
     );
     let transactions: Vec<Transaction> =
@@ -657,9 +661,7 @@ fn generations_by_range(
             let sig: Option<String> = row.get(24);
             let signatures = Transaction::deserialize_signatures(&sig);
             let tx_: serde_json::Value = match row.get_opt(26).unwrap().unwrap() {
-                Some(encoded_tx) => {
-                    Transaction::decode_tx(&encoded_tx)
-                }
+                Some(encoded_tx) => Transaction::decode_tx(&encoded_tx),
                 _ => row.get(25),
             };
             transaction = json!({

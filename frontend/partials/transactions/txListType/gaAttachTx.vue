@@ -5,7 +5,7 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transformTxType(transaction)"
+              :title="transaction | transformTxType"
               fill="red"
             />
           </div>

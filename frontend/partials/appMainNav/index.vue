@@ -46,6 +46,12 @@
         >
           Swagger Hub
         </AppNavLink>
+        <AppNavLink
+          v-if="isFaucetActive"
+          to="/faucet"
+        >
+          Faucet
+        </AppNavLink>
       </AppNav>
     </AppNavAccordion>
   </div>
@@ -66,6 +72,11 @@ export default {
     AppNavLink,
     SearchBar,
     Logo
+  },
+  computed: {
+    isFaucetActive () {
+      return this.$store.state.faucetNetwork === this.$store.state.status.network_id
+    }
   }
 }
 </script>

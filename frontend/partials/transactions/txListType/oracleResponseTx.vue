@@ -5,7 +5,7 @@
         <nuxt-link :to="`/transactions/${transaction.hash}`">
           <div class="transaction-label">
             <LabelType
-              :title="transformTxType(transaction)"
+              :title="transaction | transformTxType"
               fill="red"
             />
           </div>
@@ -70,6 +70,7 @@ import AccountGroup from '../../../components/accountGroup'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
 import { transformTxType } from '../../../store/utils'
+import decodeBase64 from '../../../plugins/filters/decodeBase64'
 
 export default {
   name: 'OracleResponseTx',
@@ -91,11 +92,7 @@ export default {
   },
   computed: {
     response () {
-      try {
-        return atob(this.transaction.tx.response)
-      } catch (error) {
-      }
-      return this.transaction.tx.response
+      return decodeBase64(this.transaction.tx.response)
     }
   }
 }
