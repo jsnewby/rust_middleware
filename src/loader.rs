@@ -171,7 +171,7 @@ impl BlockLoader {
         let conn = PGCONNECTION.get()?;
         let mut fork_was_detected = false;
         let chain_length = KeyBlock::top_height(&conn)?;
-        let current_height = chain_length;
+        let mut current_height = chain_length;
         let mut blocks_since_last_fork = 0;
         loop {
             let mut in_fork = false;
@@ -244,6 +244,7 @@ impl BlockLoader {
                     gen_from_server
                 );
             }
+            current_height -= 1;
             thread::sleep(std::time::Duration::new(blocks_since_last_fork+1, 0));
         }
         Ok(fork_was_detected)
