@@ -171,8 +171,8 @@ impl BlockLoader {
         let conn = PGCONNECTION.get()?;
         let mut fork_was_detected = false;
         let chain_length = KeyBlock::top_height(&conn)?;
-        let current_height = chain_length;
-
+        let mut current_height = chain_length;
+        let mut blocks_since_last_fork = 0;
         loop {
             let mut in_fork = false;
             let gen_from_db: JsonGeneration = match JsonGeneration::get_generation_at_height(
@@ -221,9 +221,13 @@ impl BlockLoader {
             }
 
             if !in_fork {
-                debug!("No fork found. Exiting loop");
-                break;
+                blocks_since_last_fork += 1;
+                if blocks_since_last_fork >= 5 {
+                    debug!("No fork found. Exiting loop");
+                    break;
+                }
             } else {
+                blocks_since_last_fork = 0;
                 BlockLoader::invalidate_block_at_height(current_height, &conn, &_tx)?;
                 info!(
                     "{} detected at height {} with chain length {}\n\
@@ -240,6 +244,8 @@ impl BlockLoader {
                     gen_from_server
                 );
             }
+            current_height -= 1;
+            thread::sleep(std::time::Duration::new(blocks_since_last_fork+1, 0));
         }
         Ok(fork_was_detected)
     }
