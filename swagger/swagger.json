@@ -197,7 +197,7 @@
     "/names/{name}": {
       "get": {
         "description": "Search for a name",
-        "operationId": "NamesSearchGet",
+        "operationId": "getName",
         "deprecated": false,
         "produces": ["application/json"],
         "parameters": [{
