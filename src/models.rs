@@ -1003,7 +1003,7 @@ impl InsertableContractCall {
         );
         debug!("returndata input: {:?}", params);
         result = client
-            .post(&format!("{}/decode-returndata/bytecode", url))
+            .post(&format!("{}/decode-calldata/bytecode", url))
             .json(&params)
             .send()?;
         let result = serde_json::from_str(&result.text()?)?;
