@@ -921,7 +921,6 @@ pub struct ContractCall {
     pub caller_id: String,
     pub arguments: serde_json::Value,
     pub callinfo: Option<serde_json::Value>,
-    pub result: Option<serde_json::Value>,
 }
 
 #[derive(Insertable)]
@@ -932,7 +931,6 @@ pub struct InsertableContractCall {
     pub caller_id: String,
     pub arguments: serde_json::Value,
     pub callinfo: Option<serde_json::Value>,
-    pub result: Option<serde_json::Value>,
 }
 
 impl InsertableContractCall {
@@ -992,28 +990,13 @@ impl InsertableContractCall {
         let callinfo = node.transaction_info(&source.hash)?["call_info"].to_owned();
         debug!("callinfo: {:?}", callinfo.to_string());
         debug!("arguments: {:?}", arguments);
-        params.remove(&"calldata".to_string())?;
-        params.insert(
-            "function".to_string(),
-            String::from(arguments["function"].as_str()?),
-        );
-        params.insert(
-            "return".to_string(),
-            String::from(callinfo["return_value"].as_str()?),
-        );
-        debug!("returndata input: {:?}", params);
-        result = client
-            .post(&format!("{}/decode-calldata/bytecode", url))
-            .json(&params)
-            .send()?;
-        let result = serde_json::from_str(&result.text()?)?;
+        
         Ok(Some(Self {
             transaction_id: _transaction_id,
             contract_id: contract_id.to_string(),
             caller_id: caller_id.to_string(),
             arguments,
             callinfo: Some(callinfo),
-            result: Some(result),
         }))
     }
 
