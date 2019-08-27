@@ -496,7 +496,7 @@ impl Transaction {
             Some(result) => {
                 let signatures: Vec<String> = result.split(' ').map(|s| s.to_string()).collect();
                 Some(signatures)
-            },
+            }
             _ => None,
         }
     }
@@ -980,17 +980,23 @@ impl InsertableContractCall {
         let client = reqwest::Client::new();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let mut result = client.post(&full_url).json(&params).send()?;
-        let output = result.text()?;
-        debug!("Return from aesophia: {}", output);
-        let arguments: serde_json::Value = serde_json::from_str(&output)?;
+        let arguments: serde_json::Value = match client.post(&full_url).json(&params).send() {
+            Ok(mut data) => {
+                let output = data.text().unwrap();
+                serde_json::from_str(&output)?
+            }
+            Err(err) => {
+                debug!("Error occurred while decoding call data: {:?}", err);
+                serde_json::from_str("{}")?
+            }
+        };
         // TODO -- clean up this hacky shit
         let node = Node::new(std::env::var("NODE_URL")?);
         // ^^^^^ should be safe here, but this needs to be fixed ASAP
         let callinfo = node.transaction_info(&source.hash)?["call_info"].to_owned();
         debug!("callinfo: {:?}", callinfo.to_string());
         debug!("arguments: {:?}", arguments);
-        
+
         Ok(Some(Self {
             transaction_id: _transaction_id,
             contract_id: contract_id.to_string(),
