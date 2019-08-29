@@ -37,6 +37,7 @@ extern crate r2d2_postgres;
 extern crate rand;
 extern crate regex;
 extern crate reqwest;
+extern crate rlp;
 #[macro_use]
 extern crate rocket;
 #[macro_use]
