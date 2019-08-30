@@ -6,7 +6,10 @@ use node::Node;
 
 use chrono::prelude::*;
 use diesel::RunQueryDsl;
+use loader::PGCONNECTION;
+use loader::SQLCONNECTION;
 use regex::Regex;
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use rocket;
 use rocket::http::{Header, Method, Status};
 use rocket::response::Response;
@@ -16,11 +19,9 @@ use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rust_decimal::Decimal;
 use serde_json;
+use std::collections::HashMap;
 use std::io::Cursor;
 use std::path::PathBuf;
-
-use loader::PGCONNECTION;
-use loader::SQLCONNECTION;
 
 pub struct MiddlewareServer {
     pub node: Node,
@@ -49,9 +50,9 @@ fn check_object(s: &str) -> () {
  * RLP decodes the contract byte code and returns the Vec<u8> of
  * contract source hash and Vec<u8> compiler version
  */
-fn rlp_decode_bytecode(bytecode: String) -> Vec<Vec<u8>> {
-    let rlp_bc = &bytecode[3..bytecode.len()-4];
-    let decoded_b64_bc = base64::decode(rlp_bc.as_bytes()).unwrap(); 
+pub fn rlp_decode_bytecode(bytecode: String) -> Vec<Vec<u8>> {
+    let rlp_bc = &bytecode[3..bytecode.len() - 4];
+    let decoded_b64_bc = base64::decode(rlp_bc.as_bytes()).unwrap();
     let rlp_hex = rlp::Rlp::new(&decoded_b64_bc);
     let encoded_source_hash: Vec<u8> = rlp_hex.at(2).unwrap().data().unwrap().to_vec();
     let encoded_compiler_version: Vec<u8> = rlp_hex.at(5).unwrap().data().unwrap().to_vec();
@@ -1112,6 +1113,53 @@ fn swagger() -> JsonValue {
     serde_json::from_str(swagger_str).unwrap()
 }
 
+#[post("/verifyContract", format = "application/json", data = "<body>")]
+pub fn verify_contract(
+    _state: State<MiddlewareServer>,
+    body: Json<serde_json::Value>,
+) -> JsonValue {
+    /**
+     * Todo: Fix this extraction thingy. maybe use a struct
+     */
+    let contract_id: String = match body["contract_id"].as_str() {
+        Some(val) => val.to_string(),
+        None => String::from(""),
+    };
+    let source: String = match body["source"].as_str() {
+        Some(val) => val.to_string(),
+        None => String::from(""),
+    };
+    let compiler: String = match body["compiler"].as_str() {
+        Some(val) => val.to_string(),
+        None => String::from(""),
+    };
+    match get_contract_bytecode(&contract_id).unwrap() {
+        Some(create_bytecode) => {
+            match InsertableContractIdentifier::compile_contract(source, compiler).unwrap() {
+                Some(compiled_bytecode) => {
+                    let compiled_decoded = rlp_decode_bytecode(compiled_bytecode);
+                    let created_decoded = rlp_decode_bytecode(create_bytecode);
+                    if compiled_decoded == created_decoded {
+                        json!({
+                            "verified": true
+                        })
+                    } else {
+                        json!({
+                            "verified": false
+                        })
+                    }
+                }
+                _ => json!({
+                    "error": "unable to compile the contract"
+                }),
+            }
+        }
+        _ => json!({
+            "error": "contract not found"
+        }),
+    }
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -1151,6 +1199,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_channel_address])
             .mount("/middleware", routes![transactions_for_contract_address])
+            .mount("/middleware", routes![verify_contract])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![generation_at_height])
