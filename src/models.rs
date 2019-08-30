@@ -496,7 +496,7 @@ impl Transaction {
             Some(result) => {
                 let signatures: Vec<String> = result.split(' ').map(|s| s.to_string()).collect();
                 Some(signatures)
-            },
+            }
             _ => None,
         }
     }
@@ -743,6 +743,29 @@ impl InsertableContractIdentifier {
             .returning(id)
             .get_results(&*conn)?;
         Ok(generated_ids[0])
+    }
+    /**
+     * Note: Didn't find any other place to put this method
+     */
+    pub fn compile_contract(source: String, compiler: String) -> MiddlewareResult<String> {
+        /**
+         * This will be removed when mdw compiler either starts supporting the latest sophia
+         * or
+         * mdw completely switches to the new compiler
+         */
+        let compiler_host = "https://compiler.aepps.com";
+        let client = reqwest::Client::new();
+        let options: serde_json::Value = serde_json::from_str("{}")?;
+        let result: serde_json::Value = client
+            .post(&format!("{}/compile", compiler_host))
+            .json(&json!({
+                "code": source,
+                "options": options
+            }))
+            .send()?
+            .json()?;
+        let bytecode: String = result["bytecode"].to_string();
+        Ok(bytecode.trim_matches('\"').to_string())
     }
 }
 
