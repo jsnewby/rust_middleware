@@ -1139,6 +1139,8 @@ pub fn verify_contract(
                 Some(compiled_bytecode) => {
                     let compiled_decoded = rlp_decode_bytecode(compiled_bytecode);
                     let created_decoded = rlp_decode_bytecode(create_bytecode);
+                    debug!("Compiled Decoded {:?}", compiled_decoded);
+                    debug!("Created Contract Tx {:?}", created_decoded);
                     if compiled_decoded == created_decoded {
                         json!({
                             "verified": true
