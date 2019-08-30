@@ -245,7 +245,7 @@ impl BlockLoader {
                 );
             }
             current_height -= 1;
-            thread::sleep(std::time::Duration::new(blocks_since_last_fork+1, 0));
+            thread::sleep(std::time::Duration::new(blocks_since_last_fork + 1, 0));
         }
         Ok(fork_was_detected)
     }
@@ -628,7 +628,14 @@ impl BlockLoader {
         loop {
             match self.compare_chain_and_db(i, &conn) {
                 Ok(_height) => println!("Height {} OK", i),
-                Err(e) => println!("Height {} not OK: {}", i, match e.to_string().lines().next() { Some(x) => x, None => "", }),
+                Err(e) => println!(
+                    "Height {} not OK: {}",
+                    i,
+                    match e.to_string().lines().next() {
+                        Some(x) => x,
+                        None => "",
+                    }
+                ),
             }
             i -= 1;
             _verified += 1;
