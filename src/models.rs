@@ -747,7 +747,7 @@ impl InsertableContractIdentifier {
     /**
      * Note: Didn't find any other place to put this method
      */
-    pub fn compile_contract(source: String, compiler: String) -> MiddlewareResult<String> {
+    pub fn compile_contract(source: String, compiler: String) -> MiddlewareResult<Option<String>> {
         /**
          * This will be removed when mdw compiler either starts supporting the latest sophia
          * or
@@ -772,11 +772,14 @@ impl InsertableContractIdentifier {
             .send()?
             .json()?;
         debug!("Compiler Result {:?}", result);
-        let bytecode: String = result["bytecode"]
-            .to_string()
-            .trim_matches('\"')
-            .to_string();
-        Ok(bytecode)
+        match result["bytecode"].as_str() {
+            Some(bytecode) => {
+                Ok(Some(bytecode.to_string()))
+            },
+            _ => {
+                Ok(None)
+            },
+        }
     }
 }
 
