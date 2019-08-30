@@ -760,6 +760,7 @@ impl InsertableContractIdentifier {
             HeaderName::from_static("sophia-compiler-version"),
             HeaderValue::from_str(&compiler).unwrap(),
         );
+        debug!("Compiler Headers {:?}", headers);
         let options: serde_json::Value = serde_json::from_str("{}")?;
         let result: serde_json::Value = client
             .post(&format!("{}/compile", compiler_host))
@@ -770,6 +771,7 @@ impl InsertableContractIdentifier {
             }))
             .send()?
             .json()?;
+        debug!("Compiler Result {:?}", result);
         let bytecode: String = result["bytecode"]
             .to_string()
             .trim_matches('\"')
