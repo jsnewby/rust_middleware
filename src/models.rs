@@ -19,7 +19,7 @@ use diesel::sql_query;
 extern crate serde_json;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE};
 use rust_decimal::Decimal;
 use serde_json::Number;
 use std::collections::HashMap;
@@ -755,17 +755,26 @@ impl InsertableContractIdentifier {
          */
         let compiler_host = "https://compiler.aepps.com";
         let client = reqwest::Client::new();
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("sophia-compiler-version"),
+            HeaderValue::from_str(&compiler).unwrap(),
+        );
         let options: serde_json::Value = serde_json::from_str("{}")?;
         let result: serde_json::Value = client
             .post(&format!("{}/compile", compiler_host))
+            .headers(headers)
             .json(&json!({
                 "code": source,
                 "options": options
             }))
             .send()?
             .json()?;
-        let bytecode: String = result["bytecode"].to_string();
-        Ok(bytecode.trim_matches('\"').to_string())
+        let bytecode: String = result["bytecode"]
+            .to_string()
+            .trim_matches('\"')
+            .to_string();
+        Ok(bytecode)
     }
 }
 
