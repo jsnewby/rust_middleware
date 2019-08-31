@@ -1116,26 +1116,11 @@ fn swagger() -> JsonValue {
 #[post("/verifyContract", format = "application/json", data = "<body>")]
 pub fn verify_contract(
     _state: State<MiddlewareServer>,
-    body: Json<serde_json::Value>,
+    body: Json<ContractVerification>,
 ) -> JsonValue {
-    /**
-     * Todo: Fix this extraction thingy. maybe use a struct
-     */
-    let contract_id: String = match body["contract_id"].as_str() {
-        Some(val) => val.to_string(),
-        None => String::from(""),
-    };
-    let source: String = match body["source"].as_str() {
-        Some(val) => val.to_string(),
-        None => String::from(""),
-    };
-    let compiler: String = match body["compiler"].as_str() {
-        Some(val) => val.to_string(),
-        None => String::from(""),
-    };
-    match get_contract_bytecode(&contract_id).unwrap() {
+    match get_contract_bytecode(&body.contract_id).unwrap() {
         Some(create_bytecode) => {
-            match InsertableContractIdentifier::compile_contract(source, compiler).unwrap() {
+            match InsertableContractIdentifier::compile_contract(body.source.clone(), body.compiler.clone() ).unwrap() {
                 Some(compiled_bytecode) => {
                     let compiled_decoded = rlp_decode_bytecode(compiled_bytecode);
                     let created_decoded = rlp_decode_bytecode(create_bytecode);
