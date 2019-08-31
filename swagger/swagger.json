@@ -85,7 +85,7 @@
     "/contracts/calls/address/{address}": {
       "get": {
         "description": "Get contract calls for a provided contract",
-        "operationId": "ContractsCallsAddressGet",
+        "operationId": "getContractAddressCalls",
         "deprecated": false,
         "produces": ["application/json"],
         "parameters": [{
@@ -94,6 +94,40 @@
           "type": "string",
           "required": true,
           "description": "Contract Address/id"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/verifyContract": {
+      "post": {
+        "description": "Verify a contract by submitting the source, compiler version and contract identifier",
+        "operationId": "verifyContract",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "body",
+          "name": "contract",
+          "description": "Details of the contract to verify.",
+          "schema": {
+            "type": "object",
+            "required": ["contract_id", "source", "compiler"],
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "compiler": {
+                "type": "string"
+              }
+            }
+          }
         }],
         "responses": {
           "200": {
