@@ -1065,3 +1065,10 @@ impl InsertableContractCall {
         Ok(generated_ids[0])
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct ContractVerification {
+    pub contract_id: String,
+    pub source: String,
+    pub compiler: String,
+}
