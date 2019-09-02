@@ -978,8 +978,6 @@ impl InsertableContractCall {
         };
         debug!("Params: {:?}", params);
         let client = reqwest::Client::new();
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         let arguments: serde_json::Value = match client.post(&full_url).json(&params).send() {
             Ok(mut data) => {
                 let output = data.text().unwrap();
