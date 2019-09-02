@@ -9,7 +9,7 @@ use diesel::RunQueryDsl;
 use loader::PGCONNECTION;
 use loader::SQLCONNECTION;
 use regex::Regex;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use rocket;
 use rocket::http::{Header, Method, Status};
 use rocket::response::Response;
@@ -1130,7 +1130,9 @@ pub fn verify_contract(
                         json!({
                             "verified": true
                         })
-                    } else if compiled_decoded[0] == created_decoded[0] && compiled_decoded[1] != created_decoded[1] {
+                    } else if compiled_decoded[0] == created_decoded[0]
+                        && compiled_decoded[1] != created_decoded[1]
+                    {
                         json!({
                             "verified": false,
                             "reason": "compiler version mismatch"
