@@ -20,6 +20,7 @@ extern crate serde_json;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE};
+use reqwest::StatusCode;
 use rust_decimal::Decimal;
 use serde_json::Number;
 use std::collections::HashMap;
@@ -776,6 +777,54 @@ pub fn compile_contract(source: String, compiler: String) -> MiddlewareResult<Op
         _ => Ok(None),
     }
 }
+
+/**
+ * Check attached compiler version and return a list of versions it supports
+ * 1. Check if the compiler is behind a proxy that supports multiple compiler and compiler switching
+ * 2. Else return the `/version` in an array so that result is consistent
+ */
+
+pub fn supported_compiler_versions() -> MiddlewareResult<Option<Vec<String>>> {
+    if let Ok(contract_url) = std::env::var("AESOPHIA_URL") {
+        let client = reqwest::Client::new();
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("accept"),
+            HeaderValue::from_static("application/json"),
+        );
+        let mut res = client.get(&contract_url).headers(headers).send()?;
+        return match res.status() {
+            StatusCode::OK => {
+                let data: String = res.text()?;
+                let response: serde_json::Value = serde_json::from_str(&data)?;
+                debug!("{:?}", response);
+                match response["Compilers"].as_array() {
+                    Some(data) => {
+                        debug!("{:?}", data);
+                        let result: Vec<String> = data
+                            .iter()
+                            .map(|val: &serde_json::Value| {
+                                String::from(val["version"].as_str().unwrap())
+                            })
+                            .collect();
+                        Ok(Some(result))
+                    }
+                    _ => Ok(None),
+                }
+            }
+            _ => match client.get(&format!("{}/version", contract_url)).send() {
+                Ok(mut data) => {
+                    debug!("{:?}", data);
+                    let response: serde_json::Value = serde_json::from_str(&data.text()?)?;
+                    Ok(Some(vec![String::from(response["version"].as_str()?)]))
+                }
+                _ => Ok(None),
+            },
+        };
+    }
+    Ok(None)
+}
+
 pub fn get_contract_bytecode(contract_id: &str) -> MiddlewareResult<Option<String>> {
     let rows = SQLCONNECTION.get()?.query(
         "SELECT CAST(t.tx->>'code' AS VARCHAR) AS CODE FROM \
