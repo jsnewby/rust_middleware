@@ -744,45 +744,38 @@ impl InsertableContractIdentifier {
             .get_results(&*conn)?;
         Ok(generated_ids[0])
     }
-    /**
-     * Note: Didn't find any other place to put this method
-     */
-    pub fn compile_contract(source: String, compiler: String) -> MiddlewareResult<Option<String>> {
-        /**
-         * This will be removed when mdw compiler either starts supporting the latest sophia
-         * or
-         * mdw completely switches to the new compiler
-         */
-        let compiler_host = "https://compiler.aepps.com";
-        let client = reqwest::Client::new();
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            HeaderName::from_static("sophia-compiler-version"),
-            HeaderValue::from_str(&compiler).unwrap(),
-        );
-        debug!("Compiler Headers {:?}", headers);
-        let options: serde_json::Value = serde_json::from_str("{}")?;
-        let result: serde_json::Value = client
-            .post(&format!("{}/compile", compiler_host))
-            .headers(headers)
-            .json(&json!({
-                "code": source,
-                "options": options
-            }))
-            .send()?
-            .json()?;
-        debug!("Compiler Result {:?}", result);
-        match result["bytecode"].as_str() {
-            Some(bytecode) => {
-                Ok(Some(bytecode.to_string()))
-            },
-            _ => {
-                Ok(None)
-            },
-        }
-    }
 }
 
+pub fn compile_contract(source: String, compiler: String) -> MiddlewareResult<Option<String>> {
+    /**
+     * This will be removed when mdw compiler either starts supporting the latest sophia
+     * or
+     * mdw completely switches to the new compiler
+     */
+    let compiler_host = "https://compiler.aepps.com";
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("sophia-compiler-version"),
+        HeaderValue::from_str(&compiler).unwrap(),
+    );
+    debug!("Compiler Headers {:?}", headers);
+    let options: serde_json::Value = serde_json::from_str("{}")?;
+    let result: serde_json::Value = client
+        .post(&format!("{}/compile", compiler_host))
+        .headers(headers)
+        .json(&json!({
+            "code": source,
+            "options": options
+        }))
+        .send()?
+        .json()?;
+    debug!("Compiler Result {:?}", result);
+    match result["bytecode"].as_str() {
+        Some(bytecode) => Ok(Some(bytecode.to_string())),
+        _ => Ok(None),
+    }
+}
 pub fn get_contract_bytecode(contract_id: &str) -> MiddlewareResult<Option<String>> {
     let rows = SQLCONNECTION.get()?.query(
         "SELECT CAST(t.tx->>'code' AS VARCHAR) AS CODE FROM \

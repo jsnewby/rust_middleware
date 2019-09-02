@@ -1120,7 +1120,7 @@ pub fn verify_contract(
 ) -> JsonValue {
     match get_contract_bytecode(&body.contract_id).unwrap() {
         Some(create_bytecode) => {
-            match InsertableContractIdentifier::compile_contract(body.source.clone(), body.compiler.clone() ).unwrap() {
+            match compile_contract(body.source.clone(), body.compiler.clone()).unwrap() {
                 Some(compiled_bytecode) => {
                     let compiled_decoded = rlp_decode_bytecode(compiled_bytecode);
                     let created_decoded = rlp_decode_bytecode(create_bytecode);
