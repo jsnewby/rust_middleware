@@ -1130,6 +1130,11 @@ pub fn verify_contract(
                         json!({
                             "verified": true
                         })
+                    } else if compiled_decoded[0] == created_decoded[0] && compiled_decoded[1] != created_decoded[1] {
+                        json!({
+                            "verified": false,
+                            "reason": "compiler version mismatch"
+                        })
                     } else {
                         json!({
                             "verified": false
