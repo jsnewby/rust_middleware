@@ -1113,7 +1113,7 @@ fn swagger() -> JsonValue {
     serde_json::from_str(swagger_str).unwrap()
 }
 
-#[post("/verifyContract", format = "application/json", data = "<body>")]
+#[post("/contracts/verify", format = "application/json", data = "<body>")]
 pub fn verify_contract(
     _state: State<MiddlewareServer>,
     body: Json<ContractVerification>,

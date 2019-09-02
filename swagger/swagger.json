@@ -103,7 +103,7 @@
         }
       }
     },
-    "/verifyContract": {
+    "/contracts/verify": {
       "post": {
         "description": "Verify a contract by submitting the source, compiler version and contract identifier",
         "operationId": "verifyContract",
