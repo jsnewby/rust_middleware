@@ -1207,6 +1207,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![calls_for_contract_address])
+            .mount("/middleware", routes![get_available_compilers])
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
