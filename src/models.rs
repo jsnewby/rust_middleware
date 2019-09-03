@@ -747,13 +747,12 @@ impl InsertableContractIdentifier {
     }
 }
 
+/**
+ * Compiler the contract and return the byte code wrapped in Option
+ */
+
 pub fn compile_contract(source: String, compiler: String) -> MiddlewareResult<Option<String>> {
-    /**
-     * This will be removed when mdw compiler either starts supporting the latest sophia
-     * or
-     * mdw completely switches to the new compiler
-     */
-    let compiler_host = "https://compiler.aepps.com";
+    let compiler_host = std::env::var("AESOPHIA_URL")?;
     let client = reqwest::Client::new();
     let mut headers = HeaderMap::new();
     headers.insert(
