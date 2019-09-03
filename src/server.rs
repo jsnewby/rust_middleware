@@ -1125,11 +1125,32 @@ fn swagger() -> JsonValue {
     serde_json::from_str(swagger_str).unwrap()
 }
 
+#[get("/compilers")]
+pub fn get_available_compilers() -> JsonValue {
+    match supported_compiler_versions().unwrap() {
+        Some(val) => {
+            json!({
+                "compilers": val
+            })
+        },
+        _ => {
+            json!({
+                "error": "no compiler available"
+            })
+        }
+    }
+}
+
 #[post("/contracts/verify", format = "application/json", data = "<body>")]
 pub fn verify_contract(
     _state: State<MiddlewareServer>,
     body: Json<ContractVerification>,
 ) -> JsonValue {
+    if !validate_compiler(body.compiler.clone()) {
+        return json!({
+            "error": "invalid compiler version"
+        });
+    }
     match get_contract_bytecode(&body.contract_id).unwrap() {
         Some(create_bytecode) => {
             match compile_contract(body.source.clone(), body.compiler.clone()).unwrap() {
