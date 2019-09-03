@@ -9,7 +9,6 @@ use diesel::RunQueryDsl;
 use loader::PGCONNECTION;
 use loader::SQLCONNECTION;
 use regex::Regex;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use rocket;
 use rocket::http::{Header, Method, Status};
 use rocket::response::Response;
@@ -19,7 +18,6 @@ use rocket_cors;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rust_decimal::Decimal;
 use serde_json;
-use std::collections::HashMap;
 use std::io::Cursor;
 use std::path::PathBuf;
 
