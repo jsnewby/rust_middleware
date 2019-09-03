@@ -748,7 +748,7 @@ impl InsertableContractIdentifier {
 }
 
 /**
- * Compiler the contract and return the byte code wrapped in Option
+ * Compile the contract and return the byte code
  */
 
 pub fn compile_contract(source: String, compiler: String) -> MiddlewareResult<Option<String>> {
