@@ -137,6 +137,21 @@
         }
       }
     },
+    "/compilers": {
+      "get": {
+        "description": "Get list of compilers available to the middleware",
+        "operationId": "getCompilers",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
     "/generations/{from}/{to}": {
       "get": {
         "description": "Get generations between a given range",
