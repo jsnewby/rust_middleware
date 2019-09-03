@@ -1,17 +1,15 @@
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::StatusCode;
 
-use middleware_result::{MiddlewareResult};
+use middleware_result::MiddlewareResult;
 
 pub fn validate_compiler(compiler_version: String) -> bool {
     match supported_compiler_versions().unwrap() {
-        Some(compilers) => {
-            match compilers.iter().find(|val| { val == &&compiler_version }) {
-                Some(_x) => true,
-                _ => false,
-            }
+        Some(compilers) => match compilers.iter().find(|val| val == &&compiler_version) {
+            Some(_x) => true,
+            _ => false,
         },
-        _ => { false }
+        _ => false,
     }
 }
 
@@ -78,15 +76,17 @@ pub fn supported_compiler_versions() -> MiddlewareResult<Option<Vec<String>>> {
                     }
                     _ => Ok(None),
                 }
-            },
-            StatusCode::NOT_FOUND => match client.get(&format!("{}/version", contract_url)).send() {
-                Ok(mut data) => {
-                    debug!("{:?}", data);
-                    let response: serde_json::Value = serde_json::from_str(&data.text()?)?;
-                    Ok(Some(vec![String::from(response["version"].as_str()?)]))
+            }
+            StatusCode::NOT_FOUND => {
+                match client.get(&format!("{}/version", contract_url)).send() {
+                    Ok(mut data) => {
+                        debug!("{:?}", data);
+                        let response: serde_json::Value = serde_json::from_str(&data.text()?)?;
+                        Ok(Some(vec![String::from(response["version"].as_str()?)]))
+                    }
+                    _ => Ok(None),
                 }
-                _ => Ok(None),
-            },
+            }
             _ => Ok(None),
         };
     }

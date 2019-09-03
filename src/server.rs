@@ -1115,16 +1115,10 @@ fn swagger() -> JsonValue {
 #[get("/compilers")]
 pub fn get_available_compilers() -> JsonValue {
     match supported_compiler_versions().unwrap() {
-        Some(val) => {
-            json!({
-                "compilers": val
-            })
-        },
-        _ => {
-            json!({
-                "error": "no compiler available"
-            })
-        }
+        Some(val) => json!({ "compilers": val }),
+        _ => json!({
+            "error": "no compiler available"
+        }),
     }
 }
 
