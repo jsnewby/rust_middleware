@@ -46,6 +46,18 @@ fn check_object(s: &str) -> () {
     };
 }
 
+pub fn validate_compiler(compiler_version: String) -> bool {
+    match supported_compiler_versions().unwrap() {
+        Some(compilers) => {
+            match compilers.iter().find(|val| { val == &&compiler_version }) {
+                Some(_x) => true,
+                _ => false,
+            }
+        },
+        _ => { false }
+    }
+}
+
 /**
  * RLP decodes the contract byte code and returns the Vec<u8> of
  * contract source hash and Vec<u8> compiler version
