@@ -811,8 +811,8 @@ pub fn supported_compiler_versions() -> MiddlewareResult<Option<Vec<String>>> {
                     }
                     _ => Ok(None),
                 }
-            }
-            _ => match client.get(&format!("{}/version", contract_url)).send() {
+            },
+            StatusCode::NOT_FOUND => match client.get(&format!("{}/version", contract_url)).send() {
                 Ok(mut data) => {
                     debug!("{:?}", data);
                     let response: serde_json::Value = serde_json::from_str(&data.text()?)?;
@@ -820,6 +820,7 @@ pub fn supported_compiler_versions() -> MiddlewareResult<Option<Vec<String>>> {
                 }
                 _ => Ok(None),
             },
+            _ => Ok(None),
         };
     }
     Ok(None)
