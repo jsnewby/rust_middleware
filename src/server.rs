@@ -1,6 +1,7 @@
 use diesel::sql_query;
 
 use coinbase::coinbase;
+use compiler::*;
 use models::*;
 use node::Node;
 
@@ -42,18 +43,6 @@ fn check_object(s: &str) -> () {
     if !OBJECT_REGEX.is_match(s) {
         panic!("Invalid input"); // be paranoid
     };
-}
-
-pub fn validate_compiler(compiler_version: String) -> bool {
-    match supported_compiler_versions().unwrap() {
-        Some(compilers) => {
-            match compilers.iter().find(|val| { val == &&compiler_version }) {
-                Some(_x) => true,
-                _ => false,
-            }
-        },
-        _ => { false }
-    }
 }
 
 /**

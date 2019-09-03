@@ -52,6 +52,7 @@ extern crate serde_json;
 extern crate ws;
 
 pub mod coinbase;
+pub mod compiler;
 pub mod hashing;
 pub mod loader;
 pub mod middleware_result;
