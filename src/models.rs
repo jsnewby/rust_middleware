@@ -921,6 +921,7 @@ pub struct ContractCall {
     pub caller_id: String,
     pub arguments: serde_json::Value,
     pub callinfo: Option<serde_json::Value>,
+    pub result: Option<serde_json::Value>,
 }
 
 #[derive(Insertable)]
@@ -931,6 +932,7 @@ pub struct InsertableContractCall {
     pub caller_id: String,
     pub arguments: serde_json::Value,
     pub callinfo: Option<serde_json::Value>,
+    pub result: Option<serde_json::Value>,
 }
 
 impl InsertableContractCall {
