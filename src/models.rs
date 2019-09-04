@@ -995,12 +995,39 @@ impl InsertableContractCall {
         debug!("callinfo: {:?}", callinfo.to_string());
         debug!("arguments: {:?}", arguments);
 
+        /* let mut call_result = None;
+        if (callinfo["return_type"].as_str()? == "ok") {
+            params.remove(&"calldata".to_string())?;
+            params.insert(
+                "function".to_string(),
+                String::from(arguments["function"].as_str()?),
+            );
+            params.insert(
+                "return".to_string(),
+                String::from(callinfo["return_value"].as_str()?),
+            );
+            debug!("returndata input: {:?}", params);
+            call_result = match client
+                .post(&format!("{}/decode-returndata/bytecode", url))
+                .json(&params)
+                .send() {
+                    Ok(mut response) => {
+                        debug!("Result decode response {:?} ", response);
+                        Some(serde_json::from_str(&response.text()?)?)
+                    },
+                    Err(err) => {
+                        debug!("Error occurred while decoding call result: {:?}", err);
+                        None
+                    },
+                }
+        } */
         Ok(Some(Self {
             transaction_id: _transaction_id,
             contract_id: contract_id.to_string(),
             caller_id: caller_id.to_string(),
             arguments,
             callinfo: Some(callinfo),
+            // result: call_result,
         }))
     }
 
