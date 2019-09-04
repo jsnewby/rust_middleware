@@ -54,6 +54,12 @@
           />
         </AppDefinition>
         <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.time"
           title="Time"
           class="tx-time"

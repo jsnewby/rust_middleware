@@ -9,6 +9,7 @@
     >
     <button
       class="search-bar-button"
+      @click="processInput"
     >
       <AppIcon name="search" />
     </button>

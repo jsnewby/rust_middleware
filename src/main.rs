@@ -3,6 +3,7 @@
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(try_trait)]
+#![feature(try_from)]
 extern crate backtrace;
 extern crate base58;
 extern crate base58check;
@@ -37,6 +38,7 @@ extern crate r2d2_postgres;
 extern crate rand;
 extern crate regex;
 extern crate reqwest;
+extern crate rlp;
 #[macro_use]
 extern crate rocket;
 #[macro_use]
@@ -60,6 +62,7 @@ use clap::{App, Arg};
 use std::env;
 
 pub mod coinbase;
+pub mod compiler;
 pub mod hashing;
 pub mod loader;
 pub mod middleware_result;

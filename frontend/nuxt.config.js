@@ -40,7 +40,9 @@ module.exports = {
     middlewareURL: process.env.NUXT_APP_NODE_URL || 'https://testnet.mdw.aepps.com',
     middlewareWS: process.env.NUXT_APP_NODE_WS || 'wss://testnet.mdw.aepps.com/websocket',
     networkName: process.env.NUXT_APP_NETWORK_NAME || 'TEST NET',
-    swaggerHub: process.env.NUXT_APP_SWAGGER_HUB || 'https://app.swaggerhub.com/apis-docs/sshekhar/aepp-middleware/1.0'
+    swaggerHub: process.env.NUXT_APP_SWAGGER_HUB || 'https://app.swaggerhub.com/apis-docs/sshekhar/aepp-middleware/1.0',
+    faucetNetwork: process.env.NUXT_APP_FAUCET_NETWORK || 'ae_uat',
+    faucetAPI: process.env.NUXT_APP_FAUCET_API || 'https://testnet.faucet.aepps.com/account'
   },
   /*
   ** Plugins to load before mounting the App

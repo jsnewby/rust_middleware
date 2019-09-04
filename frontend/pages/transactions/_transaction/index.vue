@@ -11,6 +11,7 @@
       :data="transaction"
     />
     <GenerationDetails
+      v-if="generation && height"
       :data="generation"
       :dynamic-data="height"
       :status="loading"

@@ -1,11 +1,13 @@
 import axios from 'axios'
 
 export const state = () => ({
-  $nodeStatus: {},
+  nodeStatus: {},
   nodeUrl: process.env.middlewareURL,
   wsUrl: process.env.middlewareWS,
   networkName: process.env.networkName,
   swaggerHub: process.env.swaggerHub,
+  faucetNetwork: process.env.faucetNetwork,
+  faucetApi: process.env.faucetAPI,
   error: '',
   height: 0,
   status: {},
@@ -43,10 +45,10 @@ export const mutations = {
   /**
    * setNodeStatus
    * @param {Object} state
-   * @param $nodeStatus
+   * @param nodeStatus
    */
-  setNodeStatus (state, $nodeStatus) {
-    Object.assign(state, { $nodeStatus })
+  setNodeStatus (state, nodeStatus) {
+    Object.assign(state, { nodeStatus })
   },
   /**
    * changeNetwork
@@ -105,7 +107,7 @@ export const actions = {
   },
   async status ({ rootState: { nodeUrl }, commit }) {
     try {
-      const url = `${nodeUrl}/middleware/status`
+      const url = `${nodeUrl}/v2/status`
       const status = (await axios.get(url)).data
       console.info('MDW 🔗 ' + url)
       commit('setStatus', status)
@@ -132,6 +134,7 @@ export const actions = {
     }
   },
   async nuxtServerInit ({ dispatch }, { context }) {
+    dispatch('status')
     await dispatch('height')
     await Promise.all([
       dispatch('generations/nuxtServerInit', context),
