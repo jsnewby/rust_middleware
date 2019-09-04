@@ -45,19 +45,6 @@ fn check_object(s: &str) -> () {
     };
 }
 
-/**
- * RLP decodes the contract byte code and returns the Vec<u8> of
- * contract source hash and Vec<u8> compiler version
- */
-pub fn rlp_decode_bytecode(bytecode: String) -> Vec<Vec<u8>> {
-    let rlp_bc = &bytecode[3..bytecode.len() - 4];
-    let decoded_b64_bc = base64::decode(rlp_bc.as_bytes()).unwrap();
-    let rlp_hex = rlp::Rlp::new(&decoded_b64_bc);
-    let encoded_source_hash: Vec<u8> = rlp_hex.at(2).unwrap().data().unwrap().to_vec();
-    let encoded_compiler_version: Vec<u8> = rlp_hex.at(5).unwrap().data().unwrap().to_vec();
-    vec![encoded_source_hash, encoded_compiler_version]
-}
-
 /*
  * GET handler for Node
  */
@@ -1136,8 +1123,8 @@ pub fn verify_contract(
         Some(create_bytecode) => {
             match compile_contract(body.source.clone(), body.compiler.clone()).unwrap() {
                 Some(compiled_bytecode) => {
-                    let compiled_decoded = rlp_decode_bytecode(compiled_bytecode);
-                    let created_decoded = rlp_decode_bytecode(create_bytecode);
+                    let compiled_decoded = rlp_decode_bytecode(compiled_bytecode).unwrap();
+                    let created_decoded = rlp_decode_bytecode(create_bytecode).unwrap();
                     debug!("Compiled Decoded {:?}", compiled_decoded);
                     debug!("Created Contract Tx {:?}", created_decoded);
                     if compiled_decoded == created_decoded {
