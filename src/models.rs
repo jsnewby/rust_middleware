@@ -980,40 +980,56 @@ impl InsertableContractCall {
         };
         debug!("Params: {:?}", params);
         let client = reqwest::Client::new();
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let mut result = client.post(&full_url).json(&params).send()?;
-        let output = result.text()?;
-        debug!("Return from aesophia: {}", output);
-        let arguments: serde_json::Value = serde_json::from_str(&output)?;
+        let arguments: serde_json::Value = match client.post(&full_url).json(&params).send() {
+            Ok(mut data) => {
+                let output = data.text().unwrap();
+                serde_json::from_str(&output)?
+            }
+            Err(err) => {
+                debug!("Error occurred while decoding call data: {:?}", err);
+                serde_json::from_str("{}")?
+            }
+        };
         // TODO -- clean up this hacky shit
         let node = Node::new(std::env::var("NODE_URL")?);
         // ^^^^^ should be safe here, but this needs to be fixed ASAP
         let callinfo = node.transaction_info(&source.hash)?["call_info"].to_owned();
         debug!("callinfo: {:?}", callinfo.to_string());
         debug!("arguments: {:?}", arguments);
-        params.remove(&"calldata".to_string())?;
-        params.insert(
-            "function".to_string(),
-            String::from(arguments["function"].as_str()?),
-        );
-        params.insert(
-            "return".to_string(),
-            String::from(callinfo["return_value"].as_str()?),
-        );
-        debug!("returndata input: {:?}", params);
-        result = client
-            .post(&format!("{}/decode-returndata/bytecode", url))
-            .json(&params)
-            .send()?;
-        let result = serde_json::from_str(&result.text()?)?;
+
+        /* let mut call_result = None;
+        if (callinfo["return_type"].as_str()? == "ok") {
+            params.remove(&"calldata".to_string())?;
+            params.insert(
+                "function".to_string(),
+                String::from(arguments["function"].as_str()?),
+            );
+            params.insert(
+                "return".to_string(),
+                String::from(callinfo["return_value"].as_str()?),
+            );
+            debug!("returndata input: {:?}", params);
+            call_result = match client
+                .post(&format!("{}/decode-returndata/bytecode", url))
+                .json(&params)
+                .send() {
+                    Ok(mut response) => {
+                        debug!("Result decode response {:?} ", response);
+                        Some(serde_json::from_str(&response.text()?)?)
+                    },
+                    Err(err) => {
+                        debug!("Error occurred while decoding call result: {:?}", err);
+                        None
+                    },
+                }
+        } */
         Ok(Some(Self {
             transaction_id: _transaction_id,
             contract_id: contract_id.to_string(),
             caller_id: caller_id.to_string(),
             arguments,
             callinfo: Some(callinfo),
-            result: Some(result),
+            // result: call_result,
         }))
     }
 
