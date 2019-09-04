@@ -496,7 +496,7 @@ impl Transaction {
             Some(result) => {
                 let signatures: Vec<String> = result.split(' ').map(|s| s.to_string()).collect();
                 Some(signatures)
-            },
+            }
             _ => None,
         }
     }
@@ -1027,4 +1027,11 @@ impl InsertableContractCall {
             .unwrap();
         Ok(generated_ids[0])
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ContractVerification {
+    pub contract_id: String,
+    pub source: String,
+    pub compiler: String,
 }
