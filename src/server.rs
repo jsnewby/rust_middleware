@@ -958,7 +958,7 @@ fn active_names(
              names where \
              expires_at >= {} and \
              owner = '{}' \
-             order by created_at_height desc \
+             order by expires_at desc \
              limit {} offset {} ",
             KeyBlock::top_height(&*connection).unwrap(),
             sanitize(&owner),
@@ -992,7 +992,7 @@ fn all_names(
         Some(owner) => format!(
             "select * from names \
              where owner = '{}' \
-             order by created_at_height desc \
+             order by expires_at desc \
              limit {} offset {} ",
             sanitize(&owner),
             limit_sql,
