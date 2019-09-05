@@ -1029,7 +1029,7 @@ impl InsertableContractCall {
             caller_id: caller_id.to_string(),
             arguments,
             callinfo: Some(callinfo),
-            // result: call_result,
+            result: None,
         }))
     }
 
