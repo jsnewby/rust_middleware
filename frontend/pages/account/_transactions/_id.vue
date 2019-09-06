@@ -64,7 +64,7 @@ export default {
       },
       transactions: [],
       page: 1,
-      loading: false,
+      loading: true,
       value: 'All',
       options: this.$store.state.filterOptions
     }

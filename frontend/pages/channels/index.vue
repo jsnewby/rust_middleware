@@ -39,7 +39,7 @@ export default {
   data () {
     return {
       page: 1,
-      loading: false
+      loading: true
     }
   },
   computed: {
@@ -48,7 +48,9 @@ export default {
     ])
   },
   async beforeMount () {
+    this.loading = true
     await this.$store.dispatch('channels/getChannels')
+    this.loading = false
   }
 }
 </script>

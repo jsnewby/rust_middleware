@@ -42,7 +42,7 @@ export default {
   data () {
     return {
       page: 1,
-      loading: false
+      loading: true
     }
   },
   computed: {
