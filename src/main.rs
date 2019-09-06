@@ -155,8 +155,7 @@ fn main() {
                 .short("v")
                 .long("verify")
                 .help("Verify DB integrity against chain")
-                .takes_value(true)
-                .default_value("0") // special value, yuck
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("heights")
