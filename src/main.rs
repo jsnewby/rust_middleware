@@ -154,7 +154,8 @@ fn main() {
                 .short("v")
                 .long("verify")
                 .help("Verify DB integrity against chain")
-                .takes_value(false),
+                .takes_value(true)
+                .default_value("0") // special value, yuck
         )
         .arg(
             Arg::with_name("heights")
@@ -184,6 +185,7 @@ fn main() {
     let daemonize = matches.is_present("daemonize");
     let websocket = matches.is_present("websocket");
 
+
     if daemonize {
         let daemonize = Daemonize::new();
         if let Ok(x) = env::var("PID_FILE") {
@@ -196,11 +198,18 @@ fn main() {
     if verify {
         debug!("Verifying");
         let loader = BlockLoader::new(url.clone());
-        match loader.verify() {
-            Ok(_) => (),
-            Err(x) => error!("Blockloader::verify() returned an error: {}", x),
-        };
-        return;
+        let to_verify = range(&String::from(matches.value_of("verify").unwrap()));
+        if to_verify == vec!(0) {
+            match loader.verify_all() {
+                Ok(_) => (),
+                Err(x) => error!("Blockloader::verify() returned an error: {}", x),
+            };
+            return;
+        } else {
+            for height in to_verify {
+                loader.verify_height(height);
+            }
+        }
     }
 
     // Run migrations if populate or heights set
@@ -222,19 +231,8 @@ fn main() {
     if heights {
         let to_load = matches.value_of("heights").unwrap();
         let loader = BlockLoader::new(url.clone());
-        for h in to_load.split(',') {
-            let s = String::from(h);
-            match s.find("-") {
-                Some(_) => {
-                    let fromto: Vec<String> = s.split('-').map(|x| String::from(x)).collect();
-                    for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap() {
-                        loader.load_blocks(i).unwrap();
-                    }
-                }
-                None => {
-                    loader.load_blocks(s.parse::<i64>().unwrap()).unwrap();
-                }
-            }
+        for h in range(&String::from(to_load)) {
+            loader.load_blocks(h).unwrap();
         }
     }
 
@@ -287,4 +285,32 @@ fn main() {
         }
         None => (),
     }
+}
+
+// takes args of the form X,Y-Z,A and returns a vector of the individual numbers
+// ranges in the form X-Y are INCLUSIVE
+fn range(arg: &String) -> Vec<i64> {
+    let mut result = vec!();
+    for h in arg.split(',') {
+        let s = String::from(h);
+        match s.find("-") {
+            Some(_) => {
+                let fromto: Vec<String> = s.split('-').map(|x| String::from(x)).collect();
+                for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap()+1 {
+                    result.push(i);
+                }
+            }
+            None => {
+                result.push(s.parse::<i64>().unwrap());
+            }
+        }
+    }
+    result
+}
+
+#[test]
+fn test_range() {
+    assert_eq!(range(&String::from("1")), vec!(1));
+    assert_eq!(range(&String::from("2-5")), vec!(2,3,4,5));
+    assert_eq!(range(&String::from("1,2-5,10")), vec!(1,2,3,4,5,10));
 }

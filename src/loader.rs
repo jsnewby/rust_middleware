@@ -618,21 +618,27 @@ impl BlockLoader {
      * - micro blocks
      * - transactions
      */
-    pub fn verify(&self) -> MiddlewareResult<i64> {
+    pub fn verify_all(&self) -> MiddlewareResult<i64> {
         let top_chain = self.node.latest_key_block()?["height"].as_i64()?;
         let mut _verified: i64 = 0;
         let conn = PGCONNECTION.get()?;
         let top_db = KeyBlock::top_height(&conn)?;
         let top_max = std::cmp::max(top_chain, top_db);
-        let mut i = top_max;
+        let mut _height = top_max;
         loop {
-            match self.compare_chain_and_db(i, &conn) {
-                Ok(_height) => println!("Height {} OK", i),
-                Err(e) => println!("Height {} not OK: {}", i, match e.to_string().lines().next() { Some(x) => x, None => "", }),
-            }
-            i -= 1;
+            self.verify_height(_height);
+            _height -= 1;
             _verified += 1;
         }
+    }
+
+    pub fn verify_height(&self, _height: i64) -> MiddlewareResult<()>{
+        let conn = PGCONNECTION.get()?;
+        match self.compare_chain_and_db(_height, &conn) {
+            Ok(_) => println!("Height {} OK", _height),
+            Err(e) => println!("Height {} not OK: {}", _height, match e.to_string().lines().next() { Some(x) => x, None => "", }),
+        }
+        Ok(())
     }
 
     pub fn compare_chain_and_db(
