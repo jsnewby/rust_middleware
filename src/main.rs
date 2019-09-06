@@ -198,15 +198,15 @@ fn main() {
     if verify {
         debug!("Verifying");
         let loader = BlockLoader::new(url.clone());
-        let to_verify = range(&String::from(matches.value_of("verify").unwrap()));
-        if to_verify == vec!(0) {
+        let verify_flags = String::from(matches.value_of("verify").unwrap()).to_lowercase();
+        if &verify_flags == "all" {
             match loader.verify_all() {
                 Ok(_) => (),
                 Err(x) => error!("Blockloader::verify() returned an error: {}", x),
             };
             return;
         } else {
-            for height in to_verify {
+            for height in range(&verify_flags) {
                 loader.verify_height(height);
             }
         }
