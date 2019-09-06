@@ -866,6 +866,7 @@ impl InsertableName {
 #[derive(AsChangeset, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
 #[table_name = "names"]
 pub struct Name {
+    #[serde(skip_serializing)]
     pub id: i32,
     pub name: String,
     pub name_hash: String,
@@ -874,6 +875,7 @@ pub struct Name {
     pub owner: String,
     pub expires_at: i64,
     pub pointers: Option<serde_json::Value>,
+    #[serde(skip_serializing)]
     pub transaction_id: i32,
 }
 
