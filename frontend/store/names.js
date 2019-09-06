@@ -21,5 +21,16 @@ export const actions = {
       console.log(e)
       commit('catchError', 'Error', { root: true })
     }
+  },
+  searchNames: async function ({ rootState: { nodeUrl }, commit }, query) {
+    try {
+      const url = `${nodeUrl}/middleware/names/${query}`
+      const names = await axios.get(url)
+      console.info('MDW 🔗 ' + url)
+      return names.data
+    } catch (e) {
+      console.log(e)
+      commit('catchError', 'Error', { root: true })
+    }
   }
 }
