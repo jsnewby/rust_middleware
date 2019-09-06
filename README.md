@@ -123,9 +123,11 @@ cargo build --release # make a release build--this will take a long long time
 ```
 GET /middleware/channels/active
 GET /middleware/channels/transactions/address/<address>
+GET /middleware/compilers
 GET /middleware/contracts/all
 GET /middleware/contracts/calls/address/<address>
 GET /middleware/contracts/transactions/address/<address>
+POST /middleware/contracts/verify
 GET /middleware/generations/<from>/<to>?<limit>&<page>
 GET /middleware/height/at/<millis_since_epoch>
 GET /middleware/names/<name>

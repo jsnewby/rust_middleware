@@ -1,11 +1,14 @@
 use diesel::sql_query;
 
 use coinbase::coinbase;
+use compiler::*;
 use models::*;
 use node::Node;
 
 use chrono::prelude::*;
 use diesel::RunQueryDsl;
+use loader::PGCONNECTION;
+use loader::SQLCONNECTION;
 use regex::Regex;
 use rocket;
 use rocket::http::{Header, Method, Status};
@@ -18,9 +21,6 @@ use rust_decimal::Decimal;
 use serde_json;
 use std::io::Cursor;
 use std::path::PathBuf;
-
-use loader::PGCONNECTION;
-use loader::SQLCONNECTION;
 
 pub struct MiddlewareServer {
     pub node: Node,
@@ -958,7 +958,7 @@ fn active_names(
              names where \
              expires_at >= {} and \
              owner = '{}' \
-             order by created_at_height desc \
+             order by expires_at desc \
              limit {} offset {} ",
             KeyBlock::top_height(&*connection).unwrap(),
             sanitize(&owner),
@@ -992,7 +992,7 @@ fn all_names(
         Some(owner) => format!(
             "select * from names \
              where owner = '{}' \
-             order by created_at_height desc \
+             order by expires_at desc \
              limit {} offset {} ",
             sanitize(&owner),
             limit_sql,
@@ -1099,6 +1099,62 @@ fn swagger() -> JsonValue {
     serde_json::from_str(swagger_str).unwrap()
 }
 
+#[get("/compilers")]
+pub fn get_available_compilers() -> JsonValue {
+    match supported_compiler_versions().unwrap() {
+        Some(val) => json!({ "compilers": val }),
+        _ => json!({
+            "error": "no compiler available"
+        }),
+    }
+}
+
+#[post("/contracts/verify", format = "application/json", data = "<body>")]
+pub fn verify_contract(
+    _state: State<MiddlewareServer>,
+    body: Json<ContractVerification>,
+) -> JsonValue {
+    if !validate_compiler(body.compiler.clone()) {
+        return json!({
+            "error": "invalid compiler version"
+        });
+    }
+    match get_contract_bytecode(&body.contract_id).unwrap() {
+        Some(create_bytecode) => {
+            match compile_contract(body.source.clone(), body.compiler.clone()).unwrap() {
+                Some(compiled_bytecode) => {
+                    let compiled_decoded = rlp_decode_bytecode(compiled_bytecode).unwrap();
+                    let created_decoded = rlp_decode_bytecode(create_bytecode).unwrap();
+                    debug!("Compiled Decoded {:?}", compiled_decoded);
+                    debug!("Created Contract Tx {:?}", created_decoded);
+                    if compiled_decoded == created_decoded {
+                        json!({
+                            "verified": true
+                        })
+                    } else if compiled_decoded[0] == created_decoded[0]
+                        && compiled_decoded[1] != created_decoded[1]
+                    {
+                        json!({
+                            "verified": false,
+                            "reason": "compiler version mismatch"
+                        })
+                    } else {
+                        json!({
+                            "verified": false
+                        })
+                    }
+                }
+                _ => json!({
+                    "error": "unable to compile the contract"
+                }),
+            }
+        }
+        _ => json!({
+            "error": "contract not found"
+        }),
+    }
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
@@ -1119,6 +1175,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![calls_for_contract_address])
+            .mount("/middleware", routes![get_available_compilers])
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
@@ -1138,6 +1195,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_channel_address])
             .mount("/middleware", routes![transactions_for_contract_address])
+            .mount("/middleware", routes![verify_contract])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![generation_at_height])

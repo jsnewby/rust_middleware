@@ -37,17 +37,17 @@
     <div class="transaction-type-info">
       <div class="transaction-type-info-item">
         <AppDefinition
-          v-if="transaction.tx.nonce"
-          title="nonce"
-        >
-          {{ transaction.tx.nonce }}
-        </AppDefinition>
-        <AppDefinition
           title="Block Height"
         >
           <nuxt-link :to="`/generations/${transaction.block_height}`">
             {{ transaction.block_height }}
           </nuxt-link>
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
         </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
