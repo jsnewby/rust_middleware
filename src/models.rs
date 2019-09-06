@@ -19,7 +19,6 @@ use diesel::sql_query;
 extern crate serde_json;
 use bigdecimal;
 use bigdecimal::ToPrimitive;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use rust_decimal::Decimal;
 use serde_json::Number;
 use std::collections::HashMap;
@@ -867,6 +866,7 @@ impl InsertableName {
 #[derive(AsChangeset, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
 #[table_name = "names"]
 pub struct Name {
+    #[serde(skip_serializing)]
     pub id: i32,
     pub name: String,
     pub name_hash: String,
@@ -875,6 +875,7 @@ pub struct Name {
     pub owner: String,
     pub expires_at: i64,
     pub pointers: Option<serde_json::Value>,
+    #[serde(skip_serializing)]
     pub transaction_id: i32,
 }
 
@@ -904,7 +905,10 @@ impl Name {
     }
     pub fn find_by_name(connection: &PgConnection, query: &str) -> MiddlewareResult<Vec<Self>> {
         use schema::names::dsl::*;
-        let result = names.filter(name.like(query)).load::<Self>(connection);
+        let result = names
+            .filter(name.like(query))
+            .then_order_by(expires_at.desc())
+            .load::<Self>(connection);
         match result {
             Ok(x) => Ok(x),
             Err(e) => Err(MiddlewareError::new(&e.to_string())),
