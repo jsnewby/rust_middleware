@@ -153,12 +153,6 @@ impl std::convert::From<reqwest::header::InvalidHeaderValue> for MiddlewareError
     }
 }
 
-impl std::convert::From<rlp::DecoderError> for MiddlewareError {
-    fn from(err: rlp::DecoderError) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
 impl std::convert::From<base64::DecodeError> for MiddlewareError {
     fn from(err: base64::DecodeError) -> Self {
         MiddlewareError::new(&err.to_string())
