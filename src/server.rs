@@ -1123,26 +1123,9 @@ pub fn verify_contract(
         Some(create_bytecode) => {
             match compile_contract(body.source.clone(), body.compiler.clone()).unwrap() {
                 Some(compiled_bytecode) => {
-                    let compiled_decoded = rlp_decode_bytecode(compiled_bytecode).unwrap();
-                    let created_decoded = rlp_decode_bytecode(create_bytecode).unwrap();
-                    debug!("Compiled Decoded {:?}", compiled_decoded);
-                    debug!("Created Contract Tx {:?}", created_decoded);
-                    if compiled_decoded == created_decoded {
-                        json!({
-                            "verified": true
-                        })
-                    } else if compiled_decoded[0] == created_decoded[0]
-                        && compiled_decoded[1] != created_decoded[1]
-                    {
-                        json!({
-                            "verified": false,
-                            "reason": "compiler version mismatch"
-                        })
-                    } else {
-                        json!({
-                            "verified": false
-                        })
-                    }
+                    json!({
+                            "verified": (create_bytecode == compiled_bytecode)
+                    })
                 }
                 _ => json!({
                     "error": "unable to compile the contract"

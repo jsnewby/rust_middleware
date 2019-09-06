@@ -95,16 +95,3 @@ pub fn supported_compiler_versions() -> MiddlewareResult<Option<Vec<String>>> {
     }
     Ok(None)
 }
-
-/**
- * RLP decodes the contract byte code and returns the Vec<u8> of
- * contract source hash and Vec<u8> compiler version
- */
-pub fn rlp_decode_bytecode(bytecode: String) -> MiddlewareResult<Vec<Vec<u8>>> {
-    let rlp_bc = &bytecode[3..bytecode.len() - 4];
-    let decoded_b64_bc = base64::decode(rlp_bc.as_bytes())?;
-    let rlp_hex = rlp::Rlp::new(&decoded_b64_bc);
-    let encoded_source_hash: Vec<u8> = rlp_hex.at(2)?.data()?.to_vec();
-    let encoded_compiler_version: Vec<u8> = rlp_hex.at(5)?.data()?.to_vec();
-    Ok(vec![encoded_source_hash, encoded_compiler_version])
-}
