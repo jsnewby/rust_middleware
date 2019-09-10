@@ -56,7 +56,7 @@ extern crate aepp_middleware;
 use std::thread;
 use std::thread::JoinHandle;
 
-use clap::{App, Arg};
+use clap::{App, Arg, SubCommand};
 
 use std::env;
 
@@ -154,7 +154,7 @@ fn main() {
             Arg::with_name("verify")
                 .short("v")
                 .long("verify")
-                .help("Verify DB integrity against chain")
+                .help("Verify DB integrity against chain, values separated by comma, ranges with from-to accepted. To verify all the blocks in the database just say 'all' (without quotes)")
                 .takes_value(true),
         )
         .arg(

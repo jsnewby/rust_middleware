@@ -164,19 +164,19 @@ fn current_key_block(_state: State<MiddlewareServer>) -> Json<JsonValue> {
 }
 
 #[get("/key-blocks/height/<height>", rank = 1)]
-fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<String> {
+fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<JsonValue> {
     let key_block = match KeyBlock::load_at_height(&PGCONNECTION.get().unwrap(), height) {
         Some(x) => x,
         None => {
             info!("Generation not found at height {}", height);
             return Json(
-                serde_json::to_string(&state.node.get_generation_at_height(height).unwrap())
-                    .unwrap(),
+                serde_json::from_str(&serde_json::to_string(&state.node.get_generation_at_height(height).unwrap())
+                    .unwrap()).unwrap(),
             );
         }
     };
     info!("Serving key block {} from DB", height);
-    Json(serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap())
+    Json(serde_json::from_str(&serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap()).unwrap())
 }
 
 #[catch(400)]
