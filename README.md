@@ -84,6 +84,8 @@ then
 
 The middleware will automatically set up its DB on initialization, and run migrations after an update, if they are necessary.
 
+On Ubuntu 18 and 19 the following packages are needed: `libpq-dev`, `libssl-dev` and `zlib1g-dev`. YMMV depending on whether you've e.g. gcc installed.
+
 ## How to run
 
 ### Development mode
