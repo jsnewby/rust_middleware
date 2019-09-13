@@ -56,7 +56,7 @@ extern crate aepp_middleware;
 use std::thread;
 use std::thread::JoinHandle;
 
-use clap::{App, Arg};
+use clap::{App, Arg, SubCommand};
 
 use std::env;
 
@@ -154,9 +154,8 @@ fn main() {
             Arg::with_name("verify")
                 .short("v")
                 .long("verify")
-                .help("Verify DB integrity against chain")
-                .takes_value(true)
-//                .default_value("0") // special value, yuck
+                .help("Verify DB integrity against chain, values separated by comma, ranges with from-to accepted. To verify all the blocks in the database just say 'all' (without quotes)")
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("heights")
@@ -199,15 +198,15 @@ fn main() {
     if verify {
         debug!("Verifying");
         let loader = BlockLoader::new(url.clone());
-        let to_verify = range(&String::from(matches.value_of("verify").unwrap()));
-        if to_verify == vec!(0) {
+        let verify_flags = String::from(matches.value_of("verify").unwrap()).to_lowercase();
+        if &verify_flags == "all" {
             match loader.verify_all() {
                 Ok(_) => (),
                 Err(x) => error!("Blockloader::verify() returned an error: {}", x),
             };
             return;
         } else {
-            for height in to_verify {
+            for height in range(&verify_flags) {
                 loader.verify_height(height);
             }
         }
