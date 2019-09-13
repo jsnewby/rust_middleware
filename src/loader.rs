@@ -635,7 +635,7 @@ impl BlockLoader {
     pub fn verify_height(&self, _height: i64) -> MiddlewareResult<()>{
         let conn = PGCONNECTION.get()?;
         match self.compare_chain_and_db(_height, &conn) {
-            Ok(_) => println!("Height {} OK", _height),
+            Ok(_val) => println!("Height {} OK {}", _height, _val),
             Err(e) => println!("Height {} not OK: {}", _height, match e.to_string().lines().next() { Some(x) => x, None => "", }),
         }
         Ok(())
