@@ -33,7 +33,7 @@ In general when we find a useful query which is not supported by the node, we at
 
 ## Installation, or not.
 
-mdw is written in the Rust language, and is relatively straightforward to install. We, the æternity team host instances for both mainnet and testnet, which you’re welcome to use. We do understand though that our users may not want to trust us, in which case you’ll be wanting to run your own instance. You can start off by priming with our database--we expose a read-only replica of the PostgreSQL database which we also expose. You may verify this backup using the method described in the ‘verification’ section, below.
+mdw is written in the Rust language, and is relatively straightforward to install. We, the æternity team host instances for both mainnet and testnet, which you’re welcome to use. We do understand though that our users may not want to trust us, in which case you’ll be wanting to run your own instance. You can start off by priming with our database, which we publish at https://backups.aepps.com. You may verify this backup using the method described in the ‘verification’ section, below.
 
 The installation instructions are in the README.md file on the Github repository for the project, at [https://github.com/aeternity/aepp-middleware](https://github.com/aeternity/aepp-middleware)
 
@@ -499,7 +499,7 @@ $ curl -s 'https://mdw.aepps.com/middleware/status' | jq
 ```
 
 
-The ‘OK’ field is set to false when the queue length is more than 2, and/or the seconds_since_last_block is > 1200 seconds. The teme can be overridden by the environment variable STATUS_MAX_BLOCK_AGE
+The ‘OK’ field is set to false when the queue length is more than 2, and/or the seconds_since_last_block is > 1200 seconds. The time can be overridden by the environment variable STATUS_MAX_BLOCK_AGE
 
 
 ```
