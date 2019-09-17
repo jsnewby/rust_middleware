@@ -531,51 +531,33 @@ impl BlockLoader {
         trans: &JsonTransaction,
         _micro_block_id: Option<i32>,
     ) -> MiddlewareResult<i32> {
-        let sql = format!(
-            "select * from transactions where hash = '{}' limit 1",
-            &trans.hash
-        );
-        debug!("{}", sql);
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::object,
             data: serde_json::to_value(trans)?,
         })?;
-        let mut results: Vec<Transaction> = sql_query(sql).get_results(conn)?;
-        match results.pop() {
-            Some(x) => {
-                debug!("Updating transaction with hash {}", &trans.hash);
-                diesel::update(&x)
-                    .set(micro_block_id.eq(_micro_block_id))
-                    .execute(conn)?;
-                websocket::broadcast_ws(&Candidate {
-                    payload: WsPayload::tx_update,
-                    data: serde_json::to_value(&x)?,
-                })?; //broadcast updated transaction
-                Ok(x.id)
-            }
-            None => {
-                debug!("Inserting transaction with hash {}", &trans.hash);
-                let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
-                let _tx: InsertableTransaction = match InsertableTransaction::from_json_transaction(
-                    &trans,
-                    _tx_type,
-                    _micro_block_id,
-                ) {
-                    Ok(x) => x,
-                    Err(e) => match *PARANOIA_LEVEL {
-                        ParanoiaLevel::High => {
-                            panic!("Error loading blocks, and paranoia level is high: {:?}", e)
-                        }
-                        _ => return Err(MiddlewareError::from(e)),
-                    },
-                };
-                websocket::broadcast_ws(&Candidate {
-                    payload: WsPayload::transactions,
-                    data: serde_json::to_value(trans)?,
-                })?; //broadcast updated transaction
-                _tx.save(conn)
-            }
-        }
+        // clear out any previous versions of this transaction.
+        // TODO: be cleverer with this (but not too clever).
+        diesel::delete(transactions.filter(super::schema::transactions::dsl::hash.eq(&trans.hash))).execute(conn)?;
+        debug!("Inserting transaction with hash {}", &trans.hash);
+        let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
+        let _tx: InsertableTransaction = match InsertableTransaction::from_json_transaction(
+            &trans,
+            _tx_type,
+            _micro_block_id,
+        ) {
+            Ok(x) => x,
+            Err(e) => match *PARANOIA_LEVEL {
+                ParanoiaLevel::High => {
+                    panic!("Error loading blocks, and paranoia level is high: {:?}", e)
+                }
+                _ => return Err(MiddlewareError::from(e)),
+            },
+        };
+        websocket::broadcast_ws(&Candidate {
+            payload: WsPayload::transactions,
+            data: serde_json::to_value(trans)?,
+        })?; //broadcast transaction
+        _tx.save(conn)
     }
 
     /*
