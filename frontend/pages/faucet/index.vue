@@ -134,8 +134,8 @@ export default {
       loading: false
     }
   },
-  beforeMount () {
-    if (this.$store.state.faucetNetwork !== this.$store.state.status.network_id) {
+  beforeCreate () {
+    if (!this.$store.state.enableFaucet) {
       this.$router.push('/')
     }
   },

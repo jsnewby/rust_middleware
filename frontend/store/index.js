@@ -6,7 +6,7 @@ export const state = () => ({
   wsUrl: process.env.middlewareWS,
   networkName: process.env.networkName,
   swaggerHub: process.env.swaggerHub,
-  faucetNetwork: process.env.faucetNetwork,
+  enableFaucet: process.env.enableFaucet,
   faucetApi: process.env.faucetAPI,
   error: '',
   height: 0,
@@ -134,7 +134,6 @@ export const actions = {
     }
   },
   async nuxtServerInit ({ dispatch }, { context }) {
-    dispatch('status')
     await dispatch('height')
     await Promise.all([
       dispatch('generations/nuxtServerInit', context),
