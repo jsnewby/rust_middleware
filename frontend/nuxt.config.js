@@ -1,7 +1,7 @@
 const pkg = require('./package')
 
 module.exports = {
-  mode: 'universal',
+  mode: process.env.NUXT_APP_MODE || 'universal',
 
   /*
   ** Headers of the page
