@@ -22,7 +22,7 @@
         <TXListItem
           v-for="(transaction, index) in microBlock.transactions"
           :key="index"
-          :data="transaction"
+          :data="checkTxMeta(transaction)"
         />
       </MicroBlock>
     </MicroBlocks>
@@ -36,6 +36,7 @@ import MicroBlocks from '../../../partials/microBlocks'
 import MicroBlock from '../../../partials/microBlock'
 import PageHeader from '../../../components/PageHeader'
 import TXListItem from '../../../partials/transactions/txListItem'
+import { transformMetaTx } from '../../../store/utils'
 
 export default {
   name: 'AppGenerationDetails',
@@ -67,6 +68,11 @@ export default {
     const prev = current < 1 ? '' : `/generations/${current - 1}`
     const next = height === current ? '' : `/generations/${current + 1}`
     return { generation, prev, next, height }
+  },
+  methods: {
+    checkTxMeta (transaction) {
+      return transaction.tx.type === 'GAMetaTx' ? transformMetaTx(transaction) : transaction
+    }
   }
 }
 </script>
