@@ -170,13 +170,21 @@ fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<Json
         None => {
             info!("Generation not found at height {}", height);
             return Json(
-                serde_json::from_str(&serde_json::to_string(&state.node.get_generation_at_height(height).unwrap())
-                    .unwrap()).unwrap(),
+                serde_json::from_str(
+                    &serde_json::to_string(&state.node.get_generation_at_height(height).unwrap())
+                        .unwrap(),
+                )
+                .unwrap(),
             );
         }
     };
     info!("Serving key block {} from DB", height);
-    Json(serde_json::from_str(&serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap()).unwrap())
+    Json(
+        serde_json::from_str(
+            &serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap(),
+        )
+        .unwrap(),
+    )
 }
 
 #[catch(400)]
@@ -1122,11 +1130,9 @@ pub fn verify_contract(
     match get_contract_bytecode(&body.contract_id).unwrap() {
         Some(create_bytecode) => {
             match compile_contract(body.source.clone(), body.compiler.clone()).unwrap() {
-                Some(compiled_bytecode) => {
-                    json!({
-                            "verified": (create_bytecode == compiled_bytecode)
-                    })
-                }
+                Some(compiled_bytecode) => json!({
+                        "verified": (create_bytecode == compiled_bytecode)
+                }),
                 _ => json!({
                     "error": "unable to compile the contract"
                 }),
