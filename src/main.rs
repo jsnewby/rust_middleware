@@ -56,7 +56,7 @@ extern crate aepp_middleware;
 use std::thread;
 use std::thread::JoinHandle;
 
-use clap::{clap_app, App, Arg, SubCommand};
+use clap::{clap_app};
 
 use std::env;
 
@@ -173,7 +173,10 @@ fn main() {
         } else if v_matches.is_present("blocks") {
             let blocks = String::from(v_matches.value_of("blocks").unwrap());
             for height in range(&blocks) {
-                loader.verify_height(height);
+                match loader.verify_height(height) {
+                    Ok(_) => (),
+                    Err(e) => error!("Error in hashing::min_b(): {:?}", e),
+                }
             }
         }
     }
