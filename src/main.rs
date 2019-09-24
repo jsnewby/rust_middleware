@@ -3,7 +3,6 @@
 #![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(try_trait)]
-#![feature(try_from)]
 extern crate backtrace;
 extern crate base58;
 extern crate base58check;

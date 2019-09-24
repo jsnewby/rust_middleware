@@ -408,11 +408,11 @@ impl BlockLoader {
             InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
         websocket::broadcast_ws(&Candidate {
-            payload: WsPayload::object,
+            payload: WsPayload::Object,
             data: serde_json::to_value(&generation.key_block)?,
         })?;
         websocket::broadcast_ws(&Candidate {
-            payload: WsPayload::key_blocks,
+            payload: WsPayload::KeyBlocks,
             data: serde_json::to_value(&generation.key_block)?,
         })?; //broadcast key_block
         for mb_hash in &generation.micro_blocks {
@@ -420,11 +420,11 @@ impl BlockLoader {
                 serde_json::from_value(self.node.get_micro_block_by_hash(&mb_hash)?)?;
             mb.key_block_id = Some(key_block_id);
             websocket::broadcast_ws(&Candidate {
-                payload: WsPayload::object,
+                payload: WsPayload::Object,
                 data: serde_json::to_value(&mb)?,
             })?;
             websocket::broadcast_ws(&Candidate {
-                payload: WsPayload::micro_blocks,
+                payload: WsPayload::MicroBlocks,
                 data: serde_json::to_value(&mb)?,
             })?;
             let _micro_block_id = mb.save(&connection)? as i32;
@@ -532,7 +532,7 @@ impl BlockLoader {
         _micro_block_id: Option<i32>,
     ) -> MiddlewareResult<i32> {
         websocket::broadcast_ws(&Candidate {
-            payload: WsPayload::object,
+            payload: WsPayload::Object,
             data: serde_json::to_value(trans)?,
         })?;
         // clear out any previous versions of this transaction.
@@ -554,7 +554,7 @@ impl BlockLoader {
             },
         };
         websocket::broadcast_ws(&Candidate {
-            payload: WsPayload::transactions,
+            payload: WsPayload::Transactions,
             data: serde_json::to_value(trans)?,
         })?; //broadcast transaction
         _tx.save(conn)

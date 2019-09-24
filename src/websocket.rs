@@ -48,20 +48,20 @@ impl Subscriptions {
 
     pub fn get_subscription(&self, kind: WsPayload) -> Option<VanillaSub> {
         match kind {
-            WsPayload::key_blocks => Some(self.kb_sub.clone()),
-            WsPayload::micro_blocks => Some(self.mb_sub.clone()),
-            WsPayload::transactions => Some(self.tx_sub.clone()),
-            WsPayload::tx_update => Some(self.tu_sub.clone()),
+            WsPayload::KeyBlocks => Some(self.kb_sub.clone()),
+            WsPayload::MicroBlocks => Some(self.mb_sub.clone()),
+            WsPayload::Transactions => Some(self.tx_sub.clone()),
+            WsPayload::TxUpdate => Some(self.tu_sub.clone()),
             _ => None,
         }
     }
 
     pub fn vanilla_subscribe(&mut self, kind: &WsPayload, client: &Client) {
         match kind {
-            WsPayload::key_blocks => self.kb_sub.insert(client.clone()),
-            WsPayload::micro_blocks => self.mb_sub.insert(client.clone()),
-            WsPayload::transactions => self.tx_sub.insert(client.clone()),
-            WsPayload::tx_update => self.tu_sub.insert(client.clone()),
+            WsPayload::KeyBlocks => self.kb_sub.insert(client.clone()),
+            WsPayload::MicroBlocks => self.mb_sub.insert(client.clone()),
+            WsPayload::Transactions => self.tx_sub.insert(client.clone()),
+            WsPayload::TxUpdate => self.tu_sub.insert(client.clone()),
             _ => false,
         };
         debug!("Sub is {:?}", self);
@@ -69,10 +69,10 @@ impl Subscriptions {
 
     pub fn vanilla_unsubscribe(&mut self, kind: &WsPayload, client: &Client) {
         match kind {
-            WsPayload::key_blocks => self.kb_sub.remove(&client),
-            WsPayload::micro_blocks => self.mb_sub.remove(&client),
-            WsPayload::transactions => self.tx_sub.remove(&client),
-            WsPayload::tx_update => self.tu_sub.remove(&client),
+            WsPayload::KeyBlocks => self.kb_sub.remove(&client),
+            WsPayload::MicroBlocks => self.mb_sub.remove(&client),
+            WsPayload::Transactions => self.tx_sub.remove(&client),
+            WsPayload::TxUpdate => self.tu_sub.remove(&client),
             _ => false,
         };
         debug!("Sub is {:?}", self);
@@ -118,10 +118,10 @@ impl Subscriptions {
             self.object_unsubscribe(client.clone(), object.to_string());
         }
         for payload in &[
-            WsPayload::key_blocks,
-            WsPayload::micro_blocks,
-            WsPayload::transactions,
-            WsPayload::tx_update,
+            WsPayload::KeyBlocks,
+            WsPayload::MicroBlocks,
+            WsPayload::Transactions,
+            WsPayload::TxUpdate,
         ] {
             self.vanilla_unsubscribe(payload, &client);
         }
@@ -131,16 +131,16 @@ impl Subscriptions {
     pub fn subs_for_client(&self, client: Client) -> Vec<Object> {
         let mut subs = Vec::new();
         if self.kb_sub.contains(&client) {
-            subs.push(WsPayload::key_blocks.to_string());
+            subs.push(WsPayload::KeyBlocks.to_string());
         }
         if self.mb_sub.contains(&client) {
-            subs.push(WsPayload::micro_blocks.to_string());
+            subs.push(WsPayload::MicroBlocks.to_string());
         }
         if self.tx_sub.contains(&client) {
-            subs.push(WsPayload::transactions.to_string());
+            subs.push(WsPayload::Transactions.to_string());
         }
         if self.tx_sub.contains(&client) {
-            subs.push(WsPayload::tx_update.to_string());
+            subs.push(WsPayload::TxUpdate.to_string());
         }
         let objs: HashSet<Object> = match self.object_subs_fwd.get(&client) {
             Some(x) => (*x).to_owned(),
@@ -158,7 +158,7 @@ impl Subscriptions {
             debug!("Found and returning sub {:?}", vanilla_sub);
             return vanilla_sub.clone().iter().map(|x| x.clone()).collect();
         }
-        if candidate.payload != WsPayload::object {
+        if candidate.payload != WsPayload::Object {
             return vec![];
         }
         // it's a tx of some kind
@@ -319,16 +319,16 @@ impl Handler for Client {
         };
         debug!("Value is {:?}", value);
         match value.op {
-            Some(WsOp::subscribe) => {
+            Some(WsOp::Subscribe) => {
                 debug!("Subscription with payload {:?}", value.payload);
                 match value.payload {
-                    Some(WsPayload::key_blocks)
-                    | Some(WsPayload::micro_blocks)
-                    | Some(WsPayload::transactions)
-                    | Some(WsPayload::tx_update) => {
+                    Some(WsPayload::KeyBlocks)
+                    | Some(WsPayload::MicroBlocks)
+                    | Some(WsPayload::Transactions)
+                    | Some(WsPayload::TxUpdate) => {
                         vanilla_subscribe(&value.payload.unwrap(), self.clone())
                     }
-                    Some(WsPayload::object) => {
+                    Some(WsPayload::Object) => {
                         if let Some(target) = value.target {
                             object_subscribe(self.clone(), target)
                         }
@@ -336,16 +336,16 @@ impl Handler for Client {
                     _ => (),
                 }
             }
-            Some(WsOp::unsubscribe) => {
+            Some(WsOp::Unsubscribe) => {
                 debug!("Unsubscription with payload {:?}", value.payload);
                 match value.payload {
-                    Some(WsPayload::key_blocks)
-                    | Some(WsPayload::micro_blocks)
-                    | Some(WsPayload::transactions)
-                    | Some(WsPayload::tx_update) => {
+                    Some(WsPayload::KeyBlocks)
+                    | Some(WsPayload::MicroBlocks)
+                    | Some(WsPayload::Transactions)
+                    | Some(WsPayload::TxUpdate) => {
                         vanilla_unsubscribe(&value.payload.unwrap(), self.clone())
                     }
-                    Some(WsPayload::object) => {
+                    Some(WsPayload::Object) => {
                         if let Some(target) = value.target {
                             object_unsubscribe(self.clone(), target)
                         }
@@ -406,14 +406,14 @@ fn test_unpack_message() {
     let msg: Message =
         Message::from(r#"{"op":"subscribe", "payload": "micro_blocks"}"#.to_string());
     let ws_msg = unpack_message(msg).unwrap();
-    assert_eq!(ws_msg.op.unwrap(), WsOp::subscribe);
-    assert_eq!(ws_msg.payload.unwrap(), WsPayload::micro_blocks);
+    assert_eq!(ws_msg.op.unwrap(), WsOp::Subscribe);
+    assert_eq!(ws_msg.payload.unwrap(), WsPayload::MicroBlocks);
     assert_eq!(ws_msg.target, None);
 
     let msg = Message::from(r#"{"op":"subscribe", "payload": "object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}"#.to_string());
     let ws_msg = unpack_message(msg).unwrap();
-    assert_eq!(ws_msg.op.unwrap(), WsOp::subscribe);
-    assert_eq!(ws_msg.payload.unwrap(), WsPayload::object);
+    assert_eq!(ws_msg.op.unwrap(), WsOp::Subscribe);
+    assert_eq!(ws_msg.payload.unwrap(), WsPayload::Object);
     assert_eq!(
         ws_msg.target.unwrap(),
         String::from("ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc")

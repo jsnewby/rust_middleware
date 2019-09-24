@@ -656,17 +656,17 @@ pub fn count_at_height(
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum WsOp {
-    subscribe,
-    unsubscribe,
+    Subscribe,
+    Unsubscribe,
 }
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum WsPayload {
-    key_blocks = 0,
-    micro_blocks = 1,
-    transactions = 2,
-    tx_update = 3,
-    object,
+    KeyBlocks = 0,
+    MicroBlocks = 1,
+    Transactions = 2,
+    TxUpdate = 3,
+    Object,
 }
 
 impl fmt::Display for WsPayload {
