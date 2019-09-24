@@ -209,6 +209,71 @@
               </AppDefinition>
             </AppTableCell>
           </AppTableRow>
+          <AppTableRow
+            v-if="data.tx.auth_fun"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Auth Function"
+              >
+                {{ data.tx.auth_fun }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.tx.call_data"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Call Data"
+              >
+                {{ data.tx.call_data }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.tx.code"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="Code"
+              >
+                {{ data.tx.code }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.tx.vm_version"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="VM Version"
+              >
+                {{ data.tx.vm_version }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
+          <AppTableRow
+            v-if="data.tx.abi_version"
+            extend
+          >
+            <AppTableCell extend>
+              <AppDefinition
+                type="list"
+                title="ABI Version"
+              >
+                {{ data.tx.abi_version }}
+              </AppDefinition>
+            </AppTableCell>
+          </AppTableRow>
           <AppTableRow extend>
             <AppTableCell extend>
               <AppDefinition
