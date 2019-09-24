@@ -1,3 +1,4 @@
+#![allow(redundant_semicolon)]
 #![feature(plugin)]
 #![feature(slice_concat_ext)]
 #![feature(custom_attribute)]
@@ -55,7 +56,7 @@ extern crate aepp_middleware;
 use std::thread;
 use std::thread::JoinHandle;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg};
 
 use std::env;
 
@@ -206,7 +207,10 @@ fn main() {
             return;
         } else {
             for height in range(&verify_flags) {
-                loader.verify_height(height);
+                match loader.verify_height(height) {
+                    Ok(_) => (),
+                    Err(e) => error!("Error in hashing::min_b(): {:?}", e),
+                }
             }
         }
     }

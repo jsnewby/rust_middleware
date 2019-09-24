@@ -170,7 +170,10 @@ fn min_b(val: i64) -> Vec<u8> {
         val = 1;
     }
     let mut wtr = vec![];
-    wtr.write_i64::<BigEndian>(val); // TODO: use this Result.
+    match wtr.write_i64::<BigEndian>(val) {
+        Ok(_) => {},
+        Err(e) => error!("Error in hashing::min_b(): {:?}", e),
+    }
     let mut result: Vec<u8> = vec![];
     let mut zeros_gone = false;
     for byte in wtr {

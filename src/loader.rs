@@ -3,7 +3,6 @@ use super::schema::transactions::dsl::*;
 use chashmap::*;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
-use diesel::sql_query;
 use diesel::Connection;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
@@ -212,7 +211,7 @@ impl BlockLoader {
                             }
                         }
                         Err(e) => {
-                            error!("Error in comparison of micro blocks");
+                            error!("Error {:?} in comparison of micro blocks", e);
                             fork_was_detected = true;
                             in_fork = true;
                         }
@@ -255,7 +254,6 @@ impl BlockLoader {
             BlockLoader::inner_detect_forks(node, _tx)?;
             thread::sleep(std::time::Duration::new(5, 0));
         }
-        Ok(())
     }
 
     /*
@@ -608,7 +606,10 @@ impl BlockLoader {
         let top_max = std::cmp::max(top_chain, top_db);
         let mut _height = top_max;
         loop {
-            self.verify_height(_height);
+            match self.verify_height(_height) {
+                Ok(_) => (),
+                Err(e) => error!("Error in hashing::min_b(): {:?}", e),
+            }
             _height -= 1;
             _verified += 1;
         }

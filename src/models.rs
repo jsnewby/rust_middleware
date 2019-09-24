@@ -34,7 +34,6 @@ use loader::SQLCONNECTION;
     Associations, Deserialize, Identifiable, Queryable, QueryableByName, Hash, PartialEq, Eq,
 )]
 #[table_name = "key_blocks"]
-#[has_many(micro_blocks)]
 pub struct KeyBlock {
     #[sql_type = "diesel::sql_types::Int4"]
     pub id: i32,
@@ -277,7 +276,6 @@ fn zero_vec_i32() -> Vec<i32> {
 )]
 #[table_name = "micro_blocks"]
 #[belongs_to(KeyBlock)]
-#[has_many(transactions)]
 pub struct MicroBlock {
     pub id: i32,
     pub key_block_id: i32,
