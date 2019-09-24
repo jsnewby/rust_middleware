@@ -1,6 +1,6 @@
 <template>
   <div>
-    <no-ssr>
+    <client-only>
       <div
         v-if="generations.length"
         class="generations-wrapper"
@@ -33,7 +33,7 @@
           />
         </TxList>
       </div>
-    </no-ssr>
+    </client-only>
   </div>
 </template>
 <script>
