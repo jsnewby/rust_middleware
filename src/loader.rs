@@ -535,22 +535,20 @@ impl BlockLoader {
         })?;
         // clear out any previous versions of this transaction.
         // TODO: be cleverer with this (but not too clever).
-        diesel::delete(transactions.filter(super::schema::transactions::dsl::hash.eq(&trans.hash))).execute(conn)?;
+        diesel::delete(transactions.filter(super::schema::transactions::dsl::hash.eq(&trans.hash)))
+            .execute(conn)?;
         debug!("Inserting transaction with hash {}", &trans.hash);
         let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
-        let _tx: InsertableTransaction = match InsertableTransaction::from_json_transaction(
-            &trans,
-            _tx_type,
-            _micro_block_id,
-        ) {
-            Ok(x) => x,
-            Err(e) => match *PARANOIA_LEVEL {
-                ParanoiaLevel::High => {
-                    panic!("Error loading blocks, and paranoia level is high: {:?}", e)
-                }
-                _ => return Err(MiddlewareError::from(e)),
-            },
-        };
+        let _tx: InsertableTransaction =
+            match InsertableTransaction::from_json_transaction(&trans, _tx_type, _micro_block_id) {
+                Ok(x) => x,
+                Err(e) => match *PARANOIA_LEVEL {
+                    ParanoiaLevel::High => {
+                        panic!("Error loading blocks, and paranoia level is high: {:?}", e)
+                    }
+                    _ => return Err(MiddlewareError::from(e)),
+                },
+            };
         websocket::broadcast_ws(&Candidate {
             payload: WsPayload::Transactions,
             data: serde_json::to_value(trans)?,
@@ -615,11 +613,18 @@ impl BlockLoader {
         }
     }
 
-    pub fn verify_height(&self, _height: i64) -> MiddlewareResult<()>{
+    pub fn verify_height(&self, _height: i64) -> MiddlewareResult<()> {
         let conn = PGCONNECTION.get()?;
         match self.compare_chain_and_db(_height, &conn) {
             Ok(_val) => println!("Height {} OK {}", _height, _val),
-            Err(e) => println!("Height {} not OK: {}", _height, match e.to_string().lines().next() { Some(x) => x, None => "", }),
+            Err(e) => println!(
+                "Height {} not OK: {}",
+                _height,
+                match e.to_string().lines().next() {
+                    Some(x) => x,
+                    None => "",
+                }
+            ),
         }
         Ok(())
     }

@@ -171,7 +171,7 @@ fn min_b(val: i64) -> Vec<u8> {
     }
     let mut wtr = vec![];
     match wtr.write_i64::<BigEndian>(val) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => error!("Error in hashing::min_b(): {:?}", e),
     }
     let mut result: Vec<u8> = vec![];
