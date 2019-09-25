@@ -56,7 +56,7 @@ extern crate aepp_middleware;
 use std::thread;
 use std::thread::JoinHandle;
 
-use clap::{App, Arg};
+use clap::{clap_app};
 
 use std::env;
 
@@ -125,66 +125,32 @@ fn main() {
             .target(env_logger::Target::Stdout)
             .init(),
     }
-    let matches = App::new("æternity middleware")
-        .version(VERSION)
-        .author("John Newby <john@newby.org>")
-        .about("----")
-        .arg(
-            Arg::with_name("server")
-                .short("s")
-                .long("server")
-                .help("Start server")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("populate")
-                .short("p")
-                .long("populate")
-                .help("Populate DB")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("daemonize")
-                .short("-d")
-                .long("daemonize")
-                .help("Daemonize process")
-                .takes_value(false),
+    let matches = clap_app!(mdw =>
+        (name: env!("CARGO_PKG_NAME"))
+        (version: VERSION)
+        (author: env!("CARGO_PKG_AUTHORS"))
+        (about: env!("CARGO_PKG_DESCRIPTION"))
+            (@arg server: -s --server "Start the middleware server")
+            (@arg populate: -p --populate "Populate the DB")
+            (@arg websocket: -w --websocket requires[populate] "Start middleware WebSocket Server")
+            (@arg daemonize: -d --daemonize "Daemonize the middleware process")
+            (@arg heights: -H --("load-heights") +takes_value "Load specific heights, values separated by comma, ranges with from-to accepted")
+            (@subcommand verify =>
+                (name: "verify")
+                (about: "Verify middleware DB integrity against the chain")
+                (@arg blocks: -b --blocks +takes_value "Key-blocks to verify. Values separated by comma, ranges with from-to and single values are accepted")
+                (@arg all: -a --all "Verify all the key blocks in the database. Overrides the -b option.")
             )
-        .arg(
-            Arg::with_name("verify")
-                .short("v")
-                .long("verify")
-                .help("Verify DB integrity against chain, values separated by comma, ranges with from-to accepted. To verify all the blocks in the database just say 'all' (without quotes)")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("heights")
-                .short("H")
-                .long("heights")
-                .help("Load specific heights, values separated by comma, ranges with from-to accepted")
-                .takes_value(true),
-            )
-        .arg(
-            Arg::with_name("websocket")
-                .short("w")
-                .long("websocket")
-                .help("Activate websocket (only valid when -p (populate) option also set")
-                .requires("populate")
-                .takes_value(false),
-            )
-        .get_matches();
-
+    ).get_matches();
     let url = env::var("NODE_URL")
         .expect("NODE_URL must be set")
         .to_string();
 
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
-    let verify = matches.is_present("verify");
     let heights = matches.is_present("heights");
     let daemonize = matches.is_present("daemonize");
     let websocket = matches.is_present("websocket");
-
 
     if daemonize {
         let daemonize = Daemonize::new();
@@ -195,18 +161,18 @@ fn main() {
         }
     }
 
-    if verify {
-        debug!("Verifying");
+     if let Some(v_matches) = matches.subcommand_matches("verify") {
+         debug!("Verifying");
         let loader = BlockLoader::new(url.clone());
-        let verify_flags = String::from(matches.value_of("verify").unwrap()).to_lowercase();
-        if &verify_flags == "all" {
+        if v_matches.is_present("all") {
             match loader.verify_all() {
                 Ok(_) => (),
                 Err(x) => error!("Blockloader::verify() returned an error: {}", x),
             };
             return;
-        } else {
-            for height in range(&verify_flags) {
+        } else if v_matches.is_present("blocks") {
+            let blocks = String::from(v_matches.value_of("blocks").unwrap());
+            for height in range(&blocks) {
                 match loader.verify_height(height) {
                     Ok(_) => (),
                     Err(e) => error!("Error in hashing::min_b(): {:?}", e),
@@ -293,13 +259,13 @@ fn main() {
 // takes args of the form X,Y-Z,A and returns a vector of the individual numbers
 // ranges in the form X-Y are INCLUSIVE
 fn range(arg: &String) -> Vec<i64> {
-    let mut result = vec!();
+    let mut result = vec![];
     for h in arg.split(',') {
         let s = String::from(h);
         match s.find("-") {
             Some(_) => {
                 let fromto: Vec<String> = s.split('-').map(|x| String::from(x)).collect();
-                for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap()+1 {
+                for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap() + 1 {
                     result.push(i);
                 }
             }
@@ -314,6 +280,6 @@ fn range(arg: &String) -> Vec<i64> {
 #[test]
 fn test_range() {
     assert_eq!(range(&String::from("1")), vec!(1));
-    assert_eq!(range(&String::from("2-5")), vec!(2,3,4,5));
-    assert_eq!(range(&String::from("1,2-5,10")), vec!(1,2,3,4,5,10));
+    assert_eq!(range(&String::from("2-5")), vec!(2, 3, 4, 5));
+    assert_eq!(range(&String::from("1,2-5,10")), vec!(1, 2, 3, 4, 5, 10));
 }
