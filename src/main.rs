@@ -32,6 +32,8 @@ extern crate itertools;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+extern crate log4rs;
+extern crate log4rs_email;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
@@ -56,8 +58,10 @@ extern crate aepp_middleware;
 use std::thread;
 use std::thread::JoinHandle;
 
-use clap::{clap_app};
-
+use clap::clap_app;
+use log::LevelFilter;
+use log4rs::config::{Appender, Config, Logger, Root};
+use log4rs::encode::pattern::PatternEncoder;
 use std::env;
 
 pub mod coinbase;
@@ -111,20 +115,62 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> Middl
     Ok(true)
 }
 
-fn main() {
+fn init_logging() {
+    let mut config = Config::builder();
+    let log_format = "{d} {l}::{m}{n}";
     match env::var("LOG_DIR") {
         Ok(x) => {
-            flexi_logger::Logger::with_env()
-                .log_to_file()
-                .directory(x)
-                .start()
+            let window_size = 100; // log0, log1, log2
+            let fixed_window_roller =
+                log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller::builder()
+                .build("mdw-log{}", window_size)
                 .unwrap();
-            ()
+            let size_trigger =
+                log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger::new(
+                    1024 * 1024,
+                );
+            let compound_policy =
+                log4rs::append::rolling_file::policy::compound::CompoundPolicy::new(
+                    Box::new(size_trigger),
+                    Box::new(fixed_window_roller),
+                );
+            let rolling = log4rs::append::rolling_file::RollingFileAppender::builder()
+                .encoder(Box::new(PatternEncoder::new(log_format)))
+                .build(x, Box::new(compound_policy))
+                .unwrap();
+            config = config.appender(Appender::builder().build("normal", Box::new(rolling)));
         }
-        Err(_x) => env_logger::Builder::from_default_env()
-            .target(env_logger::Target::Stdout)
-            .init(),
+        Err(_x) => {
+            config = config.appender(Appender::builder().build(
+                "normal",
+                Box::new(log4rs::append::console::ConsoleAppender::builder().build()),
+            ));
+        }
     }
+    if let Ok(x) = env::var("LOG4RS_EMAIL_RECIPIENT") {
+        let email_appender = log4rs_email::log4rs_email::EmailAppender::builder()
+            .encoder(Box::new(PatternEncoder::new(log_format)))
+            .build();
+        config = config.appender(Appender::builder().build("email", Box::new(email_appender)));
+    }
+    config
+        .build(
+            Root::builder()
+                .appender("email")
+                .build(LevelFilter::Error)
+                .builder()
+                .appender("normal")
+                .build(LevelFilter::Info),
+        )
+        .unwrap();
+    let handle = log4rs::init_config(config.build().unwrap()).unwrap();
+}
+
+fn main() {
+    dotenv::dotenv().ok();
+
+    init_logging();
+
     let matches = clap_app!(mdw =>
         (name: env!("CARGO_PKG_NAME"))
         (version: VERSION)
@@ -161,8 +207,8 @@ fn main() {
         }
     }
 
-     if let Some(v_matches) = matches.subcommand_matches("verify") {
-         debug!("Verifying");
+    if let Some(v_matches) = matches.subcommand_matches("verify") {
+        debug!("Verifying");
         let loader = BlockLoader::new(url.clone());
         if v_matches.is_present("all") {
             match loader.verify_all() {
