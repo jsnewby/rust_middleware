@@ -33,7 +33,7 @@ fn sanitize(s: &String) -> String {
     s.replace("'", "\\'")
 }
 
-fn check_object(s: &str) -> () {
+fn check_object(s: &str) {
     lazy_static! {
         static ref OBJECT_REGEX: Regex = Regex::new(
             "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{38,60}"
