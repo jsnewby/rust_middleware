@@ -60,8 +60,7 @@ use std::thread::JoinHandle;
 
 use clap::clap_app;
 use log::LevelFilter;
-use log4rs::config::{Appender, Config, Logger, Root};
-use log4rs::encode::pattern::PatternEncoder;
+use log4rs::config::{Appender, Config, Root};
 use std::env;
 
 pub mod coinbase;
@@ -99,7 +98,7 @@ use loader::PGCONNECTION;
 fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
     let node = node::Node::new(url.clone());
-    let top_block = node::key_block_from_json(node.latest_key_block().unwrap()).unwrap();
+    let top_block = node::key_block_from_json(node.latest_key_block()?)?;
     let missing_heights = node.get_missing_heights(top_block.height)?;
     for height in missing_heights {
         debug!("Adding {} to load queue", &height);
@@ -116,54 +115,21 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> Middl
 }
 
 fn init_logging() {
-    let mut config = Config::builder();
-    let log_format = "{d} {l}::{m}{n}";
-    match env::var("LOG_DIR") {
+    match env::var("LOG_CONF") {
         Ok(x) => {
-            let window_size = 100; // log0, log1, log2
-            let fixed_window_roller =
-                log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller::builder()
-                .build("mdw-log{}", window_size)
-                .unwrap();
-            let size_trigger =
-                log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger::new(
-                    1024 * 1024,
-                );
-            let compound_policy =
-                log4rs::append::rolling_file::policy::compound::CompoundPolicy::new(
-                    Box::new(size_trigger),
-                    Box::new(fixed_window_roller),
-                );
-            let rolling = log4rs::append::rolling_file::RollingFileAppender::builder()
-                .encoder(Box::new(PatternEncoder::new(log_format)))
-                .build(x, Box::new(compound_policy))
-                .unwrap();
-            config = config.appender(Appender::builder().build("normal", Box::new(rolling)));
+            let mut deserializers = log4rs::file::Deserializers::default();
+            log4rs_email::log4rs_email::register(&mut deserializers);
+            let _result = log4rs::init_file(x, deserializers).unwrap();
         }
-        Err(_x) => {
-            config = config.appender(Appender::builder().build(
-                "normal",
-                Box::new(log4rs::append::console::ConsoleAppender::builder().build()),
-            ));
+        Err(_) => {
+            let stdout = log4rs::append::console::ConsoleAppender::builder().build();
+            let config = Config::builder()
+                .appender(Appender::builder().build("stdout", Box::new(stdout)))
+                .build(Root::builder().appender("console").build(LevelFilter::Warn))
+                .unwrap();
+            let _handle = log4rs::init_config(config).unwrap();
         }
     }
-    if let Ok(x) = env::var("LOG4RS_EMAIL_RECIPIENT") {
-        let email_appender = log4rs_email::log4rs_email::EmailAppender::builder()
-            .encoder(Box::new(PatternEncoder::new(log_format)))
-            .build();
-        config = config.appender(Appender::builder().build("email", Box::new(email_appender)));
-    }
-    config
-        .build(
-            Root::builder()
-                .appender("email")
-                .build(LevelFilter::Error)
-                .builder()
-                .appender("normal")
-                .build(LevelFilter::Info),
-        )
-        .unwrap();
-    let handle = log4rs::init_config(config.build().unwrap()).unwrap();
 }
 
 fn main() {
