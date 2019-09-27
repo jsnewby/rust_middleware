@@ -56,8 +56,8 @@ extern crate aepp_middleware;
 use std::thread;
 use std::thread::JoinHandle;
 
-use clap::{clap_app};
-
+use clap::clap_app;
+use dotenv::dotenv;
 use std::env;
 
 pub mod coinbase;
@@ -112,6 +112,7 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> Middl
 }
 
 fn main() {
+    dotenv().ok();
     match env::var("LOG_DIR") {
         Ok(x) => {
             flexi_logger::Logger::with_env()
@@ -161,8 +162,8 @@ fn main() {
         }
     }
 
-     if let Some(v_matches) = matches.subcommand_matches("verify") {
-         debug!("Verifying");
+    if let Some(v_matches) = matches.subcommand_matches("verify") {
+        debug!("Verifying");
         let loader = BlockLoader::new(url.clone());
         if v_matches.is_present("all") {
             match loader.verify_all() {

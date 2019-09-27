@@ -737,7 +737,7 @@ fn generations_by_range(
                 if transaction["block_hash"] != "" {
                     let hash: String = serde_json::from_value(transaction["hash"].clone()).unwrap();
                     list[&key_height]["micro_blocks"][mb_hash]["transactions"][hash] =
-                        serde_json::to_value(transaction).unwrap();;
+                        serde_json::to_value(transaction).unwrap();
                 }
             }
         } else {
@@ -752,7 +752,7 @@ fn generations_by_range(
                 if transaction["block_hash"] != "" {
                     let hash: String = serde_json::from_value(transaction["hash"].clone()).unwrap();
                     list[&key_height]["micro_blocks"][mb_hash]["transactions"][hash] =
-                        serde_json::to_value(transaction).unwrap();;
+                        serde_json::to_value(transaction).unwrap();
                 }
             }
         }
@@ -1051,6 +1051,45 @@ fn reverse_names(
     Json(names)
 }
 
+#[derive(Serialize)]
+struct AuctionEntry {
+    name: String,
+    expiration: i64,
+}
+
+#[get("/names/auctions/active")]
+fn auctive_name_auctions(_state: State<MiddlewareServer>) -> Json<Vec<AuctionEntry>> {
+    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
+    let sql = format!(
+        r#"
+SELECT (t.tx->>'name') AS name,
+(t.block_height + lima_name_auction_timeout(t.tx->>'name'))::int8 as end_height
+FROM
+transactions t
+WHERE
+t.block_height > 0 AND
+t.tx_type='NameClaimTx' AND
+(t.tx->'name_salt')::numeric(25,0) <> 0 AND
+(t.block_height + lima_name_auction_timeout(t.tx->>'name')::int8 > $1)
+ORDER BY end_height desc;
+"#
+    );
+
+    let result: Vec<AuctionEntry> = SQLCONNECTION
+        .get()
+        .unwrap()
+        .query(&sql, &[&_height])
+        .unwrap()
+        .iter()
+        .map(|x| AuctionEntry {
+            name: x.get(0),
+            expiration: x.get(1),
+        })
+        .collect();
+
+    Json(result)
+}
+
 /**
  * Gets the chain height at a specific point in time
  */
@@ -1169,6 +1208,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![height_at_epoch])
+            .mount("/middleware", routes![auctive_name_auctions])
             .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])

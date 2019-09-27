@@ -1,6 +1,7 @@
+const MULTIPLIER_14: u128 = 100000000000000;
+const MULTIPLIER_DAY: u16 = 480;
 
-pub fn name_claim_size_fee(length: u32) -> u64 {
-    let MULTIPLIER_14 = 100000000000000;
+pub fn name_claim_size_fee(length: u32) -> u128 {
     match length {
         30 => 5 * MULTIPLIER_14,
         29 => 8 * MULTIPLIER_14,
@@ -37,6 +38,13 @@ pub fn name_claim_size_fee(length: u32) -> u64 {
 }
 
 #[test]
-fn test_name_claim_size_fee() {
+fn test_name_claim_size_fee() {}
 
+pub fn name_claim_timeout(length: u32) -> u16 {
+    match length {
+        0 => 0, // should not happen
+        1..=4 => MULTIPLIER_DAY,
+        5..=31 => 31 * MULTIPLIER_DAY,
+        _ => 0,
+    }
 }
