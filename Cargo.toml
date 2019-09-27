@@ -9,7 +9,7 @@ name = "aepp_middleware"
 path = "src/lib.rs"
 
 [[bin]]
-name = "mdw"
+name = "aeternal"
 path = "src/main.rs"
 
 [features]

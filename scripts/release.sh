@@ -31,4 +31,4 @@ then
     chown $USER:$GROUP $LOGDIR
 fi
 
-cp target/release/mdw /usr/local/mdw/bin
+cp target/release/aeternal /usr/local/aeternity/bin
