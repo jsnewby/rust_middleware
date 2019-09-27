@@ -7,6 +7,18 @@ table! {
 }
 
 table! {
+    contract_calls (id) {
+        id -> Int4,
+        transaction_id -> Int4,
+        contract_id -> Varchar,
+        caller_id -> Varchar,
+        arguments -> Jsonb,
+        callinfo -> Nullable<Jsonb>,
+        result -> Nullable<Jsonb>,
+    }
+}
+
+table! {
     contract_identifiers (id) {
         id -> Int4,
         contract_identifier -> Nullable<Varchar>,
@@ -17,20 +29,19 @@ table! {
 table! {
     key_blocks (id) {
         id -> Int4,
-        hash -> Varchar,
-        height -> Int8,
-        miner -> Varchar,
-        beneficiary -> Varchar,
-        pow -> Varchar,
-        nonce -> Numeric,
-        prev_hash -> Varchar,
-        prev_key_hash -> Varchar,
-        state_hash -> Varchar,
-        target -> Int8,
-        #[sql_name="time_"]
-        time -> Int8,
-        version -> Int4,
-        info -> Varchar,
+        hash -> Nullable<Varchar>,
+        height -> Nullable<Int8>,
+        miner -> Nullable<Varchar>,
+        beneficiary -> Nullable<Varchar>,
+        nonce -> Nullable<Numeric>,
+        pow -> Nullable<Text>,
+        prev_hash -> Nullable<Varchar>,
+        prev_key_hash -> Nullable<Varchar>,
+        state_hash -> Nullable<Varchar>,
+        target -> Nullable<Int8>,
+        time_ -> Nullable<Int8>,
+        version -> Nullable<Int4>,
+        info -> Nullable<Varchar>,
     }
 }
 
@@ -43,8 +54,7 @@ table! {
         prev_hash -> Varchar,
         prev_key_hash -> Varchar,
         signature -> Varchar,
-        #[sql_name="time_"]
-        time -> Int8,
+        time_ -> Nullable<Int8>,
         state_hash -> Varchar,
         txs_hash -> Varchar,
         version -> Int4,
@@ -56,11 +66,11 @@ table! {
         id -> Int4,
         name -> Varchar,
         name_hash -> Varchar,
-        tx_hash -> Varchar,
         created_at_height -> Int8,
-        owner -> Varchar,
+        owner -> Nullable<Varchar>,
         expires_at -> Int8,
         pointers -> Nullable<Jsonb>,
+        tx_hash -> Varchar,
         transaction_id -> Int4,
     }
 }
@@ -88,18 +98,6 @@ table! {
         size -> Int4,
         valid -> Bool,
         encoded_tx -> Nullable<Varchar>,
-    }
-}
-
-table! {
-    contract_calls (id) {
-        id -> Int4,
-        transaction_id -> Int4,
-        contract_id -> Varchar,
-        caller_id -> Varchar,
-        arguments -> Jsonb,
-        callinfo -> Nullable<Jsonb>,
-        result -> Nullable<Jsonb>,
     }
 }
 
