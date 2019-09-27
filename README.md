@@ -6,6 +6,8 @@ The middleware is a caching and reporting layer which sits in front of the nodes
 
 On startup, the middleware reads the entirety of the blockchain, and stores a denormalized version of the data in a PostgreSQL database.
 
+Full documentation is available in the [manual](docs/middleware-guide.md).
+
 ## Features
 
 ### Caching

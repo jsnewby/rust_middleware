@@ -2,7 +2,7 @@
 
 author: John Newby
 
-date: 2019-07-18
+date: 2019-09-27
 
 corresponds to version: v0.10.0
 
@@ -46,7 +46,7 @@ The HTTP REST API complements the node API and allows more expensive queries tha
 
 ## Best practises running aeternal
 
-Broadly, aeternal has two modes of operation--population, when it loads the blockchain into the database, and serving, which exposes the database via a REST API and forwards requests to the node behind it via HTTP. You may run an instance of aeternal in one, or both of these modes. For a simple installation, the simplest way to do this is to run both, with the ‘-s -p’ options. If you’re running a service which needs to be constantly available, it will be more sensible to run one population instance, and one or more serving instances. These could run from a read-only replica of the database, and many can run in parallel if scaling is required.
+Broadly, aeternal has two modes of operation--population, when it loads the blockchain into the database, and serving, which exposes the database via a REST API and forwards requests to the node behind it via HTTP. You may run an instance of aeternal in one, or both of these modes. For a simple installation, the easiest way to do this is to run both, with the ‘-s -p’ options. If you’re running a service which needs to be constantly available, it will be more sensible to run one population instance, and one or more serving instances. These could run from a read-only replica of the database, and many can run in parallel if scaling is required.
 
 In the scripts/ directory you will find systemd scripts which can be modified for these use-cases, and a python script which monitors the database and restarts aeternal if the top block is more than 10 minutes old. We’re working hard to squash all bugs, but we’re not there yet. However using the monitoring script in conjunction with systemd gives very high reliability for very little effort.
 
@@ -55,8 +55,7 @@ aeternal has very light hardware requirements--it can run perfectly well, along 
 
 ## How to use aeternal
 
-The middleware is a layer over the node, and as such presents the node behind it more or less as-is, with the exception of some node endpoints which it proxies. aeternal attempts to give a coherent view of the node--for instance when it is still loading blocks from the database it will reports its current generation as the highest in the database, rather than the highest the node reports. And whilst catching up, aeternal will report via the websocket interface all objects loaded in. In this way, one can use the notifications semi-asynchronously.
-
+The middleware is a layer over the node, and as such presents the node behind it more or less as-is, with the exception of some node endpoints which it proxies. aeternal attempts to give a coherent view of the node--for instance when it is still loading blocks from the database it will reports its current generation as the highest in the database, rather than the highest the node reports. And whilst catching up, aeternal will report via the websocket interface all objects loaded in.
 
 ## HTTP interface
 
@@ -679,7 +678,7 @@ The response to a subscribe or unsubscribe is the set of current subscriptions.
 
 ### All-in-one
 
-The simplest way to run aeternal is with one process both populating the database and serving http requests. This uses the -s. -p and (maybe) -w options, for serve, populate and websocket. This method scales relatively well, its main disadvantage is that when the population process gets wedged (as it does relatively often, still), all services are down whilst the service restarts
+The simplest way to run aeternal is with one process both populating the database and serving http requests. This uses the -s. -p and (maybe) -w options, for serve, populate and websocket. This method scales relatively well, its main disadvantage is that when the population process gets wedged (as it does relatively often, still), all services are down whilst the service restarts.
 
 
 ### Separate population and serving processes
@@ -703,7 +702,7 @@ There are two provided in scripts, for loading, and http serving. Of course you 
 
 ## Verification
 
-The middleware has a -v option, which walks back through the chain, checking the DB version against the one that the node reports. You can use this to verify your database
+The middleware has a -v option, which walks back through the chain, checking the DB version against the one that the node reports. You can use this to verify your database.
 
 
 ## Loading sets of blocks

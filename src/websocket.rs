@@ -182,7 +182,7 @@ impl Subscriptions {
 #[test]
 fn test_subs() {
     let subs = Subscriptions::new();
-    let sub = subs.get_subscription(WsPayload::key_blocks).unwrap();
+    let sub = subs.get_subscription(WsPayload::KeyBlocks).unwrap();
     assert_eq!(sub.len(), 0);
 }
 
