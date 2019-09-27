@@ -1332,7 +1332,7 @@ dependencies = [
 [[package]]
 name = "log4rs-email"
 version = "0.1.0"
-source = "git+https://github.com/johnsnewby/log4rs-email#e97480366a0642fdafd044bd692fa8614429b6a4"
+source = "git+https://github.com/johnsnewby/log4rs-email#a4e4398d59eb96f86688aa18c8d620a1f0b5cf24"
 dependencies = [
  "gethostname 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -50,6 +50,7 @@ extern crate postgres;
 extern crate serde_json;
 extern crate ws;
 
+pub mod aens;
 pub mod coinbase;
 pub mod compiler;
 pub mod hashing;

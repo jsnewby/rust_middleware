@@ -61,6 +61,7 @@ use std::thread::JoinHandle;
 use clap::clap_app;
 use log::LevelFilter;
 use log4rs::config::{Appender, Config, Root};
+use dotenv::dotenv;
 use std::env;
 
 pub mod coinbase;
