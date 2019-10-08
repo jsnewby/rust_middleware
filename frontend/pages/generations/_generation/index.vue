@@ -55,11 +55,16 @@ export default {
       generation: null
     }
   },
-  async asyncData ({ store, params }) {
+  async asyncData ({ store, params, error }) {
     let generation = null
     const current = Number(params.generation)
     const height = await store.dispatch('height')
-    if (store.generations && store.generations.generations[current]) {
+    if (current > height) {
+      error({
+        message: `Requested height is greater than the current height. Current Height is ${height}`,
+        statusCode: 400
+      })
+    } else if (store.generations && store.generations.generations[current]) {
       generation = store.generations.generations[current]
     } else {
       const generations = await store.dispatch('generations/getGenerationByRange', { start: current - 1, end: current + 1 })
