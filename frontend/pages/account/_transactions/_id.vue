@@ -89,7 +89,7 @@ export default {
       transactions.push(element)
     })
     value = value || 'All'
-    return { address: params.id, transactions, page: 2, account, value }
+    return { address: params.id, transactions, page: 2, account, value, loading: false }
   },
   methods: {
     async loadMore () {
