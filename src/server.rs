@@ -1057,8 +1057,8 @@ struct AuctionEntry {
     expiration: i64,
 }
 
-#[get("/names/auctions/active")]
-fn auctive_name_auctions(_state: State<MiddlewareServer>) -> Json<Vec<AuctionEntry>> {
+#[get("/names/auctions/active?<sort>&<reverse>")]
+fn active_name_auctions(_state: State<MiddlewareServer>, sort: Option<String>, reverse: Option<String>) -> Json<Vec<AuctionEntry>> {
     let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
     let sql = format!(
         r#"
@@ -1075,7 +1075,23 @@ ORDER BY end_height desc;
 "#
     );
 
-    let result: Vec<AuctionEntry> = SQLCONNECTION
+    let _sort = match sort {
+	Some(s) => s,
+	None => String::from("expire"),
+    };
+
+    let mut cmp_func: Box<dyn Fn(&AuctionEntry, &AuctionEntry) -> std::cmp::Ordering> = match _sort.as_ref() {
+	"name" => Box::new(|a, b| a.name.cmp(&b.name)),
+	_ => Box::new(|a, b| a.expiration.cmp(&b.expiration)),
+    };
+
+    match reverse {
+	Some(_) => { cmp_func = Box::new(move |a, b| cmp_func(a, b).reverse()) }
+	_ => (),
+    }
+
+
+    let mut result: Vec<AuctionEntry> = SQLCONNECTION
         .get()
         .unwrap()
         .query(&sql, &[&_height])
@@ -1085,7 +1101,9 @@ ORDER BY end_height desc;
             name: x.get(0),
             expiration: x.get(1),
         })
-        .collect();
+	.collect();
+    result.sort_by(|a,b| cmp_func(a,b));
+
 
     Json(result)
 }
@@ -1200,6 +1218,7 @@ impl MiddlewareServer {
             .register(catchers![error400, error404])
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![active_names])
+	    .mount("/middleware", routes![active_name_auctions])
             .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![calls_for_contract_address])
@@ -1208,7 +1227,6 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![height_at_epoch])
-            .mount("/middleware", routes![auctive_name_auctions])
             .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
