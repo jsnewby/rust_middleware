@@ -57,7 +57,7 @@ export default {
   },
   async asyncData ({ store, params, error }) {
     let generation = null
-    const current = Number(params.generation)
+    const current = Math.abs(Number(params.generation))
     const height = await store.dispatch('height')
     if (current > height) {
       error({
