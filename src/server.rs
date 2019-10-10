@@ -1057,7 +1057,7 @@ struct AuctionEntry {
     expiration: i64,
 }
 
-#[get("/names/auctions/active")]
+#[get("/names/auctions/active?<sort>")]
 fn auctive_name_auctions(_state: State<MiddlewareServer>) -> Json<Vec<AuctionEntry>> {
     let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
     let sql = format!(
