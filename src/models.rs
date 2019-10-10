@@ -957,6 +957,27 @@ ORDER BY end_height desc;
         Ok(result)
     }
 
+    pub fn bids_for_account(
+        connection: &PgConnection,
+        account: String,
+    ) -> MiddlewareResult<Vec<Transaction>> {
+        let sql = format!(
+            r#"
+SELECT *
+FROM
+transactions t
+WHERE
+t.tx_type='NameClaimTx' AND
+t.tx->>'account_id' ='{}'
+ORDER BY block_height DESC
+"#,
+            account,
+        );
+
+        let result: Vec<Transaction> = sql_query(sql).get_results(connection)?;
+        Ok(result)
+    }
+
     pub fn fill_bidders<'a>(
         connection: &postgres::Connection,
         name_auction_entries: &'a mut Vec<NameAuctionEntry>,

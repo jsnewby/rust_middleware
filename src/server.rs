@@ -1099,6 +1099,29 @@ fn active_name_auctions(
     }
 }
 
+#[get("/names/auctions/bids/account/<account>?<limit>&<page>")]
+fn bids_for_account(
+    _state: State<MiddlewareServer>,
+    account: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<crate::models::Transaction>> {
+    if let Ok(mut result) =
+        crate::models::Name::bids_for_account(&PGCONNECTION.get().unwrap(), account)
+    {
+        if let Some(_limit) = limit {
+            if let Some(_page) = page {
+                result = result[((_page - 1) * _limit) as usize
+                    ..std::cmp::min((_page * _limit) as usize, result.len() as usize)]
+                    .to_vec();
+            }
+        }
+        Json(result)
+    } else {
+        Json(vec![])
+    }
+}
+
 /* TODO: get this to work.
 fn offset_limit_vec<'a>(
     limit: Option<i32>,
@@ -1245,6 +1268,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![active_name_auctions])
             .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
+            .mount("/middleware", routes![bids_for_account])
             .mount("/middleware", routes![bids_for_name])
             .mount("/middleware", routes![calls_for_contract_address])
             .mount("/middleware", routes![get_available_compilers])
