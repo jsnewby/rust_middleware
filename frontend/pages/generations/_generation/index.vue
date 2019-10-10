@@ -59,7 +59,7 @@ export default {
     let generation = null
     if (isNaN(params.generation)) {
       return error({
-        message: `Invalid Generation/Key block`,
+        message: 'Invalid Generation/Key block',
         statusCode: 400
       })
     }
