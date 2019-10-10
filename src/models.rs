@@ -410,7 +410,9 @@ impl JsonGeneration {
 #[table_name = "transactions"]
 #[belongs_to(MicroBlock)]
 pub struct Transaction {
+    #[serde(skip_serializing)]
     pub id: i32,
+    #[serde(skip_serializing)]
     pub micro_block_id: Option<i32>,
     pub block_height: i32,
     pub block_hash: String,
@@ -420,6 +422,7 @@ pub struct Transaction {
     pub tx: serde_json::Value,
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
+    #[serde(skip_serializing)]
     pub valid: bool,
     pub encoded_tx: Option<String>,
 }
@@ -442,7 +445,7 @@ impl Transaction {
     }
 
     pub fn load_for_micro_block(conn: &PgConnection, mb_hash: &String) -> Option<Vec<Transaction>> {
-        let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}'", mb_hash);
+        let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}' AND block_height > (SELECT ORDER BY block_height DESC", mb_hash);
         let _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
         let txs = _transactions
             .iter()
@@ -976,6 +979,17 @@ ORDER BY end_height desc;
             name_auction_entry.max_bid = Some(BigDecimal::from_str(&max_bid)?);
         }
         Ok(name_auction_entry)
+    }
+
+    pub fn bids_for_name(
+        connection: &PgConnection,
+        _name: String,
+    ) -> MiddlewareResult<Vec<Transaction>> {
+        let sql = format!(
+            "SELECT * FROM transactions WHERE tx_type='NameClaimTx' AND tx->>'name'='{}' AND block_height >= (SELECT MAX(block_height) FROM transactions WHERE tx_type= 'NameClaimTx' AND tx->>'name' = '{}' AND tx->>'name_salt'::text <> '0') ORDER BY block_height DESC",
+            _name, _name,
+        );
+        Ok(sql_query(sql).get_results(connection)?)
     }
 }
 

@@ -1091,6 +1091,33 @@ fn active_name_auctions(
     }
 }
 
+/* TODO: get this to work.
+fn offset_limit_vec<'a>(
+    limit: Option<i32>,
+    page: Option<i32>,
+    result: Vec<dyn Clone + 'a>,
+) -> Box<Vec<dyn Clone + 'a>> {
+    if let Some(_limit) = limit {
+        if let Some(_page) = page {
+            result = result[((_page - 1) * _limit) as usize
+                ..std::cmp::min((_page * _limit) as usize, result.len() as usize)]
+                .to_vec();
+        }
+    }
+    Box::new(result)
+}
+*/
+
+#[get("/names/auctions/bids/<name>?<limit>&<page>")]
+fn bids_for_name(
+    _state: State<MiddlewareServer>,
+    name: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<Transaction>> {
+    Json(crate::models::Name::bids_for_name(&PGCONNECTION.get().unwrap(), name).unwrap())
+}
+
 /**
  * Gets the chain height at a specific point in time
  */
@@ -1204,6 +1231,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![active_name_auctions])
             .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
+            .mount("/middleware", routes![bids_for_name])
             .mount("/middleware", routes![calls_for_contract_address])
             .mount("/middleware", routes![get_available_compilers])
             .mount("/middleware", routes![current_count])
