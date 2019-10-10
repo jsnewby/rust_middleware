@@ -1079,8 +1079,9 @@ fn active_name_auctions(
         result.sort_by(|a, b| cmp_func(a, b));
         if let Some(_limit) = limit {
             if let Some(_page) = page {
-                result =
-                    result[((_page - 1) * _limit) as usize..(_page * _limit) as usize].to_vec();
+                result = result[((_page - 1) * _limit) as usize
+                    ..std::cmp::min((_page * _limit) as usize, result.len() as usize)]
+                    .to_vec();
             }
         }
         crate::models::Name::fill_bidders(&SQLCONNECTION.get().unwrap(), &mut result).unwrap();
