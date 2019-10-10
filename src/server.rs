@@ -46,6 +46,23 @@ fn check_object(s: &str) {
 }
 
 /*
+ * Macro to do offset and limit inside a vector of results instead of in SQL.
+ * TODO: this only works if both page and limit are set.
+*/
+#[macro_export]
+macro_rules! offset_limit_vec {
+    {$limit:expr, $page:expr, $result:expr} => {
+        if let Some(_limit) = $limit {
+            if let Some(_page) = $page {
+                $result = $result[((_page - 1) * _limit) as usize
+                                  ..std::cmp::min((_page * _limit) as usize, $result.len() as usize)]
+                    .to_vec();
+            }
+        }
+    }
+}
+
+/*
  * GET handler for Node
  */
 #[get("/<path..>", rank = 6)]
@@ -1085,13 +1102,7 @@ fn active_name_auctions(
                 .map(|x| x.clone())
                 .collect();
         }
-        if let Some(_limit) = limit {
-            if let Some(_page) = page {
-                result = result[((_page - 1) * _limit) as usize
-                    ..std::cmp::min((_page * _limit) as usize, result.len() as usize)]
-                    .to_vec();
-            }
-        }
+        offset_limit_vec!(limit, page, result);
         crate::models::Name::fill_bidders(&SQLCONNECTION.get().unwrap(), &mut result).unwrap();
         Json(result)
     } else {
@@ -1109,35 +1120,12 @@ fn bids_for_account(
     if let Ok(mut result) =
         crate::models::Name::bids_for_account(&PGCONNECTION.get().unwrap(), account)
     {
-        if let Some(_limit) = limit {
-            if let Some(_page) = page {
-                result = result[((_page - 1) * _limit) as usize
-                    ..std::cmp::min((_page * _limit) as usize, result.len() as usize)]
-                    .to_vec();
-            }
-        }
+        offset_limit_vec!(limit, page, result);
         Json(result)
     } else {
         Json(vec![])
     }
 }
-
-/* TODO: get this to work.
-fn offset_limit_vec<'a>(
-    limit: Option<i32>,
-    page: Option<i32>,
-    result: Vec<dyn Clone + 'a>,
-) -> Box<Vec<dyn Clone + 'a>> {
-    if let Some(_limit) = limit {
-        if let Some(_page) = page {
-            result = result[((_page - 1) * _limit) as usize
-                ..std::cmp::min((_page * _limit) as usize, result.len() as usize)]
-                .to_vec();
-        }
-    }
-    Box::new(result)
-}
-*/
 
 #[get("/names/hash/<name>")]
 fn name_for_hash(_state: State<MiddlewareServer>, name: String) -> Json<JsonValue> {
