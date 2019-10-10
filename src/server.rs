@@ -1051,13 +1051,14 @@ fn reverse_names(
     Json(names)
 }
 
-#[get("/names/auctions/active?<sort>&<reverse>&<limit>&<page>")]
+#[get("/names/auctions/active?<sort>&<reverse>&<limit>&<page>&<length>")]
 fn active_name_auctions(
     _state: State<MiddlewareServer>,
     sort: Option<String>,
     reverse: Option<String>,
     limit: Option<i32>,
     page: Option<i32>,
+    length: Option<usize>,
 ) -> Json<Vec<crate::models::NameAuctionEntry>> {
     let _sort = match sort {
         Some(s) => s,
@@ -1077,6 +1078,13 @@ fn active_name_auctions(
 
     if let Ok(mut result) = crate::models::Name::active_auctions(&PGCONNECTION.get().unwrap()) {
         result.sort_by(|a, b| cmp_func(a, b));
+        if let Some(_length) = length {
+            result = result
+                .iter()
+                .filter(|x| x.name.len() == _length)
+                .map(|x| x.clone())
+                .collect();
+        }
         if let Some(_limit) = limit {
             if let Some(_page) = page {
                 result = result[((_page - 1) * _limit) as usize

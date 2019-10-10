@@ -424,6 +424,7 @@ pub struct Transaction {
     pub size: i32,
     #[serde(skip_serializing)]
     pub valid: bool,
+    #[serde(skip_serializing)]
     pub encoded_tx: Option<String>,
 }
 
