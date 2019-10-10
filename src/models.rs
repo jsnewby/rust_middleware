@@ -17,7 +17,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_query;
 extern crate serde_json;
-use bigdecimal;
+use bigdecimal::BigDecimal;
 use bigdecimal::ToPrimitive;
 use rust_decimal::Decimal;
 use serde_json::Number;
@@ -877,9 +877,12 @@ pub struct Name {
     pub transaction_id: i32,
 }
 
-pub struct AuctionEntry {
-    name: String,
-    expiration: i64,
+#[derive(Serialize, Clone)]
+pub struct NameAuctionEntry {
+    pub name: String,
+    pub expiration: i64,
+    pub max_bid: Option<BigDecimal>,
+    pub winning_bidder: Option<String>,
 }
 
 impl Name {
@@ -918,7 +921,7 @@ impl Name {
         }
     }
 
-    pub fn active_auctions(connection: &PgConnection) -> MiddlewareResult<Vec<AuctionEntry>> {
+    pub fn active_auctions(connection: &PgConnection) -> MiddlewareResult<Vec<NameAuctionEntry>> {
         let _height = KeyBlock::top_height(connection)?;
         let sql = format!(
             r#"
@@ -935,17 +938,44 @@ ORDER BY end_height desc;
 "#
         );
 
-        let result: Vec<AuctionEntry> = SQLCONNECTION
+        let result: Vec<NameAuctionEntry> = SQLCONNECTION
             .get()?
             .query(&sql, &[&_height])?
             .iter()
-            .map(|x| AuctionEntry {
+            .map(|x| NameAuctionEntry {
                 name: x.get(0),
                 expiration: x.get(1),
+                max_bid: None,
+                winning_bidder: None,
             })
             .collect();
 
-        result
+        Ok(result)
+    }
+
+    pub fn fill_bidders<'a>(
+        connection: &postgres::Connection,
+        name_auction_entries: &'a mut Vec<NameAuctionEntry>,
+    ) -> MiddlewareResult<&'a mut Vec<NameAuctionEntry>> {
+        for mut entry in name_auction_entries.iter_mut() {
+            Self::fill_bidder(connection, &mut entry)?;
+        }
+        Ok(name_auction_entries)
+    }
+
+    pub fn fill_bidder<'a>(
+        connection: &postgres::Connection,
+        name_auction_entry: &'a mut NameAuctionEntry,
+    ) -> MiddlewareResult<&'a mut NameAuctionEntry> {
+        let rows = connection
+            .query("SELECT tx->>'account_id'::TEXT AS account_id, tx->>'name_fee'::text AS name_fee FROM transactions WHERE tx->>'name' = $1 ORDER BY name_fee DESC LIMIT 1", &[&name_auction_entry.name])?;
+        for row in rows.iter() {
+            let winning_bidder: String = row.get(0);
+            let max_bid: String = row.get(1);
+            name_auction_entry.winning_bidder = Some(winning_bidder);
+            name_auction_entry.max_bid = Some(BigDecimal::from_str(&max_bid)?);
+        }
+        Ok(name_auction_entry)
     }
 }
 

@@ -1051,43 +1051,43 @@ fn reverse_names(
     Json(names)
 }
 
-#[derive(Serialize)]
-struct AuctionEntry {
-    name: String,
-    expiration: i64,
-}
+#[get("/names/auctions/active?<sort>&<reverse>&<limit>&<page>")]
+fn active_name_auctions(
+    _state: State<MiddlewareServer>,
+    sort: Option<String>,
+    reverse: Option<String>,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<crate::models::NameAuctionEntry>> {
+    let _sort = match sort {
+        Some(s) => s,
+        None => String::from("expire"),
+    };
 
-#[get("/names/auctions/active?<sort>")]
-fn auctive_name_auctions(_state: State<MiddlewareServer>) -> Json<Vec<AuctionEntry>> {
-    let _height = KeyBlock::top_height(&PGCONNECTION.get().unwrap()).unwrap();
-    let sql = format!(
-        r#"
-SELECT (t.tx->>'name') AS name,
-(t.block_height + lima_name_auction_timeout(t.tx->>'name'))::int8 as end_height
-FROM
-transactions t
-WHERE
-t.block_height > 0 AND
-t.tx_type='NameClaimTx' AND
-(t.tx->'name_salt')::numeric(25,0) <> 0 AND
-(t.block_height + lima_name_auction_timeout(t.tx->>'name')::int8 > $1)
-ORDER BY end_height desc;
-"#
-    );
+    let mut cmp_func: Box<dyn Fn(&NameAuctionEntry, &NameAuctionEntry) -> std::cmp::Ordering> =
+        match _sort.as_ref() {
+            "name" => Box::new(|a, b| a.name.cmp(&b.name)),
+            _ => Box::new(|a, b| a.expiration.cmp(&b.expiration)),
+        };
 
-    let result: Vec<AuctionEntry> = SQLCONNECTION
-        .get()
-        .unwrap()
-        .query(&sql, &[&_height])
-        .unwrap()
-        .iter()
-        .map(|x| AuctionEntry {
-            name: x.get(0),
-            expiration: x.get(1),
-        })
-        .collect();
+    match reverse {
+        Some(_) => cmp_func = Box::new(move |a, b| cmp_func(a, b).reverse()),
+        _ => (),
+    }
 
-    Json(result)
+    if let Ok(mut result) = crate::models::Name::active_auctions(&PGCONNECTION.get().unwrap()) {
+        result.sort_by(|a, b| cmp_func(a, b));
+        if let Some(_limit) = limit {
+            if let Some(_page) = page {
+                result =
+                    result[((_page - 1) * _limit) as usize..(_page * _limit) as usize].to_vec();
+            }
+        }
+        crate::models::Name::fill_bidders(&SQLCONNECTION.get().unwrap(), &mut result).unwrap();
+        Json(result)
+    } else {
+        Json(vec![])
+    }
 }
 
 /**
@@ -1200,6 +1200,7 @@ impl MiddlewareServer {
             .register(catchers![error400, error404])
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![active_names])
+            .mount("/middleware", routes![active_name_auctions])
             .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![calls_for_contract_address])
@@ -1208,7 +1209,6 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![height_at_epoch])
-            .mount("/middleware", routes![auctive_name_auctions])
             .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])

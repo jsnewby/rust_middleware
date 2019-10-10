@@ -9,6 +9,7 @@ K8S_NAMESPACE=mainnet
 NODE_URL=https://mdw.aepps.com
 NODE_WS=wss://mdw.aepps.com/websocket
 NETWORK_NAME=MAIN NET
+ENABLE_FAUCET=false
 
 .PHONY: list
 list:
@@ -26,7 +27,7 @@ build:
 
 docker-build:
 	@echo build image
-	docker build -t $(DOCKER_IMAGE) --build-arg NODE_URL=$(NODE_URL) --build-arg NODE_WS=$(NODE_WS) --build-arg NETWORK_NAME='$(NETWORK_NAME)' -f Dockerfile .
+	docker build -t $(DOCKER_IMAGE) --build-arg ENABLE_FAUCET=$(ENABLE_FAUCET) --build-arg NODE_URL=$(NODE_URL) --build-arg NODE_WS=$(NODE_WS) --build-arg NETWORK_NAME='$(NETWORK_NAME)' -f Dockerfile .
 	@echo done
 
 docker-push:

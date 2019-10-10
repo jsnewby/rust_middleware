@@ -6,11 +6,22 @@
       :page="{to: '/Contracts', name: 'Contracts'}"
       :subpage="{to: `/contracts/transactions/${$route.params.id}`, name: 'Contract Transactions'}"
     />
-    <TransactionDetails
-      v-for="tx of transactions"
-      :key="tx.hash"
-      :data="tx"
-    />
+    <div
+      v-if="!loading && transactions.length > 0"
+    >
+      <TransactionDetails
+        v-for="tx of transactions"
+        :key="tx.hash"
+        :data="tx"
+      />
+    </div>
+    <div v-if="loading">
+      Loading....
+    </div>
+    <div v-if="!loading && transactions.length == 0">
+      Contract not found.
+      Please check the contract address and try again.
+    </div>
   </div>
 </template>
 
@@ -28,7 +39,8 @@ export default {
   data () {
     return {
       contract: '',
-      transactions: []
+      transactions: [],
+      loading: true
     }
   },
   async asyncData ({ store, params }) {
@@ -44,7 +56,7 @@ export default {
         }
       }
     }
-    return { contract: params.id, transactions }
+    return { contract: params.id, transactions, loading: false }
   }
 }
 </script>
