@@ -1108,6 +1108,12 @@ fn offset_limit_vec<'a>(
 }
 */
 
+#[get("/names/hash/<name>")]
+fn name_for_hash(_state: State<MiddlewareServer>, name: String) -> Json<JsonValue> {
+    let details = crate::models::Name::load_for_hash(&PGCONNECTION.get().unwrap(), &name).unwrap();
+    Json(json!({ "name": details }))
+}
+
 #[get("/names/auctions/bids/<name>?<limit>&<page>")]
 fn bids_for_name(
     _state: State<MiddlewareServer>,
@@ -1238,6 +1244,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![current_size])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![height_at_epoch])
+            .mount("/middleware", routes![name_for_hash])
             .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
