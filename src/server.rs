@@ -1161,6 +1161,15 @@ fn name_for_hash(_state: State<MiddlewareServer>, name: String) -> Json<JsonValu
     Json(json!({ "name": details }))
 }
 
+#[get("/names/auctions/<name>/info")]
+fn info_for_auction(_state: State<MiddlewareServer>, name: String) -> Json<JsonValue> {
+    let bids = crate::models::Name::bids_for_name(&PGCONNECTION.get().unwrap(), name).unwrap();
+    Json(json!({
+    //        "next_bid" : next_bid,
+            "bids" : bids,
+        }))
+}
+
 #[get("/names/auctions/bids/<name>?<limit>&<page>")]
 fn bids_for_name(
     _state: State<MiddlewareServer>,
@@ -1168,7 +1177,10 @@ fn bids_for_name(
     limit: Option<i32>,
     page: Option<i32>,
 ) -> Json<Vec<Transaction>> {
-    Json(crate::models::Name::bids_for_name(&PGCONNECTION.get().unwrap(), name).unwrap())
+    let mut result =
+        crate::models::Name::bids_for_name(&PGCONNECTION.get().unwrap(), name).unwrap();
+    offset_limit_vec!(limit, page, result);
+    Json(result)
 }
 
 /**

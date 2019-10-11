@@ -957,6 +957,10 @@ ORDER BY end_height desc;
         Ok(result)
     }
 
+    pub fn next_bid(current_bid: BigDecimal) -> BigDecimal {
+        current_bid / 100 * BigDecimal::from(5)
+    }
+
     pub fn bids_for_account(
         connection: &PgConnection,
         account: String,
