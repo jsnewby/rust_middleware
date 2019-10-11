@@ -62,6 +62,12 @@ macro_rules! offset_limit_vec {
     }
 }
 
+#[get("/error")]
+fn error() -> String {
+    error!("Test error");
+    String::from("Error sent")
+}
+
 /*
  * GET handler for Node
  */
@@ -1151,7 +1157,7 @@ fn bids_for_account(
         offset_limit_vec!(limit, page, result);
         Json(result)
     } else {
-        Json(vec![])
+        Json(vec![]) // TODO: handle error properly
     }
 }
 
@@ -1300,9 +1306,10 @@ impl MiddlewareServer {
             .mount("/middleware", routes![bids_for_account])
             .mount("/middleware", routes![bids_for_name])
             .mount("/middleware", routes![calls_for_contract_address])
-            .mount("/middleware", routes![get_available_compilers])
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
+            .mount("/middleware", routes![error])
+            .mount("/middleware", routes![get_available_compilers])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![height_at_epoch])
             .mount("/middleware", routes![name_for_hash])
