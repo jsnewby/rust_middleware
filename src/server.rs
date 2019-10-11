@@ -1068,30 +1068,14 @@ fn reverse_names(
     Json(names)
 }
 
-#[get("/names/auctions/active/count")]
-fn active_name_auctions_count(_state: State<MiddlewareServer>) -> Json<JsonValue> {
-    if let Ok(result) = crate::models::Name::active_auctions(&PGCONNECTION.get().unwrap()) {
-        Json(json!({
-            "count" : result.len(),
-            "result" : "OK",
-        }))
-    } else {
-        Json(json!({
-            "count" : 0,
-            "result": "Error",
-        }))
-    }
-}
-
-#[get("/names/auctions/active?<sort>&<reverse>&<limit>&<page>&<length>")]
-fn active_name_auctions(
+fn active_name_auctions_internal(
     _state: State<MiddlewareServer>,
     sort: Option<String>,
     reverse: Option<String>,
-    limit: Option<i32>,
-    page: Option<i32>,
+    _limit: Option<i32>,
+    _page: Option<i32>,
     length: Option<usize>,
-) -> Json<Vec<crate::models::NameAuctionEntry>> {
+) -> Vec<crate::models::NameAuctionEntry> {
     let _sort = match sort {
         Some(s) => s,
         None => String::from("expire"),
@@ -1117,12 +1101,41 @@ fn active_name_auctions(
                 .map(|x| x.clone())
                 .collect();
         }
-        offset_limit_vec!(limit, page, result);
-        crate::models::Name::fill_bidders(&SQLCONNECTION.get().unwrap(), &mut result).unwrap();
-        Json(result)
-    } else {
-        Json(vec![])
+        return result;
     }
+    vec![]
+}
+
+#[get("/names/auctions/active/count?<sort>&<reverse>&<limit>&<page>&<length>")]
+fn active_name_auctions_count(
+    _state: State<MiddlewareServer>,
+    sort: Option<String>,
+    reverse: Option<String>,
+    limit: Option<i32>,
+    page: Option<i32>,
+    length: Option<usize>,
+) -> Json<JsonValue> {
+    let result = active_name_auctions_internal(_state, sort, reverse, limit, page, length);
+
+    Json(json!({
+        "count" : result.len(),
+        "result" : "OK",
+    }))
+}
+
+#[get("/names/auctions/active?<sort>&<reverse>&<limit>&<page>&<length>")]
+fn active_name_auctions(
+    _state: State<MiddlewareServer>,
+    sort: Option<String>,
+    reverse: Option<String>,
+    limit: Option<i32>,
+    page: Option<i32>,
+    length: Option<usize>,
+) -> Json<Vec<crate::models::NameAuctionEntry>> {
+    let mut result = active_name_auctions_internal(_state, sort, reverse, limit, page, length);
+    offset_limit_vec!(limit, page, result);
+    crate::models::Name::fill_bidders(&SQLCONNECTION.get().unwrap(), &mut result).unwrap();
+    Json(result)
 }
 
 #[get("/names/auctions/bids/account/<account>?<limit>&<page>")]

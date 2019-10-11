@@ -446,7 +446,7 @@ impl Transaction {
     }
 
     pub fn load_for_micro_block(conn: &PgConnection, mb_hash: &String) -> Option<Vec<Transaction>> {
-        let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}' AND block_height > (SELECT ORDER BY block_height DESC", mb_hash);
+        let sql = format!("select t.* from transactions t, micro_blocks mb where t.micro_block_id = mb.id and mb.hash='{}'", mb_hash);
         let _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
         let txs = _transactions
             .iter()
