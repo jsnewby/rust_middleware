@@ -1068,6 +1068,21 @@ fn reverse_names(
     Json(names)
 }
 
+#[get("/names/auctions/active/count")]
+fn active_name_auctions_count(_state: State<MiddlewareServer>) -> Json<JsonValue> {
+    if let Ok(result) = crate::models::Name::active_auctions(&PGCONNECTION.get().unwrap()) {
+        Json(json!({
+            "count" : result.len(),
+            "result" : "OK",
+        }))
+    } else {
+        Json(json!({
+            "count" : 0,
+            "result": "Error",
+        }))
+    }
+}
+
 #[get("/names/auctions/active?<sort>&<reverse>&<limit>&<page>&<length>")]
 fn active_name_auctions(
     _state: State<MiddlewareServer>,
@@ -1254,6 +1269,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![active_names])
             .mount("/middleware", routes![active_name_auctions])
+            .mount("/middleware", routes![active_name_auctions_count])
             .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
             .mount("/middleware", routes![bids_for_account])
