@@ -10,7 +10,7 @@ extern crate base58check;
 extern crate base64;
 extern crate bigdecimal;
 extern crate blake2;
-extern crate blake2b;
+//extern crate blake2b;
 extern crate byteorder;
 extern crate chashmap;
 extern crate chrono;

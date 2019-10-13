@@ -10,7 +10,6 @@ extern crate base58check;
 extern crate base64;
 extern crate bigdecimal;
 extern crate blake2;
-extern crate blake2b;
 extern crate byteorder;
 extern crate chashmap;
 extern crate chrono;
@@ -61,7 +60,6 @@ use std::thread::JoinHandle;
 use clap::clap_app;
 use log::LevelFilter;
 use log4rs::config::{Appender, Config, Root};
-use dotenv::dotenv;
 use std::env;
 
 pub mod coinbase;
