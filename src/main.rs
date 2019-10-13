@@ -32,6 +32,8 @@ extern crate itertools;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+extern crate log4rs;
+extern crate log4rs_email;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
@@ -57,6 +59,8 @@ use std::thread;
 use std::thread::JoinHandle;
 
 use clap::clap_app;
+use log::LevelFilter;
+use log4rs::config::{Appender, Config, Root};
 use dotenv::dotenv;
 use std::env;
 
@@ -95,7 +99,7 @@ use loader::PGCONNECTION;
 fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
     let node = node::Node::new(url.clone());
-    let top_block = node::key_block_from_json(node.latest_key_block().unwrap()).unwrap();
+    let top_block = node::key_block_from_json(node.latest_key_block()?)?;
     let missing_heights = node.get_missing_heights(top_block.height)?;
     for height in missing_heights {
         debug!("Adding {} to load queue", &height);
@@ -111,21 +115,29 @@ fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> Middl
     Ok(true)
 }
 
-fn main() {
-    dotenv().ok();
-    match env::var("LOG_DIR") {
+fn init_logging() {
+    match env::var("LOG_CONF") {
         Ok(x) => {
-            flexi_logger::Logger::with_env()
-                .log_to_file()
-                .directory(x)
-                .start()
-                .unwrap();
-            ()
+            let mut deserializers = log4rs::file::Deserializers::default();
+            log4rs_email::log4rs_email::register(&mut deserializers);
+            let _result = log4rs::init_file(x, deserializers).unwrap();
         }
-        Err(_x) => env_logger::Builder::from_default_env()
-            .target(env_logger::Target::Stdout)
-            .init(),
+        Err(_) => {
+            let stdout = log4rs::append::console::ConsoleAppender::builder().build();
+            let config = Config::builder()
+                .appender(Appender::builder().build("stdout", Box::new(stdout)))
+                .build(Root::builder().appender("console").build(LevelFilter::Warn))
+                .unwrap();
+            let _handle = log4rs::init_config(config).unwrap();
+        }
     }
+}
+
+fn main() {
+    dotenv::dotenv().ok();
+
+    init_logging();
+
     let matches = clap_app!(mdw =>
         (name: env!("CARGO_PKG_NAME"))
         (version: VERSION)
