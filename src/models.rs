@@ -17,7 +17,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_query;
 extern crate serde_json;
-use bigdecimal;
+use bigdecimal::BigDecimal;
 use bigdecimal::ToPrimitive;
 use rust_decimal::Decimal;
 use serde_json::Number;
@@ -410,7 +410,9 @@ impl JsonGeneration {
 #[table_name = "transactions"]
 #[belongs_to(MicroBlock)]
 pub struct Transaction {
+    #[serde(skip_serializing)]
     pub id: i32,
+    #[serde(skip_serializing)]
     pub micro_block_id: Option<i32>,
     pub block_height: i32,
     pub block_hash: String,
@@ -420,7 +422,9 @@ pub struct Transaction {
     pub tx: serde_json::Value,
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
+    #[serde(skip_serializing)]
     pub valid: bool,
+    #[serde(skip_serializing)]
     pub encoded_tx: Option<String>,
 }
 
@@ -877,6 +881,14 @@ pub struct Name {
     pub transaction_id: i32,
 }
 
+#[derive(Serialize, Clone)]
+pub struct NameAuctionEntry {
+    pub name: String,
+    pub expiration: i64,
+    pub max_bid: Option<BigDecimal>,
+    pub winning_bidder: Option<String>,
+}
+
 impl Name {
     pub fn load_for_hash(connection: &PgConnection, _name_hash: &str) -> Option<Self> {
         let sql = format!("select * from names where name_hash='{}'", _name_hash);
@@ -911,6 +923,99 @@ impl Name {
             Ok(x) => Ok(x),
             Err(e) => Err(MiddlewareError::new(&e.to_string())),
         }
+    }
+
+    pub fn active_auctions(connection: &PgConnection) -> MiddlewareResult<Vec<NameAuctionEntry>> {
+        let _height = KeyBlock::top_height(connection)?;
+        let sql = format!(
+            r#"
+SELECT (t.tx->>'name') AS name,
+(t.block_height + lima_name_auction_timeout(t.tx->>'name'))::int8 as end_height
+FROM
+transactions t
+WHERE
+t.block_height > 0 AND
+t.tx_type='NameClaimTx' AND
+(t.tx->'name_salt')::numeric(25,0) <> 0 AND
+(t.block_height + lima_name_auction_timeout(t.tx->>'name')::int8 > $1)
+ORDER BY end_height desc;
+"#
+        );
+
+        let result: Vec<NameAuctionEntry> = SQLCONNECTION
+            .get()?
+            .query(&sql, &[&_height])?
+            .iter()
+            .map(|x| NameAuctionEntry {
+                name: x.get(0),
+                expiration: x.get(1),
+                max_bid: None,
+                winning_bidder: None,
+            })
+            .collect();
+
+        Ok(result)
+    }
+
+    pub fn next_bid(current_bid: BigDecimal) -> BigDecimal {
+        current_bid / 100 * BigDecimal::from(5)
+    }
+
+    pub fn bids_for_account(
+        connection: &PgConnection,
+        account: String,
+    ) -> MiddlewareResult<Vec<Transaction>> {
+        let sql = format!(
+            r#"
+SELECT *
+FROM
+transactions t
+WHERE
+t.tx_type='NameClaimTx' AND
+t.tx->>'account_id' ='{}'
+ORDER BY block_height DESC
+"#,
+            account,
+        );
+
+        let result: Vec<Transaction> = sql_query(sql).get_results(connection)?;
+        Ok(result)
+    }
+
+    pub fn fill_bidders<'a>(
+        connection: &postgres::Connection,
+        name_auction_entries: &'a mut Vec<NameAuctionEntry>,
+    ) -> MiddlewareResult<&'a mut Vec<NameAuctionEntry>> {
+        for mut entry in name_auction_entries.iter_mut() {
+            Self::fill_bidder(connection, &mut entry)?;
+        }
+        Ok(name_auction_entries)
+    }
+
+    pub fn fill_bidder<'a>(
+        connection: &postgres::Connection,
+        name_auction_entry: &'a mut NameAuctionEntry,
+    ) -> MiddlewareResult<&'a mut NameAuctionEntry> {
+        let rows = connection
+            .query("SELECT tx->>'account_id'::TEXT AS account_id, tx->>'name_fee'::text AS name_fee FROM transactions WHERE tx->>'name' = $1 ORDER BY name_fee DESC LIMIT 1", &[&name_auction_entry.name])?;
+        for row in rows.iter() {
+            let winning_bidder: String = row.get(0);
+            let max_bid: String = row.get(1);
+            name_auction_entry.winning_bidder = Some(winning_bidder);
+            name_auction_entry.max_bid = Some(BigDecimal::from_str(&max_bid)?);
+        }
+        Ok(name_auction_entry)
+    }
+
+    pub fn bids_for_name(
+        connection: &PgConnection,
+        _name: String,
+    ) -> MiddlewareResult<Vec<Transaction>> {
+        let sql = format!(
+            "SELECT * FROM transactions WHERE tx_type='NameClaimTx' AND tx->>'name'='{}' AND block_height >= (SELECT MAX(block_height) FROM transactions WHERE tx_type= 'NameClaimTx' AND tx->>'name' = '{}' AND tx->>'name_salt'::text <> '0') ORDER BY block_height DESC",
+            _name, _name,
+        );
+        Ok(sql_query(sql).get_results(connection)?)
     }
 }
 

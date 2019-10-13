@@ -57,10 +57,16 @@ export default {
   },
   async asyncData ({ store, params, error }) {
     let generation = null
-    const current = Number(params.generation)
+    if (isNaN(params.generation)) {
+      return error({
+        message: 'Invalid Generation/Key block',
+        statusCode: 400
+      })
+    }
+    const current = Math.abs(Number(params.generation))
     const height = await store.dispatch('height')
     if (current > height) {
-      error({
+      return error({
         message: `Requested height is greater than the current height. Current Height is ${height}`,
         statusCode: 400
       })
