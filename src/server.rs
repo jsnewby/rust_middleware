@@ -1150,7 +1150,7 @@ fn bids_for_account(
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<Vec<crate::models::Transaction>> {
+) -> Json<Vec<crate::models::BidInfoForAccount>> {
     if let Ok(mut result) =
         crate::models::Name::bids_for_account(&PGCONNECTION.get().unwrap(), account)
     {
