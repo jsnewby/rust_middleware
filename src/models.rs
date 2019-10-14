@@ -406,7 +406,7 @@ impl JsonGeneration {
     }
 }
 
-#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations, Clone)]
+#[derive(Debug, Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations, Clone)]
 #[table_name = "transactions"]
 #[belongs_to(MicroBlock)]
 pub struct Transaction {
@@ -881,12 +881,18 @@ pub struct Name {
     pub transaction_id: i32,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct NameAuctionEntry {
     pub name: String,
     pub expiration: i64,
     pub max_bid: Option<BigDecimal>,
     pub winning_bidder: Option<String>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct BidInfoForAccount {
+    pub name_auction_entry: NameAuctionEntry,
+    pub transaction: Transaction,
 }
 
 impl Name {
@@ -961,10 +967,22 @@ ORDER BY end_height desc;
         current_bid / 100 * BigDecimal::from(5)
     }
 
+    fn active_auctions_hash(connection: &PgConnection) -> MiddlewareResult<HashMap<String, NameAuctionEntry>> {
+        let mut name_auctions = Self::active_auctions(connection)?;
+        Self::fill_bidders(&SQLCONNECTION.get().unwrap(), &mut name_auctions)?;
+
+        let mut _hash = HashMap::new();
+        for name_auction in name_auctions {
+            _hash.insert(name_auction.name.clone(), name_auction);
+        }
+        Ok(_hash)
+    }
+
     pub fn bids_for_account(
         connection: &PgConnection,
         account: String,
-    ) -> MiddlewareResult<Vec<Transaction>> {
+    ) -> MiddlewareResult<Vec<BidInfoForAccount>> {
+        let active_auctions = Self::active_auctions_hash(connection)?;
         let sql = format!(
             r#"
 SELECT *
@@ -978,7 +996,15 @@ ORDER BY block_height DESC
             account,
         );
 
-        let result: Vec<Transaction> = sql_query(sql).get_results(connection)?;
+        let transactions: Vec<Transaction> = sql_query(sql).get_results(connection)?;
+        let mut result = vec!();
+        for transaction in transactions {
+            let _name = String::from(transaction.tx["name"].as_str()?);
+            if let Some(name_auction_entry) = active_auctions.get(&_name) {
+                result.push(BidInfoForAccount { name_auction_entry: name_auction_entry.clone(),
+                                                transaction });
+            }
+        }
         Ok(result)
     }
 
