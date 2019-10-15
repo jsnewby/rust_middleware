@@ -1140,7 +1140,6 @@ fn active_name_auctions(
 ) -> Json<Vec<crate::models::NameAuctionEntry>> {
     let mut result = active_name_auctions_internal(_state, sort, reverse, limit, page, length);
     offset_limit_vec!(limit, page, result);
-    crate::models::Name::fill_bidders(&SQLCONNECTION.get().unwrap(), &mut result).unwrap();
     Json(result)
 }
 
@@ -1150,15 +1149,11 @@ fn bids_for_account(
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<Vec<crate::models::Transaction>> {
-    if let Ok(mut result) =
-        crate::models::Name::bids_for_account(&PGCONNECTION.get().unwrap(), account)
-    {
-        offset_limit_vec!(limit, page, result);
-        Json(result)
-    } else {
-        Json(vec![]) // TODO: handle error properly
-    }
+) -> Json<Vec<crate::models::BidInfoForAccount>> {
+    let mut result =
+        crate::models::Name::bids_for_account(&PGCONNECTION.get().unwrap(), account).unwrap();
+    offset_limit_vec!(limit, page, result);
+    Json(result)
 }
 
 #[get("/names/hash/<name>")]
