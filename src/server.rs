@@ -1098,18 +1098,16 @@ fn active_name_auctions_internal(
         _ => (),
     }
 
-    if let Ok(mut result) = crate::models::Name::active_auctions(&PGCONNECTION.get().unwrap()) {
-        result.sort_by(|a, b| cmp_func(a, b));
-        if let Some(_length) = length {
-            result = result
-                .iter()
-                .filter(|x| x.name.len() == _length)
-                .map(|x| x.clone())
-                .collect();
-        }
-        return result;
+    let mut result = crate::models::Name::active_auctions(&PGCONNECTION.get().unwrap()).unwrap();
+    result.sort_by(|a, b| cmp_func(a, b));
+    if let Some(_length) = length {
+        result = result
+            .iter()
+            .filter(|x| x.name.len() == _length)
+            .map(|x| x.clone())
+            .collect();
     }
-    vec![]
+    return result;
 }
 
 #[get("/names/auctions/active/count?<sort>&<reverse>&<limit>&<page>&<length>")]
@@ -1140,7 +1138,6 @@ fn active_name_auctions(
 ) -> Json<Vec<crate::models::NameAuctionEntry>> {
     let mut result = active_name_auctions_internal(_state, sort, reverse, limit, page, length);
     offset_limit_vec!(limit, page, result);
-    crate::models::Name::fill_bidders(&SQLCONNECTION.get().unwrap(), &mut result).unwrap();
     Json(result)
 }
 
@@ -1150,7 +1147,7 @@ fn bids_for_account(
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<Vec<crate::models::Transaction>> {
+) -> Json<Vec<(bool, crate::models::Transaction)>> {
     if let Ok(mut result) =
         crate::models::Name::bids_for_account(&PGCONNECTION.get().unwrap(), account)
     {
@@ -1186,6 +1183,7 @@ fn bids_for_name(
     let mut result =
         crate::models::Name::bids_for_name(&PGCONNECTION.get().unwrap(), name).unwrap();
     offset_limit_vec!(limit, page, result);
+
     Json(result)
 }
 

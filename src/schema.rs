@@ -52,6 +52,15 @@ table! {
 }
 
 table! {
+    name_auction_entries (name) {
+        name -> Varchar,
+        expiration -> Int8,
+        winning_bid -> Numeric,
+        winning_bidder -> Varchar,
+    }
+}
+
+table! {
     names (id) {
         id -> Int4,
         name -> Varchar,
