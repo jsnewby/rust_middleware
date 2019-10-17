@@ -6,10 +6,8 @@ CREATE TABLE IF NOT EXISTS protocols (
        effective_at_height BIGINT NOT NULL
 );
 
-CREATE INDEX protocols_name_index ON protocols(name);
-INSERT INTO protocols(version, height) values (1, 0);
-INSERT INTO protocols(version, height) values (2, 47800);
-INSERT INTO protocols(version, height) values (3, 90800);
+CREATE INDEX protocols_version_index ON protocols(version);
+
 
 DROP FUNCTION IF EXISTS get_fork_height;
 
@@ -17,9 +15,6 @@ CREATE OR REPLACE FUNCTION
 get_fork_height(version INTEGER) RETURNS BIGINT
 AS $$ SELECT effective_at_height FROM protocols WHERE version = $1 $$ LANGUAGE SQL;
 
-;; Below all_names has the very important MAX(block_height) which restricts
-;; to the most recent auction. Joining on this in the 2 following views
-;; also restricts them to blocks after the lima fork.
 CREATE OR REPLACE VIEW all_names AS
 SELECT
 	tx->>'name' AS name,

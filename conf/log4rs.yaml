@@ -16,7 +16,7 @@ appenders:
         pattern: 'logs/mdw.log.{{}}'
         base: 1
         count: 5
-      
+
 
   email:
     kind: log4rs-email
@@ -31,9 +31,13 @@ appenders:
         kind: threshold
         level: error
 
+  stdout:
+    kind: console
+
 # Set the default logging level to "warn" and attach the "stdout" and "email" appenders to the root
 root:
   level: info
   appenders:
     - main
     - email
+    - stdout
