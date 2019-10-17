@@ -131,6 +131,23 @@ fn init_logging() {
     }
 }
 
+fn setup_protocols(url: String) {
+    let connection = crate::loader::SQLCONNECTION.get().unwrap();
+    let node = crate::node::Node::new(url);
+    let status = node.get(&"status".to_string()).unwrap();
+    let protocols = status["protocols"].as_array().unwrap();
+    let trans = connection.transaction().unwrap();
+    connection.execute("DELETE FROM protocols", &[]).unwrap();
+    for protocol in protocols {
+        let effective_at_height = protocol["effective_at_height"].as_i64().unwrap();
+        let version = protocol["version"].as_i64().unwrap();
+        connection.execute(
+            "INSERT INTO protocols(effective_at_height, version) VALUES ($1, $2)",
+            &[&effective_at_height, &version]).unwrap();
+    }
+    trans.commit().unwrap();
+}
+
 fn main() {
     dotenv::dotenv().ok();
 
@@ -145,6 +162,7 @@ fn main() {
             (@arg populate: -p --populate "Populate the DB")
             (@arg websocket: -w --websocket requires[populate] "Start middleware WebSocket Server")
             (@arg daemonize: -d --daemonize "Daemonize the middleware process")
+            (@arg protocols: -P --protocols "Populate protocols table and exit")
             (@arg heights: -H --("load-heights") +takes_value "Load specific heights, values separated by comma, ranges with from-to accepted")
             (@subcommand verify =>
                 (name: "verify")
@@ -162,6 +180,12 @@ fn main() {
     let heights = matches.is_present("heights");
     let daemonize = matches.is_present("daemonize");
     let websocket = matches.is_present("websocket");
+    let protocols = matches.is_present("protocols");
+
+    if protocols {
+        setup_protocols(url.clone());
+        return;
+    }
 
     if daemonize {
         let daemonize = Daemonize::new();
@@ -202,6 +226,7 @@ fn main() {
             info!("migration out: {}", line);
         }
         migration_result.unwrap();
+        setup_protocols(url.clone());
     }
 
     /*

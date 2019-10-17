@@ -1,18 +1,21 @@
-;;
-CREATE TABLE IF NOT EXISTS hard_forks (
+DROP TABLE IF EXISTS protocols;
+
+CREATE TABLE IF NOT EXISTS protocols (
        id SERIAL PRIMARY KEY,
-       name VARCHAR NOT NULL,
-       height BIGINT UNIQUE
+       version BIGINT NOT NULL,
+       effective_at_height BIGINT NOT NULL
 );
 
-CREATE INDEX hard_forks_name_index ON hard_forks(name);
-INSERT INTO hard_forks(name, height) values ('lima', 0);
+CREATE INDEX protocols_name_index ON protocols(name);
+INSERT INTO protocols(version, height) values (1, 0);
+INSERT INTO protocols(version, height) values (2, 47800);
+INSERT INTO protocols(version, height) values (3, 90800);
 
 DROP FUNCTION IF EXISTS get_fork_height;
 
-CREATE FUNCTION
-get_fork_height(name VARCHAR) RETURNS BIGINT
-AS $$ SELECT height FROM hard_forks WHERE name = $1 $$ LANGUAGE SQL;
+CREATE OR REPLACE FUNCTION
+get_fork_height(version INTEGER) RETURNS BIGINT
+AS $$ SELECT effective_at_height FROM protocols WHERE version = $1 $$ LANGUAGE SQL;
 
 ;; Below all_names has the very important MAX(block_height) which restricts
 ;; to the most recent auction. Joining on this in the 2 following views
@@ -27,7 +30,7 @@ FROM transactions
 WHERE
 	tx_type='NameClaimTx' AND
 	(tx->>'name_salt')::NUMERIC = 0 AND
-	block_height > get_fork_height('lima')
+	block_height > get_fork_height(4)
 GROUP BY tx->>'name';
 
 CREATE OR REPLACE VIEW winning_bids AS
@@ -37,7 +40,7 @@ SELECT
 FROM
 	transactions t JOIN all_names an ON t.tx->>'name' = an.name
 WHERE
-	t.block_height >= an.start_block_height AND
+	t.block_height >= an.start_block_height
 GROUP BY
 	tx->>'name';
 
