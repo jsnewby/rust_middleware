@@ -6,6 +6,7 @@ use super::schema::contract_identifiers;
 use super::schema::key_blocks;
 use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
+use super::schema::name_auction_entries;
 use super::schema::names;
 use super::schema::names::dsl::*;
 use super::schema::oracle_queries;
@@ -406,7 +407,9 @@ impl JsonGeneration {
     }
 }
 
-#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations, Clone)]
+#[derive(
+    Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations, Clone, Debug,
+)]
 #[table_name = "transactions"]
 #[belongs_to(MicroBlock)]
 pub struct Transaction {
@@ -881,12 +884,19 @@ pub struct Name {
     pub transaction_id: i32,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(AsChangeset, Queryable, QueryableByName, Serialize, Clone, Debug)]
+#[table_name = "name_auction_entries"]
 pub struct NameAuctionEntry {
     pub name: String,
     pub expiration: i64,
-    pub max_bid: Option<BigDecimal>,
-    pub winning_bidder: Option<String>,
+    pub winning_bid: BigDecimal,
+    pub winning_bidder: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct BidInfoForAccount {
+    pub name_auction_entry: NameAuctionEntry,
+    pub transaction: Transaction,
 }
 
 impl Name {
@@ -927,33 +937,11 @@ impl Name {
 
     pub fn active_auctions(connection: &PgConnection) -> MiddlewareResult<Vec<NameAuctionEntry>> {
         let _height = KeyBlock::top_height(connection)?;
-        let sql = format!(
-            r#"
-SELECT (t.tx->>'name') AS name,
-(t.block_height + lima_name_auction_timeout(t.tx->>'name'))::int8 as end_height
-FROM
-transactions t
-WHERE
-t.block_height > 0 AND
-t.tx_type='NameClaimTx' AND
-(t.tx->'name_salt')::numeric(25,0) <> 0 AND
-(t.block_height + lima_name_auction_timeout(t.tx->>'name')::int8 > $1)
-ORDER BY end_height desc;
-"#
-        );
-
-        let result: Vec<NameAuctionEntry> = SQLCONNECTION
-            .get()?
-            .query(&sql, &[&_height])?
-            .iter()
-            .map(|x| NameAuctionEntry {
-                name: x.get(0),
-                expiration: x.get(1),
-                max_bid: None,
-                winning_bidder: None,
-            })
-            .collect();
-
+        use schema::name_auction_entries::dsl::*;
+        let current_height = crate::models::KeyBlock::top_height(connection)?;
+        let result = name_auction_entries
+            .filter(expiration.gt(current_height))
+            .load::<NameAuctionEntry>(connection)?;
         Ok(result)
     }
 
@@ -964,7 +952,8 @@ ORDER BY end_height desc;
     pub fn bids_for_account(
         connection: &PgConnection,
         account: String,
-    ) -> MiddlewareResult<Vec<Transaction>> {
+    ) -> MiddlewareResult<Vec<BidInfoForAccount>> {
+        use schema::name_auction_entries::dsl::*;
         let sql = format!(
             r#"
 SELECT *
@@ -977,36 +966,23 @@ ORDER BY block_height DESC
 "#,
             account,
         );
+        let transactions: Vec<Transaction> = sql_query(sql).get_results(connection)?;
+        let mut result = vec![];
+        for transaction in transactions {
+            let _name = String::from(transaction.tx["name"].as_str()?);
+            if let Ok(name_auction_entry) = name_auction_entries
+                .filter(name.eq(_name))
+                .first::<NameAuctionEntry>(connection)
+            {
+                result.push(BidInfoForAccount {
+                    name_auction_entry: name_auction_entry.clone(),
+                    transaction,
+                });
+            }
+        }
 
-        let result: Vec<Transaction> = sql_query(sql).get_results(connection)?;
         Ok(result)
     }
-
-    pub fn fill_bidders<'a>(
-        connection: &postgres::Connection,
-        name_auction_entries: &'a mut Vec<NameAuctionEntry>,
-    ) -> MiddlewareResult<&'a mut Vec<NameAuctionEntry>> {
-        for mut entry in name_auction_entries.iter_mut() {
-            Self::fill_bidder(connection, &mut entry)?;
-        }
-        Ok(name_auction_entries)
-    }
-
-    pub fn fill_bidder<'a>(
-        connection: &postgres::Connection,
-        name_auction_entry: &'a mut NameAuctionEntry,
-    ) -> MiddlewareResult<&'a mut NameAuctionEntry> {
-        let rows = connection
-            .query("SELECT tx->>'account_id'::TEXT AS account_id, tx->>'name_fee'::text AS name_fee FROM transactions WHERE tx->>'name' = $1 ORDER BY name_fee DESC LIMIT 1", &[&name_auction_entry.name])?;
-        for row in rows.iter() {
-            let winning_bidder: String = row.get(0);
-            let max_bid: String = row.get(1);
-            name_auction_entry.winning_bidder = Some(winning_bidder);
-            name_auction_entry.max_bid = Some(BigDecimal::from_str(&max_bid)?);
-        }
-        Ok(name_auction_entry)
-    }
-
     pub fn bids_for_name(
         connection: &PgConnection,
         _name: String,
