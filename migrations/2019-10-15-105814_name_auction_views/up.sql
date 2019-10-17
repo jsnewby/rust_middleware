@@ -25,7 +25,7 @@ FROM transactions
 WHERE
 	tx_type='NameClaimTx' AND
 	(tx->>'name_salt')::NUMERIC = 0 AND
-	block_height > get_fork_height(4)
+	block_height >= get_fork_height(4)
 GROUP BY tx->>'name';
 
 CREATE OR REPLACE VIEW winning_bids AS
