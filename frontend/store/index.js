@@ -144,9 +144,9 @@ export const actions = {
 
 function handleWsOpen (socket, commit, dispatch) {
   commit('setWsConnectionStatus', true)
-  socket.send('{"op":"subscribe", "payload": "key_blocks"}')
-  socket.send('{"op":"subscribe", "payload": "micro_blocks"}')
-  socket.send('{"op":"subscribe", "payload": "transactions"}')
+  socket.send('{"op":"Subscribe", "payload": "KeyBlocks"}')
+  socket.send('{"op":"Subscribe", "payload": "MicroBlocks"}')
+  socket.send('{"op":"Subscribe", "payload": "Transactions"}')
   socket.onmessage = e => {
     processWsData(e.data, commit, dispatch)
   }
