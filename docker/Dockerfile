@@ -21,7 +21,10 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && apt-get -y install libpq5 libcurl3 libcurl3-gnutls
 COPY --from=build /aepp-middleware/target/release/aeternal /app/aepp-middleware
 WORKDIR /app
+# copy rocket configuration 
 COPY ./docker/Rocket.toml ./Rocket.toml
+# copy minimal logger configuration
+COPY ./docker/log4rs-minimal.yaml /logs/log.yaml
 ENTRYPOINT ["/app/aepp-middleware"]
 CMD ["-p", "-s", "-w"]
 EXPOSE 80 3020
