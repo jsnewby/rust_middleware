@@ -299,6 +299,172 @@
         }
       }
     },
+    "/names/auctions/active": {
+      "get": {
+        "description": "Get a list of all the active name auctions",
+        "operationId": "getActiveNameAuctions",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "name": "length",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": "returns the names with provided length"
+        }, {
+          "name": "reverse",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "no value needs to be provided. if present the response will be reversed"
+        }, {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "in": "query",
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": "Can be 'name', 'max_bid' or 'expiration'(default)"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/names/auctions/active/count": {
+      "get": {
+        "description": "Get a count of all the active name auctions",
+        "operationId": "getActiveNameAuctionsCount",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "name": "length",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": "returns the names with provided length"
+        }, {
+          "name": "reverse",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "no value needs to be provided. if present the response will be reversed"
+        }, {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "in": "query",
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": "Can be 'name', 'max_bid' or 'expiration'(default)"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/names/auctions/bids/account/{account}": {
+      "get": {
+        "description": "Get bids made by a given account",
+        "operationId": "getNameAuctionsBidsbyAddress",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "account",
+          "type": "string",
+          "required": true,
+          "description": "Account address"
+        }, {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/names/auctions/bids/{name}": {
+      "get": {
+        "description": "Get a bids for a given name",
+        "operationId": "getNameAuctionsBidsbyName",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "path",
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Name to fetch the bids for"
+        }, {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }, {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "format": "int32",
+          "description": ""
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
     "/names/reverse/{account}": {
       "get": {
         "description": "Get a list of names mapped to the given address",
