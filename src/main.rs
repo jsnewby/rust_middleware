@@ -123,7 +123,7 @@ fn init_logging() {
         Err(_) => {
             let stdout = log4rs::append::console::ConsoleAppender::builder().build();
             let config = Config::builder()
-                .appender(Appender::builder().build("stdout", Box::new(stdout)))
+                .appender(Appender::builder().build("console", Box::new(stdout)))
                 .build(Root::builder().appender("console").build(LevelFilter::Warn))
                 .unwrap();
             let _handle = log4rs::init_config(config).unwrap();
