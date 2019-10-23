@@ -404,13 +404,13 @@ pub fn broadcast_ws(candidate: &Candidate) -> MiddlewareResult<()> {
 #[test]
 fn test_unpack_message() {
     let msg: Message =
-        Message::from(r#"{"op":"subscribe", "payload": "micro_blocks"}"#.to_string());
+        Message::from(r#"{"op":"Subscribe", "payload": "MicroBlocks"}"#.to_string());
     let ws_msg = unpack_message(msg).unwrap();
     assert_eq!(ws_msg.op.unwrap(), WsOp::Subscribe);
     assert_eq!(ws_msg.payload.unwrap(), WsPayload::MicroBlocks);
     assert_eq!(ws_msg.target, None);
 
-    let msg = Message::from(r#"{"op":"subscribe", "payload": "object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}"#.to_string());
+    let msg = Message::from(r#"{"op":"Subscribe", "payload": "Object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}"#.to_string());
     let ws_msg = unpack_message(msg).unwrap();
     assert_eq!(ws_msg.op.unwrap(), WsOp::Subscribe);
     assert_eq!(ws_msg.payload.unwrap(), WsPayload::Object);

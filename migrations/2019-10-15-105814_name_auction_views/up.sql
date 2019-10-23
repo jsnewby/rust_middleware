@@ -44,7 +44,8 @@ SELECT
 	an.name AS name,
 	an.auction_expiration AS expiration,
 	wb.winning_bid AS winning_bid,
-	(t.tx->>'account_id')::VARCHAR AS winning_bidder
+	(t.tx->>'account_id')::VARCHAR AS winning_bidder,
+	t.id AS transaction_id
 FROM
 	transactions t, all_names an, winning_bids wb
 WHERE

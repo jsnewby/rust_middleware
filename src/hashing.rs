@@ -132,6 +132,20 @@ pub fn get_name_id(name: &str) -> MiddlewareResult<String> {
     Ok(format!("nm_{}", to_base58check(&get_name_hash(name))))
 }
 
+pub fn get_name_auction_length(name: &String) -> MiddlewareResult<i32> {
+    let parts: Vec<&str> = name.split(".").collect();
+    if parts.len() != 2 {
+        return Err(crate::middleware_result::MiddlewareError::new(format!("name {} not supported", name).as_str()));
+    }
+    let length = match String::from(*parts.get(0)?).len() {
+        1 ..=4 => 29760,
+        5 ..=8 => 14880,
+        9 ..=12 => 480,
+        _ => 0,
+    };
+    Ok(length)
+}
+
 #[test]
 fn test_name_hash() {
     assert_eq!(

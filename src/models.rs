@@ -439,6 +439,15 @@ pub struct Rate {
 }
 
 impl Transaction {
+
+    pub fn load_for_id(conn: &PgConnection, _id: i32) -> MiddlewareResult<Transaction>
+    {
+        use super::schema::transactions::dsl::*;
+        Ok(transactions.filter(id.eq(_id))
+           .limit(1)
+           .first(conn)?)
+    }
+
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
         let sql = format!("select * from transactions where hash='{}'", _hash);
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
@@ -833,19 +842,25 @@ impl InsertableName {
         }
     }
 
-    pub fn new_from_transaction(tx_id: i32, transaction: &JsonTransaction) -> Option<Self> {
+    pub fn new_from_transaction(tx_id: i32, transaction: &JsonTransaction) -> MiddlewareResult<Option<Self>> {
         let ttype = transaction.tx["type"].as_str()?;
         if ttype != "NameClaimTx" {
-            return None;
+            return Ok(None);
+        }
+        let name_salt: String = String::from(transaction.tx["name_salt"].as_str()?);
+        if name_salt.eq(&String::from("0")) { // it's a bid. We don't store them
+            return Ok(None);
         }
         let _name = transaction.tx["name"].as_str()?;
         let _name_hash = super::hashing::get_name_id(&_name).unwrap(); // TODO
         let _tx_hash = transaction.hash.clone();
         let _account_id = transaction.tx["account_id"].as_str()?;
         let _expires_at =
-            InsertableName::NAME_CLAIM_MAX_EXPIRATION + transaction.block_height as i64;
+            InsertableName::NAME_CLAIM_MAX_EXPIRATION +
+            crate::hashing::get_name_auction_length(&String::from(_name))? as i64 +
+            transaction.block_height as i64;
 
-        Some(InsertableName::new(
+        Ok(Some(InsertableName::new(
             &_name.to_string(),
             &_name_hash,
             &_tx_hash,
@@ -853,7 +868,7 @@ impl InsertableName {
             &_account_id,
             _expires_at,
             tx_id,
-        ))
+        )))
     }
 
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
@@ -891,6 +906,8 @@ pub struct NameAuctionEntry {
     pub expiration: i64,
     pub winning_bid: BigDecimal,
     pub winning_bidder: String,
+    #[serde(skip_serializing)]
+    pub transaction_id: i32,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -906,6 +923,39 @@ impl Name {
         Some(_names.pop()?)
     }
 
+    pub fn owner_at_height(connection: &PgConnection, _name: &str, _height: i64) ->
+        MiddlewareResult<Self>
+    {
+        use schema::names::dsl::*;
+        let result = names
+            .filter(name.eq(_name))
+            .filter(created_at_height.le(_height))
+            .filter(expires_at.ge(_height))
+            .first::<Self>(connection)?;
+        Ok(result)
+    }
+
+    pub fn reverse_name_at_height(_connection: &PgConnection, _account: &str, _height: i64) -> MiddlewareResult<String>
+    {
+//        let _owner: Self = Self::owner_at_height(connection, _name, _height)?;
+//        let _name_hash: String = String::from_utf8(crate::hashing::get_name_hash(_name))?;
+        let sql_connection = SQLCONNECTION.get()?;
+        let rows = sql_connection.query(
+            r#"
+SELECT n.name FROM names n JOIN transactions t ON
+    t.tx->>'name_id' = n.name_hash
+WHERE
+    tx_type='NameUpdateTx' AND
+    tx->'pointers' @> '[{"id" : $1, "key":"account_pubkey"}]' AND
+    block_height < $2
+ORDER BY
+    t.block_height DESC
+DESC LIMIT 1
+"#, &[&String::from(_account), &_height])?;
+        Ok(rows.get(0).get(0))
+
+    }
+
     pub fn update(&self, connection: &PgConnection) -> MiddlewareResult<usize> {
         match diesel::update(names::table)
             .filter(name_hash.eq(self.name_hash.clone()))
@@ -916,6 +966,7 @@ impl Name {
             Err(e) => Err(MiddlewareError::new(&e.to_string())),
         }
     }
+
     pub fn delete(&self, connection: &PgConnection) -> MiddlewareResult<usize> {
         use schema::names::dsl::*;
         match diesel::delete(names.filter(id.eq(self.id))).execute(connection) {
@@ -941,6 +992,16 @@ impl Name {
         let current_height = crate::models::KeyBlock::top_height(connection)?;
         let result = name_auction_entries
             .filter(expiration.gt(current_height))
+            .load::<NameAuctionEntry>(connection)?;
+        Ok(result)
+    }
+
+    pub fn ending_auctions(connection: &PgConnection, _height: i64) ->
+        MiddlewareResult<Vec<NameAuctionEntry>>
+    {
+        use schema::name_auction_entries::dsl::*;
+        let result = name_auction_entries
+            .filter(expiration.eq(_height))
             .load::<NameAuctionEntry>(connection)?;
         Ok(result)
     }

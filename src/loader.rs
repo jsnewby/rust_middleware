@@ -480,14 +480,17 @@ impl BlockLoader {
             match ttype {
                 "NameClaimTx" => {
                     debug!("NameClaimTx: {:?}", transaction);
-                    if let Some(name) = InsertableName::new_from_transaction(tx_id, transaction) {
+                    if let Some(name) = InsertableName::new_from_transaction(tx_id, transaction)? {
+                        // this only stores the initial ClaimTx, the subsequent bidding ones are
+                        // not relevant to this table.
                         name.save(connection)?;
                     }
                 }
                 "NameRevokeTx" => {
                     if let Some(name_id) = transaction.tx["name_id"].as_str() {
-                        if let Some(name) = Name::load_for_hash(connection, name_id) {
-                            name.delete(connection)?;
+                        if let Some(mut name) = Name::load_for_hash(connection, name_id) {
+                            name.expires_at = transaction.block_height.into();
+                            name.update(connection)?;
                         }
                     }
                 }

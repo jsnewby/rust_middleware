@@ -57,6 +57,7 @@ table! {
         expiration -> Int8,
         winning_bid -> Numeric,
         winning_bidder -> Varchar,
+        transaction_id -> Int4,
     }
 }
 
