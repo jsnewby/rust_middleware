@@ -847,7 +847,9 @@ impl InsertableName {
         if ttype != "NameClaimTx" {
             return Ok(None);
         }
-        let name_salt: String = String::from(transaction.tx["name_salt"].as_str()?);
+        let name_salt_num: serde_json::Number =
+            serde::de::Deserialize::deserialize(transaction.tx["name_salt"].to_owned())?;
+        let name_salt = name_salt_num.to_string();
         if name_salt.eq(&String::from("0")) { // it's a bid. We don't store them
             return Ok(None);
         }

@@ -36,7 +36,7 @@ appenders:
 
 # Set the default logging level to "warn" and attach the "stdout" and "email" appenders to the root
 root:
-  level: info
+  level: debug
   appenders:
     - main
     - email
