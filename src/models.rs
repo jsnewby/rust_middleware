@@ -854,7 +854,7 @@ impl InsertableName {
             return Ok(None);
         }
         let _name = transaction.tx["name"].as_str()?;
-        let _name_hash = super::hashing::get_name_id(&_name).unwrap(); // TODO
+        let _name_hash = super::hashing::get_name_id(&_name)?;
         let _tx_hash = transaction.hash.clone();
         let _account_id = transaction.tx["account_id"].as_str()?;
         let _expires_at =

@@ -1090,7 +1090,7 @@ fn active_name_auctions_internal(
     let mut cmp_func: Box<dyn Fn(&NameAuctionEntry, &NameAuctionEntry) -> std::cmp::Ordering> =
         match _sort.as_ref() {
             "name" => Box::new(|a, b| a.name.cmp(&b.name)),
-            "max_bid" => Box::new(|a,b| a.winning_bid.cmp(&b.winning_bid)),
+            "max_bid" => Box::new(|a,b| b.winning_bid.cmp(&a.winning_bid)),
             _ => Box::new(|a, b| a.expiration.cmp(&b.expiration)),
         };
 
