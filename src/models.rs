@@ -3,6 +3,7 @@
 use super::schema::channel_identifiers;
 use super::schema::contract_calls;
 use super::schema::contract_identifiers;
+use super::schema::associated_accounts;
 use super::schema::key_blocks;
 use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
@@ -654,6 +655,71 @@ pub fn size_at_height(
     Ok(None)
 }
 
+#[derive(Insertable)]
+#[table_name = "associated_accounts"]
+pub struct InsertableAssociatedAccount {
+    pub transaction_id: i32,
+    pub name_hash: String,
+    pub aeternity_id: String,
+}
+
+impl InsertableAssociatedAccount {
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        use diesel::dsl::insert_into;
+        use schema::associated_accounts::dsl::*;
+        let generated_ids: Vec<i32> = insert_into(associated_accounts)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
+        Ok(generated_ids[0])
+    }
+
+    pub fn from_transaction(connection: &PgConnection, transaction: &serde_json::Value,
+                            _height: i64, _transaction_id: i32)
+                            -> MiddlewareResult<Vec<Self>>
+    {
+        let name_hashes = get_name_hashes(&transaction)?;
+        if name_hashes.len() == 0 {
+            return Ok(vec!());
+        }
+        let mut result = vec!();
+        for _name_hash in name_hashes {
+            if let Some(n) = Name::lookup_account_for_height_and_hash(connection, _height, &_name_hash)? {
+                result.push(InsertableAssociatedAccount {
+                    transaction_id: _transaction_id,
+                    name_hash: _name_hash,
+                    aeternity_id: n });
+            }
+        }
+        Ok(vec!())
+    }
+}
+
+pub fn get_name_hashes(v: &serde_json::Value) -> MiddlewareResult<Vec<String>> {
+    use regex::Regex;
+    lazy_static! {
+        static ref NAME_REGEX: Regex = Regex::new(
+            "(nm_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{38,60})").unwrap();
+    };
+    let mut result = vec!();
+    for capture in NAME_REGEX.captures_iter(serde_json::to_string(v)?.as_str()) {
+        let s: String = String::from(&capture[0]);
+        result.push(s);
+    }
+    Ok(result)
+}
+
+#[test]
+fn test_get_name_hashes() {
+    let v = serde_json::from_str(r#"{"fee": 16840000000000, "type": "SpendTx", "nonce": 130, "amount": 743000000000000000, "payload": "ba_Xfbg4g==", "version": 1, "sender_id": "ak_2AVeRypSdS4ZosdKWW1C4avWU4eeC2Yq7oP7guBGy8jkxdYVUy", "recipient_id": "nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"}"#).unwrap();
+    assert_eq!(Ok(vec!(String::from("nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"))),
+               get_name_hashes(&v));
+    let v = serde_json::from_str(r#"{"fee": 16840000000000, "type": "SpendTx", "nonce": 130, "amount": 743000000000000000, "payload": "ba_Xfbg4g==", "version": 1, "sender_id": "nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR", "recipient_id": "nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"}"#).unwrap();
+    assert_eq!(Ok(vec!(String::from("nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"),
+                       String::from("nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"))),
+               get_name_hashes(&v));
+}
+
 pub fn count_at_height(
     sql_conn: &postgres::Connection,
     _height: i32,
@@ -883,7 +949,7 @@ impl InsertableName {
     }
 }
 
-#[derive(AsChangeset, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
+#[derive(AsChangeset, Clone, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
 #[table_name = "names"]
 pub struct Name {
     #[serde(skip_serializing)]
@@ -897,6 +963,55 @@ pub struct Name {
     pub pointers: Option<serde_json::Value>,
     #[serde(skip_serializing)]
     pub transaction_id: i32,
+}
+
+impl Name {
+    pub fn get_for_height_and_name(connection: &PgConnection, _height: i64, _name: &String) ->
+        MiddlewareResult<Option<Self>>
+    {
+        use schema::names::dsl::*;
+        let result = names
+            .filter(created_at_height.le(_height))
+            .filter(expires_at.ge(_height))
+            .filter(name.eq(_name))
+            .load::<Self>(connection)?;
+        if result.len() > 0 {
+            Ok(Some(result[0].clone()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_for_height_and_hash(connection: &PgConnection, _height: i64, _hash: &String) ->
+        MiddlewareResult<Option<Self>>
+    {
+        use schema::names::dsl::*;
+        let result = names
+            .filter(created_at_height.le(_height))
+            .filter(expires_at.ge(_height))
+            .filter(name_hash.eq(_hash))
+            .load::<Self>(connection)?;
+        if result.len() > 0 {
+            Ok(Some(result[0].clone()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn lookup_account_for_height_and_hash(connection: &PgConnection, _height: i64, _hash: &String) ->
+        MiddlewareResult<Option<String>>
+    {
+        if let Some(_info) = Self::get_for_height_and_name(connection, _height, _hash)? {
+            if let Some(_pointers) = _info.pointers {
+                for entry in _pointers.as_array()? {
+                    if let Some(_key) = entry["key"].as_str() {
+                        return Ok(Some(String::from(entry["id"].as_str()?)))
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
 }
 
 #[derive(AsChangeset, Queryable, QueryableByName, Serialize, Clone, Debug)]

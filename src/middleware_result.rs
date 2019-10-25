@@ -19,6 +19,12 @@ impl MiddlewareError {
     }
 }
 
+impl PartialEq for MiddlewareError {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
 impl fmt::Display for MiddlewareError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.details)

@@ -114,11 +114,11 @@ table! {
 }
 
 table! {
-    spend_transactions (id ) {
+    associated_accounts (id ) {
         id -> Int4,
-        sender_id -> Varchar,
-        recipient_id -> Varchar,
         transaction_id -> Int4,
+        name_hash -> Varchar,
+        aeternity_id -> Varchar,
     }
 }
 
@@ -128,7 +128,7 @@ joinable!(contract_identifiers -> transactions (transaction_id));
 joinable!(micro_blocks -> key_blocks (key_block_id));
 joinable!(names -> transactions (transaction_id));
 joinable!(oracle_queries -> transactions (transaction_id));
-joinable!(spend_transactions -> transactions (transaction_id));
+joinable!(associated_accounts -> transactions (transaction_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
 
 allow_tables_to_appear_in_same_query!(
