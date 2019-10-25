@@ -462,20 +462,31 @@ fn transactions_for_account(
         _ => format!(" '{}') ", s_acc),
     };
     let sql = format!(
-        "SELECT m.time_, t.* FROM transactions t, micro_blocks m WHERE \
-         m.id = t.micro_block_id AND \
-         (t.tx->>'sender_id'='{}' OR \
-         t.tx->>'account_id' = '{}' OR \
-         t.tx->>'ga_id' = '{}' OR \
-         t.tx->>'caller_id' = '{}' OR \
-         t.tx->>'recipient_id'='{}' OR \
-         t.tx->>'initiator_id'='{}' OR \
-         t.tx->>'responder_id'='{}' OR \
-         t.tx->>'from_id'='{}' OR \
-         t.tx->>'to_id'='{}' OR \
-         t.tx->>'owner_id' = {}\
-         order by m.time_ desc \
-         limit {} offset {} ",
+        r#"
+SELECT
+    m.time_, t.*
+FROM
+    transactions t
+JOIN
+    micro_blocks m ON m.id=t.micro_block_id
+LEFT OUTER JOIN
+associated_accounts aa ON aa.transaction_id=t.id
+WHERE
+    m.id = t.micro_block_id AND
+   (t.tx->>'sender_id'='{}' OR
+    t.tx->>'account_id' = '{}' OR
+    t.tx->>'ga_id' = '{}' OR
+    t.tx->>'caller_id' = '{}' OR
+    t.tx->>'recipient_id'='{}' OR
+    t.tx->>'initiator_id'='{}' OR
+    t.tx->>'responder_id'='{}' OR
+    t.tx->>'from_id'='{}' OR
+    t.tx->>'to_id'='{}' OR
+    t.tx->>'owner_id' = '{}' OR
+    aa.aeternity_id = {}
+ORDER BY m.time_ DESC
+LIMIT {} OFFSET {} "#,
+        s_acc,
         s_acc,
         s_acc,
         s_acc,
