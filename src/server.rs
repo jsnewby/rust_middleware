@@ -1312,6 +1312,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![get_available_compilers])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![height_at_epoch])
+	    .mount("/middleware", routes![info_for_auction])
             .mount("/middleware", routes![name_for_hash])
             .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])
