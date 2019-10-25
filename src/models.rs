@@ -857,16 +857,14 @@ impl InsertableName {
         let _name_hash = super::hashing::get_name_id(&_name)?;
         let _tx_hash = transaction.hash.clone();
         let _account_id = transaction.tx["account_id"].as_str()?;
+        let auction_length = crate::hashing::get_name_auction_length(&String::from(_name))? as i64;
         let _expires_at =
-            InsertableName::NAME_CLAIM_MAX_EXPIRATION +
-            crate::hashing::get_name_auction_length(&String::from(_name))? as i64 +
-            transaction.block_height as i64;
-
+            InsertableName::NAME_CLAIM_MAX_EXPIRATION + auction_length + transaction.block_height as i64;
         Ok(Some(InsertableName::new(
             &_name.to_string(),
             &_name_hash,
             &_tx_hash,
-            transaction.block_height as i64,
+            transaction.block_height as i64 + auction_length,
             &_account_id,
             _expires_at,
             tx_id,

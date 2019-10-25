@@ -983,15 +983,17 @@ fn active_names(
 ) -> Json<Vec<Name>> {
     let connection = PGCONNECTION.get().unwrap();
     let (offset_sql, limit_sql) = offset_limit(limit, page);
+    let top_height = KeyBlock::top_height(&*connection).unwrap();
     let sql: String = match owner {
         Some(owner) => format!(
             "select * from \
              names where \
+             created_at_height <= {} and \
              expires_at >= {} and \
              owner = '{}' \
              order by expires_at desc \
              limit {} offset {} ",
-            KeyBlock::top_height(&*connection).unwrap(),
+            top_height, top_height,
             sanitize(&owner),
             limit_sql,
             offset_sql
@@ -999,14 +1001,16 @@ fn active_names(
         _ => format!(
             "select * from \
              names where \
+             created_at_height <= {} and \
              expires_at >= {} \
              order by created_at_height desc \
              limit {} offset {} ",
-            KeyBlock::top_height(&*connection).unwrap(),
+            top_height, top_height,
             limit_sql,
             offset_sql
         ),
     };
+    debug!("{}", sql);
     let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     Json(names)
 }

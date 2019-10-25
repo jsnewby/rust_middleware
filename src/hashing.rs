@@ -128,6 +128,18 @@ pub fn get_name_hash(name: &str) -> Vec<u8> {
     result
 }
 
+#[test]
+fn test_name_hash() {
+    assert_eq!(
+        get_name_id("welghmolql.test").unwrap(),
+        "nm_Ziiq3M9ASEHXCV71qUNde6SsomqwZjYPFvnJSvTkpSUDiXqH3"
+    );
+    assert_ne!(
+        get_name_id("abc.test").unwrap(),
+        "nm_2KrC4asc6fdv82uhXDwfiqB1TY2htjhnzwzJJKLxidyMymJRUQ"
+    );
+}
+
 pub fn get_name_id(name: &str) -> MiddlewareResult<String> {
     Ok(format!("nm_{}", to_base58check(&get_name_hash(name))))
 }
@@ -147,15 +159,12 @@ pub fn get_name_auction_length(name: &String) -> MiddlewareResult<i32> {
 }
 
 #[test]
-fn test_name_hash() {
-    assert_eq!(
-        get_name_id("welghmolql.test").unwrap(),
-        "nm_Ziiq3M9ASEHXCV71qUNde6SsomqwZjYPFvnJSvTkpSUDiXqH3"
-    );
-    assert_ne!(
-        get_name_id("abc.test").unwrap(),
-        "nm_2KrC4asc6fdv82uhXDwfiqB1TY2htjhnzwzJJKLxidyMymJRUQ"
-    );
+fn test_name_auction_length() {
+    assert_eq!(get_name_auction_length(&String::from("1.chain")).unwrap(), 29760);
+    assert_eq!(get_name_auction_length(&String::from("12345678.chain")).unwrap(), 14880);
+    assert_eq!(get_name_auction_length(&String::from("123456789.chain")).unwrap(), 480);
+    assert_eq!(get_name_auction_length(&String::from("1234567890.chain")).unwrap(), 480);
+    assert_eq!(get_name_auction_length(&String::from("12345467890123.chain")).unwrap(), 0);
 }
 
 /*
