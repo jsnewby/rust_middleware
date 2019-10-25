@@ -113,12 +113,22 @@ table! {
     }
 }
 
+table! {
+    spend_transactions (id ) {
+        id -> Int4,
+        sender_id -> Varchar,
+        recipient_id -> Varchar,
+        transaction_id -> Int4,
+    }
+}
+
 joinable!(channel_identifiers -> transactions (transaction_id));
 joinable!(contract_calls -> transactions (transaction_id));
 joinable!(contract_identifiers -> transactions (transaction_id));
 joinable!(micro_blocks -> key_blocks (key_block_id));
 joinable!(names -> transactions (transaction_id));
 joinable!(oracle_queries -> transactions (transaction_id));
+joinable!(spend_transactions -> transactions (transaction_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
 
 allow_tables_to_appear_in_same_query!(

@@ -1169,10 +1169,12 @@ fn name_for_hash(_state: State<MiddlewareServer>, name: String) -> Json<JsonValu
 
 #[get("/names/auctions/<name>/info")]
 fn info_for_auction(_state: State<MiddlewareServer>, name: String) -> Json<JsonValue> {
-    let bids = crate::models::Name::bids_for_name(&PGCONNECTION.get().unwrap(), name).unwrap();
+    let connection = &PGCONNECTION.get().unwrap();
+    let bids = crate::models::Name::bids_for_name(connection, name.clone()).unwrap();
+    let auction_info = crate::models::NameAuctionEntry::load_for_name(connection, name.clone()).unwrap();
     Json(json!({
-    //        "next_bid" : next_bid,
-            "bids" : bids,
+        "info" : auction_info,
+        "bids" : bids,
         }))
 }
 

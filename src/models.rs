@@ -910,6 +910,15 @@ pub struct NameAuctionEntry {
     pub transaction_id: i32,
 }
 
+impl NameAuctionEntry {
+    pub fn load_for_name(connection: &PgConnection, _name: String) -> MiddlewareResult<Self> {
+        use schema::name_auction_entries::dsl::*;
+        Ok(name_auction_entries.
+           filter(name.eq(_name))
+           .first::<Self>(connection)?)
+    }
+}
+
 #[derive(Serialize, Clone, Debug)]
 pub struct BidInfoForAccount {
     pub name_auction_entry: NameAuctionEntry,
