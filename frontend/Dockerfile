@@ -11,7 +11,7 @@ ARG ENABLE_FAUCET
 RUN NUXT_APP_ENABLE_FAUCET=$ENABLE_FAUCET NUXT_APP_NODE_URL=$NODE_URL NUXT_APP_NODE_WS=$NODE_WS NUXT_APP_NETWORK_NAME=$NETWORK_NAME npm run build
 
 
-FROM node:10.15.1-alpine as frontend
+FROM node:10.16.3-stretch as frontend
 WORKDIR /app
 COPY --from=frontend-build /app/.nuxt /app/.nuxt
 COPY --from=frontend-build /app/static /app/static
