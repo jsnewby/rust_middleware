@@ -68,6 +68,7 @@ table! {
         name_hash -> Varchar,
         tx_hash -> Varchar,
         created_at_height -> Int8,
+        auction_end_height -> Int8,
         owner -> Varchar,
         expires_at -> Int8,
         pointers -> Nullable<Jsonb>,

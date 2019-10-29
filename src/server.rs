@@ -999,7 +999,7 @@ fn active_names(
         Some(owner) => format!(
             "select * from \
              names where \
-             created_at_height <= {} and \
+             auction_end_height <= {} and \
              expires_at >= {} and \
              owner = '{}' \
              order by expires_at desc \
@@ -1012,7 +1012,7 @@ fn active_names(
         _ => format!(
             "select * from \
              names where \
-             created_at_height <= {} and \
+             auction_end_height <= {} and \
              expires_at >= {} \
              order by created_at_height desc \
              limit {} offset {} ",

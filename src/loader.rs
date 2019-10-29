@@ -509,7 +509,7 @@ impl BlockLoader {
                     if let Some(name_id) = transaction.tx["name_id"].as_str() {
                         if let Some(mut name) = Name::load_for_hash(connection, name_id) {
                             name.expires_at = transaction.tx["name_ttl"].as_i64()?
-                                + transaction.block_height as i64;
+                                + transaction.block_height as i64; // TODO: confirm
                             name.pointers = Some(transaction.tx["pointers"].clone());
                             name.update(connection)?;
                         }

@@ -878,6 +878,7 @@ pub struct InsertableName {
     pub name_hash: String,
     pub tx_hash: String,
     pub created_at_height: i64,
+    pub auction_end_height: i64,
     pub owner: String,
     pub expires_at: i64,
     pub pointers: Option<serde_json::Value>,
@@ -893,19 +894,20 @@ impl InsertableName {
         _tx_hash: &String,
         _created_at_height: i64,
         _owner: &str,
-        _expires_at: i64,
         _transaction_id: i32,
-    ) -> Self {
-        InsertableName {
+    ) -> MiddlewareResult<Self> {
+        let _auction_end_height = _created_at_height + crate::hashing::get_name_auction_length(_name)? as i64;
+        Ok(InsertableName {
             name: _name.to_string(),
             name_hash: _name_hash.to_string(),
             tx_hash: _tx_hash.to_string(),
             created_at_height: _created_at_height,
+            auction_end_height: _auction_end_height,
             owner: _owner.to_string(),
-            expires_at: _expires_at,
+            expires_at: _auction_end_height + Self::NAME_CLAIM_MAX_EXPIRATION,
             pointers: None,
             transaction_id: _transaction_id,
-        }
+        })
     }
 
     pub fn new_from_transaction(tx_id: i32, transaction: &JsonTransaction) -> MiddlewareResult<Option<Self>> {
@@ -923,18 +925,14 @@ impl InsertableName {
         let _name_hash = super::hashing::get_name_id(&_name)?;
         let _tx_hash = transaction.hash.clone();
         let _account_id = transaction.tx["account_id"].as_str()?;
-        let auction_length = crate::hashing::get_name_auction_length(&String::from(_name))? as i64;
-        let _expires_at =
-            InsertableName::NAME_CLAIM_MAX_EXPIRATION + auction_length + transaction.block_height as i64;
         Ok(Some(InsertableName::new(
             &_name.to_string(),
             &_name_hash,
             &_tx_hash,
-            transaction.block_height as i64 + auction_length,
+            transaction.block_height as i64,
             &_account_id,
-            _expires_at,
             tx_id,
-        )))
+        )?))
     }
 
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
@@ -958,6 +956,7 @@ pub struct Name {
     pub name_hash: String,
     pub tx_hash: String,
     pub created_at_height: i64,
+    pub auction_end_height: i64,
     pub owner: String,
     pub expires_at: i64,
     pub pointers: Option<serde_json::Value>,
