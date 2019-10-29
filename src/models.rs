@@ -956,6 +956,7 @@ pub struct Name {
     pub name_hash: String,
     pub tx_hash: String,
     pub created_at_height: i64,
+     #[serde(skip_serializing)]
     pub auction_end_height: i64,
     pub owner: String,
     pub expires_at: i64,
