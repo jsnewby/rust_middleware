@@ -12,12 +12,26 @@ services:
       - NODE_URL=node:3013
       - AESOPHIA_URL=compiler:3080
       - DATABASE_URL=postgres://middleware:middleware@db/middleware
+      - LOG_CONF=/logs/log.yaml
     volumes:
       - ${PWD}/docker/wait-for-it.sh:/app/docker/wait-for-it.sh
     depends_on:
       - db
       - node
       - compiler
+
+  frontend:
+    build:
+      context: ./frontend/
+      dockerfile: nginx.Dockerfile
+      args:
+        - NODE_URL=http://localhost:8080
+        - NODE_WS=http://localhost:3020
+        - NETWORK_NAME='TEST NET'
+    ports:
+      - "8081:80"
+    depends_on:
+      - middleware
 
   node:
     image: aeternity/aeternity:${NODE_TAG}

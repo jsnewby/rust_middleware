@@ -5,7 +5,7 @@ PROJECT_NAME = aepp-middleware
 OUTPUTFOLDER = target
 # docker image
 DOCKER_REGISTRY = aeternity
-DOCKER_IMAGE = aepp-middleware
+DOCKER_IMAGE = aeternal
 DOCKER_TAG = $(shell git describe --always)
 
 default: build
@@ -32,4 +32,3 @@ docker-push:
 	docker tag $(DOCKER_IMAGE) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
 	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
 	@echo done
-

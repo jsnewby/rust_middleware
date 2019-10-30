@@ -3,9 +3,11 @@
 use super::schema::channel_identifiers;
 use super::schema::contract_calls;
 use super::schema::contract_identifiers;
+use super::schema::associated_accounts;
 use super::schema::key_blocks;
 use super::schema::key_blocks::dsl::*;
 use super::schema::micro_blocks;
+use super::schema::name_auction_entries;
 use super::schema::names;
 use super::schema::names::dsl::*;
 use super::schema::oracle_queries;
@@ -17,9 +19,8 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_query;
 extern crate serde_json;
-use bigdecimal;
+use bigdecimal::BigDecimal;
 use bigdecimal::ToPrimitive;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use rust_decimal::Decimal;
 use serde_json::Number;
 use std::collections::HashMap;
@@ -35,7 +36,6 @@ use loader::SQLCONNECTION;
     Associations, Deserialize, Identifiable, Queryable, QueryableByName, Hash, PartialEq, Eq,
 )]
 #[table_name = "key_blocks"]
-#[has_many(micro_blocks)]
 pub struct KeyBlock {
     #[sql_type = "diesel::sql_types::Int4"]
     pub id: i32,
@@ -278,7 +278,6 @@ fn zero_vec_i32() -> Vec<i32> {
 )]
 #[table_name = "micro_blocks"]
 #[belongs_to(KeyBlock)]
-#[has_many(transactions)]
 pub struct MicroBlock {
     pub id: i32,
     pub key_block_id: i32,
@@ -409,11 +408,15 @@ impl JsonGeneration {
     }
 }
 
-#[derive(Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations, Clone)]
+#[derive(
+    Queryable, QueryableByName, Identifiable, Serialize, Deserialize, Associations, Clone, Debug,
+)]
 #[table_name = "transactions"]
 #[belongs_to(MicroBlock)]
 pub struct Transaction {
+    #[serde(skip_serializing)]
     pub id: i32,
+    #[serde(skip_serializing)]
     pub micro_block_id: Option<i32>,
     pub block_height: i32,
     pub block_hash: String,
@@ -423,7 +426,9 @@ pub struct Transaction {
     pub tx: serde_json::Value,
     pub fee: bigdecimal::BigDecimal,
     pub size: i32,
+    #[serde(skip_serializing)]
     pub valid: bool,
+    #[serde(skip_serializing)]
     pub encoded_tx: Option<String>,
 }
 
@@ -435,6 +440,15 @@ pub struct Rate {
 }
 
 impl Transaction {
+
+    pub fn load_for_id(conn: &PgConnection, _id: i32) -> MiddlewareResult<Transaction>
+    {
+        use super::schema::transactions::dsl::*;
+        Ok(transactions.filter(id.eq(_id))
+           .limit(1)
+           .first(conn)?)
+    }
+
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
         let sql = format!("select * from transactions where hash='{}'", _hash);
         let mut _transactions: Vec<Transaction> = sql_query(sql).load(conn).unwrap();
@@ -496,7 +510,7 @@ impl Transaction {
             Some(result) => {
                 let signatures: Vec<String> = result.split(' ').map(|s| s.to_string()).collect();
                 Some(signatures)
-            },
+            }
             _ => None,
         }
     }
@@ -641,6 +655,71 @@ pub fn size_at_height(
     Ok(None)
 }
 
+#[derive(Insertable)]
+#[table_name = "associated_accounts"]
+pub struct InsertableAssociatedAccount {
+    pub transaction_id: i32,
+    pub name_hash: String,
+    pub aeternity_id: String,
+}
+
+impl InsertableAssociatedAccount {
+    pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
+        use diesel::dsl::insert_into;
+        use schema::associated_accounts::dsl::*;
+        let generated_ids: Vec<i32> = insert_into(associated_accounts)
+            .values(self)
+            .returning(id)
+            .get_results(&*conn)?;
+        Ok(generated_ids[0])
+    }
+
+    pub fn from_transaction(connection: &PgConnection, transaction: &serde_json::Value,
+                            _height: i64, _transaction_id: i32)
+                            -> MiddlewareResult<Vec<Self>>
+    {
+        let name_hashes = get_name_hashes(&transaction)?;
+        if name_hashes.len() == 0 {
+            return Ok(vec!());
+        }
+        let mut result = vec!();
+        for _name_hash in name_hashes {
+            if let Some(n) = Name::lookup_account_for_height_and_hash(connection, _height, &_name_hash)? {
+                result.push(InsertableAssociatedAccount {
+                    transaction_id: _transaction_id,
+                    name_hash: _name_hash,
+                    aeternity_id: n });
+            }
+        }
+        Ok(vec!())
+    }
+}
+
+pub fn get_name_hashes(v: &serde_json::Value) -> MiddlewareResult<Vec<String>> {
+    use regex::Regex;
+    lazy_static! {
+        static ref NAME_REGEX: Regex = Regex::new(
+            "(nm_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{38,60})").unwrap();
+    };
+    let mut result = vec!();
+    for capture in NAME_REGEX.captures_iter(serde_json::to_string(v)?.as_str()) {
+        let s: String = String::from(&capture[0]);
+        result.push(s);
+    }
+    Ok(result)
+}
+
+#[test]
+fn test_get_name_hashes() {
+    let v = serde_json::from_str(r#"{"fee": 16840000000000, "type": "SpendTx", "nonce": 130, "amount": 743000000000000000, "payload": "ba_Xfbg4g==", "version": 1, "sender_id": "ak_2AVeRypSdS4ZosdKWW1C4avWU4eeC2Yq7oP7guBGy8jkxdYVUy", "recipient_id": "nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"}"#).unwrap();
+    assert_eq!(Ok(vec!(String::from("nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"))),
+               get_name_hashes(&v));
+    let v = serde_json::from_str(r#"{"fee": 16840000000000, "type": "SpendTx", "nonce": 130, "amount": 743000000000000000, "payload": "ba_Xfbg4g==", "version": 1, "sender_id": "nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR", "recipient_id": "nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"}"#).unwrap();
+    assert_eq!(Ok(vec!(String::from("nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"),
+                       String::from("nm_2U1TRRMfS218aNQ85qvs4RbrAofE15vQewdJi4awTTzSiFczKR"))),
+               get_name_hashes(&v));
+}
+
 pub fn count_at_height(
     sql_conn: &postgres::Connection,
     _height: i32,
@@ -657,17 +736,17 @@ pub fn count_at_height(
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum WsOp {
-    subscribe,
-    unsubscribe,
+    Subscribe,
+    Unsubscribe,
 }
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum WsPayload {
-    key_blocks = 0,
-    micro_blocks = 1,
-    transactions = 2,
-    tx_update = 3,
-    object,
+    KeyBlocks = 0,
+    MicroBlocks = 1,
+    Transactions = 2,
+    TxUpdate = 3,
+    Object,
 }
 
 impl fmt::Display for WsPayload {
@@ -799,6 +878,7 @@ pub struct InsertableName {
     pub name_hash: String,
     pub tx_hash: String,
     pub created_at_height: i64,
+    pub auction_end_height: i64,
     pub owner: String,
     pub expires_at: i64,
     pub pointers: Option<serde_json::Value>,
@@ -814,42 +894,45 @@ impl InsertableName {
         _tx_hash: &String,
         _created_at_height: i64,
         _owner: &str,
-        _expires_at: i64,
         _transaction_id: i32,
-    ) -> Self {
-        InsertableName {
+    ) -> MiddlewareResult<Self> {
+        let _auction_end_height = _created_at_height + crate::hashing::get_name_auction_length(_name)? as i64;
+        Ok(InsertableName {
             name: _name.to_string(),
             name_hash: _name_hash.to_string(),
             tx_hash: _tx_hash.to_string(),
             created_at_height: _created_at_height,
+            auction_end_height: _auction_end_height,
             owner: _owner.to_string(),
-            expires_at: _expires_at,
+            expires_at: _auction_end_height + Self::NAME_CLAIM_MAX_EXPIRATION,
             pointers: None,
             transaction_id: _transaction_id,
-        }
+        })
     }
 
-    pub fn new_from_transaction(tx_id: i32, transaction: &JsonTransaction) -> Option<Self> {
+    pub fn new_from_transaction(tx_id: i32, transaction: &JsonTransaction) -> MiddlewareResult<Option<Self>> {
         let ttype = transaction.tx["type"].as_str()?;
         if ttype != "NameClaimTx" {
-            return None;
+            return Ok(None);
+        }
+        let name_salt_num: serde_json::Number =
+            serde::de::Deserialize::deserialize(transaction.tx["name_salt"].to_owned())?;
+        let name_salt = name_salt_num.to_string();
+        if name_salt.eq(&String::from("0")) { // it's a bid. We don't store them
+            return Ok(None);
         }
         let _name = transaction.tx["name"].as_str()?;
-        let _name_hash = super::hashing::get_name_id(&_name).unwrap(); // TODO
+        let _name_hash = super::hashing::get_name_id(&_name)?;
         let _tx_hash = transaction.hash.clone();
         let _account_id = transaction.tx["account_id"].as_str()?;
-        let _expires_at =
-            InsertableName::NAME_CLAIM_MAX_EXPIRATION + transaction.block_height as i64;
-
-        Some(InsertableName::new(
+        Ok(Some(InsertableName::new(
             &_name.to_string(),
             &_name_hash,
             &_tx_hash,
             transaction.block_height as i64,
             &_account_id,
-            _expires_at,
             tx_id,
-        ))
+        )?))
     }
 
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
@@ -864,18 +947,96 @@ impl InsertableName {
     }
 }
 
-#[derive(AsChangeset, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
+#[derive(AsChangeset, Clone, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
 #[table_name = "names"]
 pub struct Name {
+    #[serde(skip_serializing)]
     pub id: i32,
     pub name: String,
     pub name_hash: String,
     pub tx_hash: String,
     pub created_at_height: i64,
+     pub auction_end_height: i64,
     pub owner: String,
     pub expires_at: i64,
     pub pointers: Option<serde_json::Value>,
+    #[serde(skip_serializing)]
     pub transaction_id: i32,
+}
+
+impl Name {
+    pub fn get_for_height_and_name(connection: &PgConnection, _height: i64, _name: &String) ->
+        MiddlewareResult<Option<Self>>
+    {
+        use schema::names::dsl::*;
+        let result = names
+            .filter(created_at_height.le(_height))
+            .filter(expires_at.ge(_height))
+            .filter(name.eq(_name))
+            .load::<Self>(connection)?;
+        if result.len() > 0 {
+            Ok(Some(result[0].clone()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_for_height_and_hash(connection: &PgConnection, _height: i64, _hash: &String) ->
+        MiddlewareResult<Option<Self>>
+    {
+        use schema::names::dsl::*;
+        let result = names
+            .filter(created_at_height.le(_height))
+            .filter(expires_at.ge(_height))
+            .filter(name_hash.eq(_hash))
+            .load::<Self>(connection)?;
+        if result.len() > 0 {
+            Ok(Some(result[0].clone()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn lookup_account_for_height_and_hash(connection: &PgConnection, _height: i64, _hash: &String) ->
+        MiddlewareResult<Option<String>>
+    {
+        if let Some(_info) = Self::get_for_height_and_name(connection, _height, _hash)? {
+            if let Some(_pointers) = _info.pointers {
+                for entry in _pointers.as_array()? {
+                    if let Some(_key) = entry["key"].as_str() {
+                        return Ok(Some(String::from(entry["id"].as_str()?)))
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+}
+
+#[derive(AsChangeset, Queryable, QueryableByName, Serialize, Clone, Debug)]
+#[table_name = "name_auction_entries"]
+pub struct NameAuctionEntry {
+    pub name: String,
+    pub expiration: i64,
+    pub winning_bid: bigdecimal::BigDecimal,
+    pub winning_bidder: String,
+    #[serde(skip_serializing)]
+    pub transaction_id: i32,
+}
+
+impl NameAuctionEntry {
+    pub fn load_for_name(connection: &PgConnection, _name: String) -> MiddlewareResult<Self> {
+        use schema::name_auction_entries::dsl::*;
+        Ok(name_auction_entries.
+           filter(name.eq(_name))
+           .first::<Self>(connection)?)
+    }
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct BidInfoForAccount {
+    pub name_auction_entry: NameAuctionEntry,
+    pub transaction: Transaction,
 }
 
 impl Name {
@@ -883,6 +1044,39 @@ impl Name {
         let sql = format!("select * from names where name_hash='{}'", _name_hash);
         let mut _names: Vec<Name> = sql_query(sql).load(connection).unwrap();
         Some(_names.pop()?)
+    }
+
+    pub fn owner_at_height(connection: &PgConnection, _name: &str, _height: i64) ->
+        MiddlewareResult<Self>
+    {
+        use schema::names::dsl::*;
+        let result = names
+            .filter(name.eq(_name))
+            .filter(created_at_height.le(_height))
+            .filter(expires_at.ge(_height))
+            .first::<Self>(connection)?;
+        Ok(result)
+    }
+
+    pub fn reverse_name_at_height(_connection: &PgConnection, _account: &str, _height: i64) -> MiddlewareResult<String>
+    {
+//        let _owner: Self = Self::owner_at_height(connection, _name, _height)?;
+//        let _name_hash: String = String::from_utf8(crate::hashing::get_name_hash(_name))?;
+        let sql_connection = SQLCONNECTION.get()?;
+        let rows = sql_connection.query(
+            r#"
+SELECT n.name FROM names n JOIN transactions t ON
+    t.tx->>'name_id' = n.name_hash
+WHERE
+    tx_type='NameUpdateTx' AND
+    tx->'pointers' @> '[{"id" : $1, "key":"account_pubkey"}]' AND
+    block_height < $2
+ORDER BY
+    t.block_height DESC
+DESC LIMIT 1
+"#, &[&String::from(_account), &_height])?;
+        Ok(rows.get(0).get(0))
+
     }
 
     pub fn update(&self, connection: &PgConnection) -> MiddlewareResult<usize> {
@@ -895,6 +1089,7 @@ impl Name {
             Err(e) => Err(MiddlewareError::new(&e.to_string())),
         }
     }
+
     pub fn delete(&self, connection: &PgConnection) -> MiddlewareResult<usize> {
         use schema::names::dsl::*;
         match diesel::delete(names.filter(id.eq(self.id))).execute(connection) {
@@ -904,11 +1099,83 @@ impl Name {
     }
     pub fn find_by_name(connection: &PgConnection, query: &str) -> MiddlewareResult<Vec<Self>> {
         use schema::names::dsl::*;
-        let result = names.filter(name.like(query)).load::<Self>(connection);
+        let result = names
+            .filter(name.like(query))
+            .then_order_by(expires_at.desc())
+            .load::<Self>(connection);
         match result {
             Ok(x) => Ok(x),
             Err(e) => Err(MiddlewareError::new(&e.to_string())),
         }
+    }
+
+    pub fn active_auctions(connection: &PgConnection) -> MiddlewareResult<Vec<NameAuctionEntry>> {
+        let _height = KeyBlock::top_height(connection)?;
+        use schema::name_auction_entries::dsl::*;
+        let current_height = crate::models::KeyBlock::top_height(connection)?;
+        let result = name_auction_entries
+            .filter(expiration.gt(current_height))
+            .load::<NameAuctionEntry>(connection)?;
+        Ok(result)
+    }
+
+    pub fn ending_auctions(connection: &PgConnection, _height: i64) ->
+        MiddlewareResult<Vec<NameAuctionEntry>>
+    {
+        use schema::name_auction_entries::dsl::*;
+        let result = name_auction_entries
+            .filter(expiration.eq(_height))
+            .load::<NameAuctionEntry>(connection)?;
+        Ok(result)
+    }
+
+    pub fn next_bid(current_bid: BigDecimal) -> BigDecimal {
+        current_bid / 100 * BigDecimal::from(5)
+    }
+
+    pub fn bids_for_account(
+        connection: &PgConnection,
+        account: String,
+    ) -> MiddlewareResult<Vec<BidInfoForAccount>> {
+        use schema::name_auction_entries::dsl::*;
+        let sql = format!(
+            r#"
+SELECT *
+FROM
+transactions t
+WHERE
+t.tx_type='NameClaimTx' AND
+t.tx->>'account_id' ='{}'
+ORDER BY block_height DESC
+"#,
+            account,
+        );
+        let transactions: Vec<Transaction> = sql_query(sql).get_results(connection)?;
+        let mut result = vec![];
+        for transaction in transactions {
+            let _name = String::from(transaction.tx["name"].as_str()?);
+            if let Ok(name_auction_entry) = name_auction_entries
+                .filter(name.eq(_name))
+                .first::<NameAuctionEntry>(connection)
+            {
+                result.push(BidInfoForAccount {
+                    name_auction_entry: name_auction_entry.clone(),
+                    transaction,
+                });
+            }
+        }
+
+        Ok(result)
+    }
+    pub fn bids_for_name(
+        connection: &PgConnection,
+        _name: String,
+    ) -> MiddlewareResult<Vec<Transaction>> {
+        let sql = format!(
+            "SELECT * FROM transactions WHERE tx_type='NameClaimTx' AND tx->>'name'='{}' AND block_height >= (SELECT MAX(block_height) FROM transactions WHERE tx_type= 'NameClaimTx' AND tx->>'name' = '{}' AND tx->>'name_salt'::text <> '0') ORDER BY block_height DESC",
+            _name, _name,
+        );
+        Ok(sql_query(sql).get_results(connection)?)
     }
 }
 
@@ -980,40 +1247,56 @@ impl InsertableContractCall {
         };
         debug!("Params: {:?}", params);
         let client = reqwest::Client::new();
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let mut result = client.post(&full_url).json(&params).send()?;
-        let output = result.text()?;
-        debug!("Return from aesophia: {}", output);
-        let arguments: serde_json::Value = serde_json::from_str(&output)?;
+        let arguments: serde_json::Value = match client.post(&full_url).json(&params).send() {
+            Ok(mut data) => {
+                let output = data.text().unwrap();
+                serde_json::from_str(&output)?
+            }
+            Err(err) => {
+                debug!("Error occurred while decoding call data: {:?}", err);
+                serde_json::from_str("{}")?
+            }
+        };
         // TODO -- clean up this hacky shit
         let node = Node::new(std::env::var("NODE_URL")?);
         // ^^^^^ should be safe here, but this needs to be fixed ASAP
         let callinfo = node.transaction_info(&source.hash)?["call_info"].to_owned();
         debug!("callinfo: {:?}", callinfo.to_string());
         debug!("arguments: {:?}", arguments);
-        params.remove(&"calldata".to_string())?;
-        params.insert(
-            "function".to_string(),
-            String::from(arguments["function"].as_str()?),
-        );
-        params.insert(
-            "return".to_string(),
-            String::from(callinfo["return_value"].as_str()?),
-        );
-        debug!("returndata input: {:?}", params);
-        result = client
-            .post(&format!("{}/decode-returndata/bytecode", url))
-            .json(&params)
-            .send()?;
-        let result = serde_json::from_str(&result.text()?)?;
+
+        /* let mut call_result = None;
+        if (callinfo["return_type"].as_str()? == "ok") {
+            params.remove(&"calldata".to_string())?;
+            params.insert(
+                "function".to_string(),
+                String::from(arguments["function"].as_str()?),
+            );
+            params.insert(
+                "return".to_string(),
+                String::from(callinfo["return_value"].as_str()?),
+            );
+            debug!("returndata input: {:?}", params);
+            call_result = match client
+                .post(&format!("{}/decode-returndata/bytecode", url))
+                .json(&params)
+                .send() {
+                    Ok(mut response) => {
+                        debug!("Result decode response {:?} ", response);
+                        Some(serde_json::from_str(&response.text()?)?)
+                    },
+                    Err(err) => {
+                        debug!("Error occurred while decoding call result: {:?}", err);
+                        None
+                    },
+                }
+        } */
         Ok(Some(Self {
             transaction_id: _transaction_id,
             contract_id: contract_id.to_string(),
             caller_id: caller_id.to_string(),
             arguments,
             callinfo: Some(callinfo),
-            result: Some(result),
+            result: None,
         }))
     }
 
@@ -1027,4 +1310,11 @@ impl InsertableContractCall {
             .unwrap();
         Ok(generated_ids[0])
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ContractVerification {
+    pub contract_id: String,
+    pub source: String,
+    pub compiler: String,
 }

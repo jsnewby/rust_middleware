@@ -37,6 +37,12 @@
             :value="transaction.tx.gas"
           />
         </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
+        </AppDefinition>
       </div>
       <div class="transaction-type-info-item">
         <AppDefinition

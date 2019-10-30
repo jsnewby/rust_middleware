@@ -37,6 +37,14 @@
           </nuxt-link>
         </AppDefinition>
         <AppDefinition
+          v-if="transaction.tx.name_fee"
+          title="name fee"
+        >
+          <FormatAeUnit
+            :value="transaction.tx.name_fee"
+          />
+        </AppDefinition>
+        <AppDefinition
           v-if="transaction.tx.name_salt"
           title="name salt"
         >
@@ -51,6 +59,12 @@
           <FormatAeUnit
             :value="transaction.tx.fee"
           />
+        </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
         </AppDefinition>
         <AppDefinition
           v-if="transaction.time"

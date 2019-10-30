@@ -75,7 +75,7 @@ export default {
   },
   computed: {
     isFaucetActive () {
-      return this.$store.state.faucetNetwork === this.$store.state.status.network_id
+      return this.$store.state.enableFaucet
     }
   }
 }

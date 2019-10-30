@@ -1,48 +1,41 @@
-## Guide to the æternity middleware (mdw) and API generally
+## Guide to the æternity middleware (æternal) and API generally
 
 author: John Newby
 
-date: 2019-07-18
+date: 2019-09-27
 
-corresponds to version: v0.8.0
+corresponds to version: v0.10.0
 
 
 [TOC]
 
-
-
 ## Introduction
 
-The middleware, mdw, is a server process which sits in front of the æternity node (‘node’), performing various functions
-
-
+The middleware, aeternal, is a server process which sits in front of the æternity node (‘node’), performing various functions:
 
 *   caching often-used results from the node, and returning them more quickly than the node can
 *   returning results, usually aggregated, which the node cannot.
+*   providing notification of events on the blockchain via a subscription mechanism
 
-When starting up, mdw queries the node in order to acquire a representation of the blockchain, which it stores in a SQL database. While storing these data mdw also makes other queries and stores extra data, for example
+When starting up, aeternal queries the node in order to acquire a representation of the blockchain, which it stores in a SQL database. While storing these data aeternal also makes other queries and stores extra data, for example
 
-
-
-*   for contract calls, mdw decodes the arguments and return value, when possible
-*   for oracle creation, mdw calculates the oracle id and stores that, in order that it can list oracles, and associate them with their requests and responses.
-*   mdw keeps a list of registered names and their expiration heights, and will do a reverse lookup to complement the forward lookup which the node supports.
+*   for contract calls, aeternal decodes the arguments and return value, when possible
+*   for oracle creation, aeternal calculates the oracle id and stores that, in order that it can list oracles, and associate them with their requests and responses.
+*   aeternal keeps a list of registered names and their expiration heights, and will do a reverse lookup to complement the forward lookup which the node supports.
 
 In general when we find a useful query which is not supported by the node, we attempt to implement it. And you can use SQL queries to make up the rest.
 
 
 ## Installation, or not.
 
-mdw is written in the Rust language, and is relatively straightforward to install. We, the æternity team host instances for both mainnet and testnet, which you’re welcome to use. We do understand though that our users may not want to trust us, in which case you’ll be wanting to run your own instance. You can start off by priming with our database--we expose a read-only replica of the PostgreSQL database which we also expose. You may verify this backup using the method described in the ‘verification’ section, below.
+aeternal is written in the Rust language, and is relatively straightforward to install. We, the æternity team, host instances for both mainnet and testnet, which you’re welcome to use. We do understand though that our users may not want to trust us, in which case you’ll be wanting to run your own instance. You can start off by priming with our database, which we publish at https://backups.aepps.com. You may verify this backup using the method described in the ‘verification’ section, below.
 
 The installation instructions are in the README.md file on the Github repository for the project, at [https://github.com/aeternity/aepp-middleware](https://github.com/aeternity/aepp-middleware)
 
 
 ## Interfaces
 
-mdw has an HTTP API, and a Websocket API. The Websocket API permits subscriptions to events of interest, for instance key block, micro block or transaction generation, or a subscription to any type of object in the block chain. In particular the Websocket API is intended for use cases such as
-
-
+aeternal has an HTTP API, and a Websocket API. The Websocket API permits subscriptions to events of interest, for instance key block, micro block or transaction generation, or a subscription to any type of object in the block chain. In particular the Websocket API is intended for use cases such as
 
 *   looking for queries to an Oracle, possibly in order to generate responses
 *   being notified of calls to a contract
@@ -51,19 +44,18 @@ mdw has an HTTP API, and a Websocket API. The Websocket API permits subscription
 The HTTP REST API complements the node API and allows more expensive queries than the node itself supports.
 
 
-## Best practises running mdw
+## Best practises running aeternal
 
-Broadly, mdw has two modes of operation--population, when it loads the blockchain into the database, and serving, which exposes the database via a REST API and forwards requests to the node behind it via HTTP. You may run an instance of mdw in one, or both of these modes. For a simple installation, the simplest way to do this is to run both, with the ‘-s -p’ options. If you’re running a service which needs to be constantly available, it will be more sensible to run one population instance, and one or more serving instances. These could run from a read-only replica of the database, and many can run in parallel if scaling is required.
+Broadly, aeternal has two modes of operation--population, when it loads the blockchain into the database, and serving, which exposes the database via a REST API and forwards requests to the node behind it via HTTP. You may run an instance of aeternal in one, or both of these modes. For a simple installation, the easiest way to do this is to run both, with the ‘-s -p’ options. If you’re running a service which needs to be constantly available, it will be more sensible to run one population instance, and one or more serving instances. These could run from a read-only replica of the database, and many can run in parallel if scaling is required.
 
-In the scripts/ directory you will find systemd scripts which can be modified for these use-cases, and a python script which monitors the database and restarts mdw if the top block is more than 10 minutes old. We’re working hard to squash all bugs, but we’re not there yet. However using the monitoring script in conjunction with systemd gives very high reliability for very little effort.
+In the scripts/ directory you will find systemd scripts which can be modified for these use-cases, and a python script which monitors the database and restarts aeternal if the top block is more than 10 minutes old. We’re working hard to squash all bugs, but we’re not there yet. However using the monitoring script in conjunction with systemd gives very high reliability for very little effort.
 
-mdw has very light hardware requirements--it can run perfectly well, along with its database from a Raspberry Pi. As you would expect, the more hardware you throw at it, the happier it is, though.
+aeternal has very light hardware requirements--it can run perfectly well, along with its database from a Raspberry Pi. As you would expect, the more hardware you throw at it, the happier it is, though.
 
 
-## How to use mdw
+## How to use aeternal
 
-The middleware is a layer over the node, and as such presents the node behind it more or less as-is, with the exception of some node endpoints which it proxies. mdw attempts to give a coherent view of the node--for instance when it is still loading blocks from the database it will reports its current generation as the highest in the database, rather than the highest the node reports. And whilst catching up, mdw will report via the websocket interface all objects loaded in. In this way, one can use the notifications semi-asynchronously.
-
+The middleware is a layer over the node, and as such presents the node behind it more or less as-is, with the exception of some node endpoints which it proxies. aeternal attempts to give a coherent view of the node--for instance when it is still loading blocks from the database it will reports its current generation as the highest in the database, rather than the highest the node reports. And whilst catching up, aeternal will report via the websocket interface all objects loaded in.
 
 ## HTTP interface
 
@@ -76,7 +68,7 @@ GET /api
 ```
 
 
-returns a swagger file containing the interface definition for mdw. No example given, see it here: [https://mdw.aepps.com/middleware/api ](https://mdw.aepps.com/middleware/api)
+returns a swagger file containing the interface definition for aeternal. No example given, see it here: [https://aeternal.aepps.com/middleware/api ](https://aeternal.aepps.com/middleware/api)
 
 
 ```
@@ -88,7 +80,7 @@ returns a list of all state channels which have been opened, and not closed. Exa
 
 
 ```
-$ curl https://mdw.aepps.com/middleware/channels/active
+$ curl https://aeternal.aepps.com/middleware/channels/active
 ["ch_2tceSwiqxgBcPirX3VYgW3sXgQdJeHjrNWHhLWyfZL7pT4gZF4","ch_AG5wzf4F9nMyuAmPav981Dk2XiQhAFvWAiNbUniZNPvk1qZxa","ch_DhA1FvZ2vcN9waEUmTcztPbjYH8aJ6FcKiLEUg5xWYbm9ktSU","ch_2KP1gKWTgFxmPWpQDWr1Gbghi18ZtxPMFELqhEQ651B2a5ZtXi","ch_2jAjhyQ4kTpuJbANBDMWtdsaDyFjAaAEmoVFmuFvKXnZLvt7hn","ch_284sMWGcDzkf6LGbZVkNwmt2rieeLdPtSJCtVd7QQpTuoZHMkQ","ch_29yF8QQuKgk2ngJ36bkfqD5aXuNC5PrSHvgaUKFYWAvFqXF4db","ch_2gs8b8LUa5HgmPSEmCpENM5UPYQXGpAZx8rDSTvZdtv1C9QseC"]
 
 GET /middleware/channels/transactions/address/<address>
@@ -99,7 +91,7 @@ for this state channel, show its on-chain transactions:
 
 
 ```
-$ curl -s https://mdw.aepps.com/middleware/channels/transactions/address/ch_2tceSwiqxgBcPirX3VYgW3sXgQdJeHjrNWHhLWyfZL7pT4gZF4|jq
+$ curl -s https://aeternal.aepps.com/middleware/channels/transactions/address/ch_2tceSwiqxgBcPirX3VYgW3sXgQdJeHjrNWHhLWyfZL7pT4gZF4|jq
 {
   "transactions": [
     {
@@ -136,7 +128,7 @@ all contracts, most recent first. Optionally page and limit:
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/contracts/all?limit=2&page=1'|jq
+$ curl -s 'https://aeternal.aepps.com/middleware/contracts/all?limit=2&page=1'|jq
 [
   {
     "block_height": 97934,
@@ -154,11 +146,11 @@ GET /middleware/contracts/calls/address/<address>
 ```
 
 
-If the contract has calls, this endpoint returns them, if mdw has access to the HTTP compiler it will also have unpacked the arguments and return value and returns them.
+If the contract has calls, this endpoint returns them, if aeternal has access to the HTTP compiler it will also have unpacked the arguments and return value and returns them.
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/contracts/calls/address/ct_AhMbfHYPBK8Qu1DkqXwQHcMKZoZAUndyYTNZDnyS1AdWh7X9U' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/contracts/calls/address/ct_AhMbfHYPBK8Qu1DkqXwQHcMKZoZAUndyYTNZDnyS1AdWh7X9U' | jq
 [
   {
     "arguments": {
@@ -209,7 +201,7 @@ All transactions for this contract
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/contracts/transactions/address/ct_AhMbfHYPBK8Qu1DkqXwQHcMKZoZAUndyYTNZDnyS1AdWh7X9U' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/contracts/transactions/address/ct_AhMbfHYPBK8Qu1DkqXwQHcMKZoZAUndyYTNZDnyS1AdWh7X9U' | jq
 {
   "transactions": [
     {
@@ -263,11 +255,11 @@ $ curl -s 'https://mdw.aepps.com/middleware/contracts/transactions/address/ct_Ah
 
 GET /middleware/generations/<from>/<to>?<limit>&<page>
 
-All 
+All
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/generations/1/2' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/generations/1/2' | jq
 {
   "data": {
     "1": {
@@ -343,13 +335,13 @@ What was the height at a certain time, measured in milliseconds since Jan 1 1970
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/height/at/1543375246777' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/height/at/1543375246777' | jq
 {
   "height": 2
 }
 
 GET /middleware/names/active?<limit>&<page>
-$ curl -s 'https://mdw.aepps.com/middleware/names/active?limit=1' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/names/active?limit=1' | jq
 [
   {
     "id": 1486,
@@ -375,7 +367,7 @@ All oracles, most recently registered first.
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/oracles/list?limit=1' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/oracles/list?limit=1' | jq
 [
   {
     "block_height": 91132,
@@ -409,7 +401,7 @@ This oracle’s transactions:
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/oracles/ok_28QDg7fkF5qiKueSdUvUBtCYPJdmMEoS73CztzXCRAwMGKHKZh?limit=1' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/oracles/ok_28QDg7fkF5qiKueSdUvUBtCYPJdmMEoS73CztzXCRAwMGKHKZh?limit=1' | jq
 [
   {
     "query_id": "oq_Xp6fVk1uHBmTctRCwvaeeKRiBikN9fATdG8mo43TcRmPsYeGu",
@@ -444,7 +436,7 @@ The reward at a block height, which is comprised of the mining reward, and the f
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/reward/height/10000' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/reward/height/10000' | jq
 {
   "coinbase": "5831398157261209600",
   "fees": "10848",
@@ -458,7 +450,7 @@ GET /middleware/size/current
 
 The size of all transactions, in bytes, at the current height of the chain. This number is indicative.
 
-$ curl -s 'https://mdw.aepps.com/middleware/size/current' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/size/current' | jq
 
 {
 
@@ -476,7 +468,7 @@ The same as above, but at some height
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/size/height/100' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/size/height/100' | jq
 {
   "size": 234
 }
@@ -489,7 +481,7 @@ A status page, for monitoring purposes
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/status' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/status' | jq
 {
   "OK": true,
   "queue_length": 0,
@@ -499,7 +491,7 @@ $ curl -s 'https://mdw.aepps.com/middleware/status' | jq
 ```
 
 
-The ‘OK’ field is set to false when the queue length is more than 2, and/or the seconds_since_last_block is > 1200 seconds. The teme can be overridden by the environment variable STATUS_MAX_BLOCK_AGE
+The ‘OK’ field is set to false when the queue length is more than 2, and/or the seconds_since_last_block is > 1200 seconds. The time can be overridden by the environment variable STATUS_MAX_BLOCK_AGE
 
 
 ```
@@ -511,11 +503,11 @@ How many transactions does a particular account have, and optionally of which ty
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/transactions/account/ak_24jcHLTZQfsou7NvomRJ1hKEnjyNqbYSq2Az7DmyrAyUHPq8uR/count' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/transactions/account/ak_24jcHLTZQfsou7NvomRJ1hKEnjyNqbYSq2Az7DmyrAyUHPq8uR/count' | jq
 {
   "count": 19138
 }
-$ curl -s 'https://mdw.aepps.com/middleware/transactions/account/ak_24jcHLTZQfsou7NvomRJ1hKEnjyNqbYSq2Az7DmyrAyUHPq8uR/count?tx_type=SpendTx' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/transactions/account/ak_24jcHLTZQfsou7NvomRJ1hKEnjyNqbYSq2Az7DmyrAyUHPq8uR/count?tx_type=SpendTx' | jq
 {
   "count": 19148
 }
@@ -528,7 +520,7 @@ All SpendTX transactions from one account to another with optional type paramete
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/transactions/account/ak_26dopN3U2zgfJG4Ao4J4ZvLTf5mqr7WAgLAq6WxjxuSapZhQg5/to/ak_26dopN3U2zgfJG4Ao4J4ZvLTf5mqr7WAgLAq6WxjxuSapZhQg5' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/transactions/account/ak_26dopN3U2zgfJG4Ao4J4ZvLTf5mqr7WAgLAq6WxjxuSapZhQg5/to/ak_26dopN3U2zgfJG4Ao4J4ZvLTf5mqr7WAgLAq6WxjxuSapZhQg5' | jq
 {
   "transactions": [
     {
@@ -560,7 +552,7 @@ All transactions for an account
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/transactions/account/ak_26dopN3U2zgfJG4Ao4J4ZvLTf5mqr7WAgLAq6WxjxuSapZhQg5?limit=1' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/transactions/account/ak_26dopN3U2zgfJG4Ao4J4ZvLTf5mqr7WAgLAq6WxjxuSapZhQg5?limit=1' | jq
 [
   {
     "block_hash": "mh_C2b6eKqXtgS1XTp4785228BZkMoA2M9SSFmggz7oi3i6xLMai",
@@ -583,15 +575,15 @@ $ curl -s 'https://mdw.aepps.com/middleware/transactions/account/ak_26dopN3U2zgf
   }
 ]
 
-GET /middleware/transactions/interval/<from>/<to>?<limit>&<page>&<txtype>
+`GET /middleware/transactions/interval/<from>/<to><limit>&<page>&<txtype>`
 ```
 
 
-All transactions between two heights (inclusive), optionally of type tx_type 
+All transactions between two heights (inclusive), optionally of type tx_type
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/transactions/interval/1/3?limit=1' | jq
+$ curl -s 'https://aeternal.aepps.com/middleware/transactions/interval/1/3?limit=1' | jq
 {
   "transactions": [
     {
@@ -615,7 +607,7 @@ $ curl -s 'https://mdw.aepps.com/middleware/transactions/interval/1/3?limit=1' |
   ]
 }
 
-GET /middleware/transactions/rate/<from>/<to>
+GET /middleware/transactions/rate/\<from>/<to>
 ```
 
 
@@ -623,7 +615,7 @@ Returns the total of all transfers and the number of transactions for each date 
 
 
 ```
-$ curl -s 'https://mdw.aepps.com/middleware/transactions/rate/20190101/20190105' |jq
+$ curl -s 'https://aeternal.aepps.com/middleware/transactions/rate/20190101/20190105' |jq
 [
   {
     "amount": "460565852664889999406222",
@@ -681,17 +673,17 @@ where:
 The response to a subscribe or unsubscribe is the set of current subscriptions.
 
 
-## Ways of running mdw
+## Ways of running aeternal
 
 
 ### All-in-one
 
-The simplest way to run mdw is with one process both populating the database and serving http requests. This uses the -s. -p and (maybe) -w options, for serve, populate and websocket. This method scales relatively well, its main disadvantage is that when the population process gets wedged (as it does relatively often, still), all services are down whilst the service restarts
+The simplest way to run aeternal is with one process both populating the database and serving http requests. This uses the -s. -p and (maybe) -w options, for serve, populate and websocket. This method scales relatively well, its main disadvantage is that when the population process gets wedged (as it does relatively often, still), all services are down whilst the service restarts.
 
 
 ### Separate population and serving processes
 
-http serving is a relatively stable feature, and so the simplest way to have a reliable service is currently to run one process populating the database (i.e. with the -p option) and another one or more with the -s option. **Important note: **counterintuitively, the -w (websocket) feature only works inside the **populate** process, not the (http) serving one(s). This may be corrected in future releases.
+http serving is a relatively stable feature, and so the simplest way to have a reliable service is currently to run one process populating the database (i.e. with the -p option) and another one or more with the -s option. **Important note: **counterintuitively, the -w (websocket) feature only works inside the **populate** process, not the (http) serving one(s). This may be changed in future releases.
 
 
 ### Monitoring
@@ -703,8 +695,6 @@ There is a python script, scripts/monitor.py which can be modified for your inst
 0,5,10,15,20,25,30,35,40,45,50,55 * * * * /usr/bin/python3 /usr/local/bin/monitor.py
 ```
 
-
-
 ### Service files
 
 There are two provided in scripts, for loading, and http serving. Of course you can combine them for both at once.
@@ -712,18 +702,22 @@ There are two provided in scripts, for loading, and http serving. Of course you 
 
 ## Verification
 
-The middleware has a -v option, which walks back through the chain, checking the DB version against the one that the node reports. You can use this to verify your database
+The middleware has a -v option, which walks back through the chain, checking the DB version against the one that the node reports. You can use this to verify your database.
 
 
 ## Loading sets of blocks
 
-the -H option can be used to load parts of the blockchain in isolation. Should you ever wish to load only a certain set of blocks, run mdw from the command-line, with arguments of these form:
+the -H option can be used to load parts of the blockchain in isolation. Should you ever wish to load only a certain set of blocks, run aeternal from the command-line, with arguments of these form:
 
--H300-400 
+-H300-400
 
 -H1,2,3,4
 
 -H1,2,3,6-9,100-200
 
 and so on.
+
+## Logging
+
+As of version 0.10.0 aeternal uses the *log4rs* logging package. A sample configuration is given in the file `conf/log4rs.yaml`. We use a custom appender, `log4rs-email` written by one of our team, which emails log lines, in the sample config this is done for the `error` class. We suggest using this sparingly, unless you very much enjoy receiving a lot of emails.
 

@@ -11,6 +11,7 @@
       :data="transaction"
     />
     <GenerationDetails
+      v-if="generation && height"
       :data="generation"
       :dynamic-data="height"
       :status="loading"
@@ -39,7 +40,7 @@ export default {
       loading: true
     }
   },
-  async asyncData ({ store, params: { transaction } }) {
+  async asyncData ({ store, params: { transaction }, error }) {
     let txDetails = null
     let generation = null
     let height = null
@@ -48,6 +49,12 @@ export default {
     }
     if (!txDetails) {
       txDetails = await store.dispatch('transactions/getTransactionByHash', transaction)
+    }
+    if (!txDetails) {
+      return error({
+        message: `Transaction not found`,
+        statusCode: 400
+      })
     }
     if (txDetails.tx.type === 'GAMetaTx') {
       txDetails = transformMetaTx(txDetails)

@@ -1,11 +1,14 @@
 use diesel::sql_query;
 
 use coinbase::coinbase;
+use compiler::*;
 use models::*;
 use node::Node;
 
 use chrono::prelude::*;
 use diesel::RunQueryDsl;
+use loader::PGCONNECTION;
+use loader::SQLCONNECTION;
 use regex::Regex;
 use rocket;
 use rocket::http::{Header, Method, Status};
@@ -19,9 +22,6 @@ use serde_json;
 use std::io::Cursor;
 use std::path::PathBuf;
 
-use loader::PGCONNECTION;
-use loader::SQLCONNECTION;
-
 pub struct MiddlewareServer {
     pub node: Node,
     pub dest_url: String, // address to forward to
@@ -33,7 +33,7 @@ fn sanitize(s: &String) -> String {
     s.replace("'", "\\'")
 }
 
-fn check_object(s: &str) -> () {
+fn check_object(s: &str) {
     lazy_static! {
         static ref OBJECT_REGEX: Regex = Regex::new(
             "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{38,60}"
@@ -43,6 +43,29 @@ fn check_object(s: &str) -> () {
     if !OBJECT_REGEX.is_match(s) {
         panic!("Invalid input"); // be paranoid
     };
+}
+
+/*
+ * Macro to do offset and limit inside a vector of results instead of in SQL.
+ * TODO: this only works if both page and limit are set.
+*/
+#[macro_export]
+macro_rules! offset_limit_vec {
+    {$limit:expr, $page:expr, $result:expr} => {
+        if let Some(_limit) = $limit {
+            if let Some(_page) = $page {
+                $result = $result[((_page - 1) * _limit) as usize
+                                  ..std::cmp::min((_page * _limit) as usize, $result.len() as usize)]
+                    .to_vec();
+            }
+        }
+    }
+}
+
+#[get("/error")]
+fn error() -> String {
+    error!("Test error");
+    String::from("Error sent")
 }
 
 /*
@@ -164,19 +187,27 @@ fn current_key_block(_state: State<MiddlewareServer>) -> Json<JsonValue> {
 }
 
 #[get("/key-blocks/height/<height>", rank = 1)]
-fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<String> {
+fn key_block_at_height(state: State<MiddlewareServer>, height: i64) -> Json<JsonValue> {
     let key_block = match KeyBlock::load_at_height(&PGCONNECTION.get().unwrap(), height) {
         Some(x) => x,
         None => {
             info!("Generation not found at height {}", height);
             return Json(
-                serde_json::to_string(&state.node.get_generation_at_height(height).unwrap())
-                    .unwrap(),
+                serde_json::from_str(
+                    &serde_json::to_string(&state.node.get_generation_at_height(height).unwrap())
+                        .unwrap(),
+                )
+                .unwrap(),
             );
         }
     };
     info!("Serving key block {} from DB", height);
-    Json(serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap())
+    Json(
+        serde_json::from_str(
+            &serde_json::to_string(&JsonKeyBlock::from_key_block(&key_block)).unwrap(),
+        )
+        .unwrap(),
+    )
 }
 
 #[catch(400)]
@@ -431,20 +462,31 @@ fn transactions_for_account(
         _ => format!(" '{}') ", s_acc),
     };
     let sql = format!(
-        "SELECT m.time_, t.* FROM transactions t, micro_blocks m WHERE \
-         m.id = t.micro_block_id AND \
-         (t.tx->>'sender_id'='{}' OR \
-         t.tx->>'account_id' = '{}' OR \
-         t.tx->>'ga_id' = '{}' OR \
-         t.tx->>'caller_id' = '{}' OR \
-         t.tx->>'recipient_id'='{}' OR \
-         t.tx->>'initiator_id'='{}' OR \
-         t.tx->>'responder_id'='{}' OR \
-         t.tx->>'from_id'='{}' OR \
-         t.tx->>'to_id'='{}' OR \
-         t.tx->>'owner_id' = {}\
-         order by m.time_ desc \
-         limit {} offset {} ",
+        r#"
+SELECT
+    m.time_, t.*
+FROM
+    transactions t
+JOIN
+    micro_blocks m ON m.id=t.micro_block_id
+LEFT OUTER JOIN
+associated_accounts aa ON aa.transaction_id=t.id
+WHERE
+    m.id = t.micro_block_id AND
+   (t.tx->>'sender_id'='{}' OR
+    t.tx->>'account_id' = '{}' OR
+    t.tx->>'ga_id' = '{}' OR
+    t.tx->>'caller_id' = '{}' OR
+    t.tx->>'recipient_id'='{}' OR
+    t.tx->>'initiator_id'='{}' OR
+    t.tx->>'responder_id'='{}' OR
+    t.tx->>'from_id'='{}' OR
+    t.tx->>'to_id'='{}' OR
+    t.tx->>'owner_id' = '{}' OR
+    aa.aeternity_id = {}
+ORDER BY m.time_ DESC
+LIMIT {} OFFSET {} "#,
+        s_acc,
         s_acc,
         s_acc,
         s_acc,
@@ -729,7 +771,7 @@ fn generations_by_range(
                 if transaction["block_hash"] != "" {
                     let hash: String = serde_json::from_value(transaction["hash"].clone()).unwrap();
                     list[&key_height]["micro_blocks"][mb_hash]["transactions"][hash] =
-                        serde_json::to_value(transaction).unwrap();;
+                        serde_json::to_value(transaction).unwrap();
                 }
             }
         } else {
@@ -744,7 +786,7 @@ fn generations_by_range(
                 if transaction["block_hash"] != "" {
                     let hash: String = serde_json::from_value(transaction["hash"].clone()).unwrap();
                     list[&key_height]["micro_blocks"][mb_hash]["transactions"][hash] =
-                        serde_json::to_value(transaction).unwrap();;
+                        serde_json::to_value(transaction).unwrap();
                 }
             }
         }
@@ -943,40 +985,42 @@ fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
     })
 }
 
-#[get("/names/active?<limit>&<page>&<owner>")]
+#[get("/names/active?<limit>&<page>&<owner>&<reverse>")]
 fn active_names(
     _state: State<MiddlewareServer>,
     limit: Option<i32>,
     page: Option<i32>,
     owner: Option<String>,
+    reverse: Option<String>,
 ) -> Json<Vec<Name>> {
     let connection = PGCONNECTION.get().unwrap();
-    let (offset_sql, limit_sql) = offset_limit(limit, page);
+   let top_height = KeyBlock::top_height(&*connection).unwrap();
     let sql: String = match owner {
         Some(owner) => format!(
             "select * from \
              names where \
+             auction_end_height <= {} and \
              expires_at >= {} and \
              owner = '{}' \
-             order by created_at_height desc \
-             limit {} offset {} ",
-            KeyBlock::top_height(&*connection).unwrap(),
+             order by expires_at desc",
+            top_height, top_height,
             sanitize(&owner),
-            limit_sql,
-            offset_sql
         ),
         _ => format!(
             "select * from \
              names where \
+             auction_end_height <= {} and \
              expires_at >= {} \
-             order by created_at_height desc \
-             limit {} offset {} ",
-            KeyBlock::top_height(&*connection).unwrap(),
-            limit_sql,
-            offset_sql
+             order by created_at_height desc",
+            top_height, top_height,
         ),
     };
-    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    debug!("{}", sql);
+    let mut names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    if reverse != None {
+        names.reverse();
+    }
+    offset_limit_vec!(limit, page, names);
     Json(names)
 }
 
@@ -992,7 +1036,7 @@ fn all_names(
         Some(owner) => format!(
             "select * from names \
              where owner = '{}' \
-             order by created_at_height desc \
+             order by expires_at desc \
              limit {} offset {} ",
             sanitize(&owner),
             limit_sql,
@@ -1041,6 +1085,122 @@ fn reverse_names(
     debug!("{}", sql);
     let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
     Json(names)
+}
+
+fn active_name_auctions_internal(
+    _state: State<MiddlewareServer>,
+    sort: Option<String>,
+    reverse: Option<String>,
+    _limit: Option<i32>,
+    _page: Option<i32>,
+    length: Option<usize>,
+) -> Vec<crate::models::NameAuctionEntry> {
+    let _sort = match sort {
+        Some(s) => s,
+        None => String::from("expire"),
+    };
+
+    let mut cmp_func: Box<dyn Fn(&NameAuctionEntry, &NameAuctionEntry) -> std::cmp::Ordering> =
+        match _sort.as_ref() {
+            "name" => Box::new(|a, b| a.name.cmp(&b.name)),
+            "max_bid" => Box::new(|a,b| b.winning_bid.cmp(&a.winning_bid)),
+            _ => Box::new(|a, b| a.expiration.cmp(&b.expiration)),
+        };
+
+    match reverse {
+        Some(_) => cmp_func = Box::new(move |a, b| cmp_func(a, b).reverse()),
+        _ => (),
+    }
+
+    if let Ok(mut result) = crate::models::Name::active_auctions(&PGCONNECTION.get().unwrap()) {
+        result.sort_by(|a, b| cmp_func(a, b));
+        if let Some(_length) = length {
+            result = result
+                .iter()
+                .filter(|x| x.name.len() == _length)
+                .map(|x| x.clone())
+                .collect();
+        }
+        return result;
+    }
+    vec![]
+}
+
+#[get("/names/auctions/active/count?<sort>&<reverse>&<limit>&<page>&<length>")]
+fn active_name_auctions_count(
+    _state: State<MiddlewareServer>,
+    sort: Option<String>,
+    reverse: Option<String>,
+    limit: Option<i32>,
+    page: Option<i32>,
+    length: Option<usize>,
+) -> Json<JsonValue> {
+    let result = active_name_auctions_internal(_state, sort, reverse, limit, page, length);
+
+    Json(json!({
+        "count" : result.len(),
+        "result" : "OK",
+    }))
+}
+
+#[get("/names/auctions/active?<sort>&<reverse>&<limit>&<page>&<length>")]
+fn active_name_auctions(
+    _state: State<MiddlewareServer>,
+    sort: Option<String>,
+    reverse: Option<String>,
+    limit: Option<i32>,
+    page: Option<i32>,
+    length: Option<usize>,
+) -> Json<Vec<crate::models::NameAuctionEntry>> {
+    let mut result = active_name_auctions_internal(_state, sort, reverse, limit, page, length);
+    offset_limit_vec!(limit, page, result);
+    Json(result)
+}
+
+#[get("/names/auctions/bids/account/<account>?<limit>&<page>")]
+fn bids_for_account(
+    _state: State<MiddlewareServer>,
+    account: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<crate::models::BidInfoForAccount>> {
+    let mut result =
+        crate::models::Name::bids_for_account(&PGCONNECTION.get().unwrap(), account).unwrap();
+    offset_limit_vec!(limit, page, result);
+    Json(result)
+}
+
+#[get("/names/hash/<name>")]
+fn name_for_hash(_state: State<MiddlewareServer>, name: String) -> Json<JsonValue> {
+    let details = crate::models::Name::load_for_hash(&PGCONNECTION.get().unwrap(), &name).unwrap();
+    Json(json!({ "name": details }))
+}
+
+#[derive(Serialize)]
+struct AuctionInfo {
+    bids: Vec<Transaction>,
+    info: NameAuctionEntry,
+}
+
+#[get("/names/auctions/<name>/info")]
+fn info_for_auction(_state: State<MiddlewareServer>, name: String) -> Json<AuctionInfo> {
+    let connection = &PGCONNECTION.get().unwrap();
+    let bids = crate::models::Name::bids_for_name(connection, name.clone()).unwrap();
+    let info = crate::models::NameAuctionEntry::load_for_name(connection, name.clone()).unwrap();
+    Json(AuctionInfo{ bids, info })
+}
+
+#[get("/names/auctions/bids/<name>?<limit>&<page>")]
+fn bids_for_name(
+    _state: State<MiddlewareServer>,
+    name: String,
+    limit: Option<i32>,
+    page: Option<i32>,
+) -> Json<Vec<Transaction>> {
+    let mut result =
+        crate::models::Name::bids_for_name(&PGCONNECTION.get().unwrap(), name).unwrap();
+    offset_limit_vec!(limit, page, result);
+    Json(result)
 }
 
 /**
@@ -1099,13 +1259,50 @@ fn swagger() -> JsonValue {
     serde_json::from_str(swagger_str).unwrap()
 }
 
+#[get("/compilers")]
+pub fn get_available_compilers() -> JsonValue {
+    match supported_compiler_versions().unwrap() {
+        Some(val) => json!({ "compilers": val }),
+        _ => json!({
+            "error": "no compiler available"
+        }),
+    }
+}
+
+#[post("/contracts/verify", format = "application/json", data = "<body>")]
+pub fn verify_contract(
+    _state: State<MiddlewareServer>,
+    body: Json<ContractVerification>,
+) -> JsonValue {
+    if !validate_compiler(body.compiler.clone()) {
+        return json!({
+            "error": "invalid compiler version"
+        });
+    }
+    match get_contract_bytecode(&body.contract_id).unwrap() {
+        Some(create_bytecode) => {
+            match compile_contract(body.source.clone(), body.compiler.clone()).unwrap() {
+                Some(compiled_bytecode) => json!({
+                        "verified": (create_bytecode == compiled_bytecode)
+                }),
+                _ => json!({
+                    "error": "unable to compile the contract"
+                }),
+            }
+        }
+        _ => json!({
+            "error": "contract not found"
+        }),
+    }
+}
+
 impl MiddlewareServer {
     pub fn start(self) {
         let allowed_origins = AllowedOrigins::all();
         let options = rocket_cors::CorsOptions {
             allowed_origins,
-            allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-            allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+            allowed_methods: vec!(Method::Get,Method::Post,Method::Options).into_iter().map(From::from).collect(),
+            allowed_headers: AllowedHeaders::All,
             allow_credentials: true,
             ..Default::default()
         }
@@ -1116,13 +1313,21 @@ impl MiddlewareServer {
             .register(catchers![error400, error404])
             .mount("/middleware", routes![active_channels])
             .mount("/middleware", routes![active_names])
+            .mount("/middleware", routes![active_name_auctions])
+            .mount("/middleware", routes![active_name_auctions_count])
             .mount("/middleware", routes![all_names])
             .mount("/middleware", routes![all_contracts])
+            .mount("/middleware", routes![bids_for_account])
+            .mount("/middleware", routes![bids_for_name])
             .mount("/middleware", routes![calls_for_contract_address])
             .mount("/middleware", routes![current_count])
             .mount("/middleware", routes![current_size])
+            .mount("/middleware", routes![error])
+            .mount("/middleware", routes![get_available_compilers])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![height_at_epoch])
+	    .mount("/middleware", routes![info_for_auction])
+            .mount("/middleware", routes![name_for_hash])
             .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])
             .mount("/middleware", routes![reverse_names])
@@ -1138,6 +1343,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![transaction_count_for_account])
             .mount("/middleware", routes![transactions_for_channel_address])
             .mount("/middleware", routes![transactions_for_contract_address])
+            .mount("/middleware", routes![verify_contract])
             .mount("/v2", routes![current_generation])
             .mount("/v2", routes![current_key_block])
             .mount("/v2", routes![generation_at_height])

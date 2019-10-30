@@ -52,12 +52,23 @@ table! {
 }
 
 table! {
+    name_auction_entries (name) {
+        name -> Varchar,
+        expiration -> Int8,
+        winning_bid -> Numeric,
+        winning_bidder -> Varchar,
+        transaction_id -> Int4,
+    }
+}
+
+table! {
     names (id) {
         id -> Int4,
         name -> Varchar,
         name_hash -> Varchar,
         tx_hash -> Varchar,
         created_at_height -> Int8,
+        auction_end_height -> Int8,
         owner -> Varchar,
         expires_at -> Int8,
         pointers -> Nullable<Jsonb>,
@@ -103,12 +114,22 @@ table! {
     }
 }
 
+table! {
+    associated_accounts (id ) {
+        id -> Int4,
+        transaction_id -> Int4,
+        name_hash -> Varchar,
+        aeternity_id -> Varchar,
+    }
+}
+
 joinable!(channel_identifiers -> transactions (transaction_id));
 joinable!(contract_calls -> transactions (transaction_id));
 joinable!(contract_identifiers -> transactions (transaction_id));
 joinable!(micro_blocks -> key_blocks (key_block_id));
 joinable!(names -> transactions (transaction_id));
 joinable!(oracle_queries -> transactions (transaction_id));
+joinable!(associated_accounts -> transactions (transaction_id));
 joinable!(transactions -> micro_blocks (micro_block_id));
 
 allow_tables_to_appear_in_same_query!(

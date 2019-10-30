@@ -1,14 +1,12 @@
 <template>
   <div class="account">
-    <no-ssr>
+    <client-only>
       <AppIdenticon
         :address="value"
         class="account-identicon"
       />
-    </no-ssr>
-    <AppDefinition
-      :title="title"
-    >
+    </client-only>
+    <AppDefinition :title="title">
       <div class="account-content">
         <FormatAddress
           :value="value"
@@ -48,23 +46,22 @@ export default {
 }
 </script>
 <style scoped lang="scss">
-    .account {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding-left: .6rem;
-      @media (max-width:450px) {
-        flex-direction: column;
-        justify-content: start;
-        align-items: start;
-        padding-left: 0;
-      }
-      &-identicon {
-        @media (max-width:450px) {
-          margin-left: .6rem;
-          margin-top: .3rem;
-        }
-      }
+.account {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-left: 0.6rem;
+  @media (max-width: 450px) {
+    flex-direction: column;
+    justify-content: start;
+    align-items: start;
+    padding-left: 0;
+  }
+  &-identicon {
+    @media (max-width: 450px) {
+      margin-left: 0.6rem;
+      margin-top: 0.3rem;
     }
-
+  }
+}
 </style>

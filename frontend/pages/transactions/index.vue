@@ -54,19 +54,25 @@ export default {
   data () {
     return {
       typePage: 1,
-      loading: false,
+      loading: true,
       value: 'All',
-      transactions: this.$store.state.transactions.transactions,
+      transactions: {},
       options: this.$store.state.filterOptions
     }
   },
-  async created () {
-    if (!Object.keys(this.$store.state.transactions.transactions).length) {
-      this.loading = true
-      await this.$store.dispatch('height')
-      await this.getAllTx()
-      this.loading = false
+  async mounted () {
+    if (this.$route.query.txtype && this.options.indexOf(this.$route.query.txtype) > 0) {
+      this.value = this.$route.query.txtype
+      await this.getTxByType()
+    } else {
+      if (!Object.keys(this.$store.state.transactions.transactions).length) {
+        await this.$store.dispatch('height')
+        await this.getAllTx()
+      } else {
+        this.transactions = this.$store.state.transactions.transactions
+      }
     }
+    this.loading = false
   },
   methods: {
     async loadmore () {
@@ -75,6 +81,7 @@ export default {
       } else {
         await this.getTxByType()
       }
+      this.$route.query.txtype = this.value
     },
     async getAllTx () {
       const tx = await this.$store.dispatch(

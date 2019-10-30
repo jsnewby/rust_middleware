@@ -3,7 +3,6 @@ use super::schema::transactions::dsl::*;
 use chashmap::*;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
-use diesel::sql_query;
 use diesel::Connection;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
@@ -212,7 +211,7 @@ impl BlockLoader {
                             }
                         }
                         Err(e) => {
-                            error!("Error in comparison of micro blocks");
+                            error!("Error {:?} in comparison of micro blocks", e);
                             fork_was_detected = true;
                             in_fork = true;
                         }
@@ -245,7 +244,7 @@ impl BlockLoader {
                 );
             }
             current_height -= 1;
-            thread::sleep(std::time::Duration::new(blocks_since_last_fork+1, 0));
+            thread::sleep(std::time::Duration::new(blocks_since_last_fork + 1, 0));
         }
         Ok(fork_was_detected)
     }
@@ -255,7 +254,6 @@ impl BlockLoader {
             BlockLoader::inner_detect_forks(node, _tx)?;
             thread::sleep(std::time::Duration::new(5, 0));
         }
-        Ok(())
     }
 
     /*
@@ -408,11 +406,11 @@ impl BlockLoader {
             InsertableKeyBlock::from_json_key_block(&generation.key_block)?;
         let key_block_id = ib.save(&connection)? as i32;
         websocket::broadcast_ws(&Candidate {
-            payload: WsPayload::object,
+            payload: WsPayload::Object,
             data: serde_json::to_value(&generation.key_block)?,
         })?;
         websocket::broadcast_ws(&Candidate {
-            payload: WsPayload::key_blocks,
+            payload: WsPayload::KeyBlocks,
             data: serde_json::to_value(&generation.key_block)?,
         })?; //broadcast key_block
         for mb_hash in &generation.micro_blocks {
@@ -420,11 +418,11 @@ impl BlockLoader {
                 serde_json::from_value(self.node.get_micro_block_by_hash(&mb_hash)?)?;
             mb.key_block_id = Some(key_block_id);
             websocket::broadcast_ws(&Candidate {
-                payload: WsPayload::object,
+                payload: WsPayload::Object,
                 data: serde_json::to_value(&mb)?,
             })?;
             websocket::broadcast_ws(&Candidate {
-                payload: WsPayload::micro_blocks,
+                payload: WsPayload::MicroBlocks,
                 data: serde_json::to_value(&mb)?,
             })?;
             let _micro_block_id = mb.save(&connection)? as i32;
@@ -482,14 +480,17 @@ impl BlockLoader {
             match ttype {
                 "NameClaimTx" => {
                     debug!("NameClaimTx: {:?}", transaction);
-                    if let Some(name) = InsertableName::new_from_transaction(tx_id, transaction) {
+                    if let Some(name) = InsertableName::new_from_transaction(tx_id, transaction)? {
+                        // this only stores the initial ClaimTx, the subsequent bidding ones are
+                        // not relevant to this table.
                         name.save(connection)?;
                     }
                 }
                 "NameRevokeTx" => {
                     if let Some(name_id) = transaction.tx["name_id"].as_str() {
-                        if let Some(name) = Name::load_for_hash(connection, name_id) {
-                            name.delete(connection)?;
+                        if let Some(mut name) = Name::load_for_hash(connection, name_id) {
+                            name.expires_at = transaction.block_height.into();
+                            name.update(connection)?;
                         }
                     }
                 }
@@ -508,7 +509,7 @@ impl BlockLoader {
                     if let Some(name_id) = transaction.tx["name_id"].as_str() {
                         if let Some(mut name) = Name::load_for_hash(connection, name_id) {
                             name.expires_at = transaction.tx["name_ttl"].as_i64()?
-                                + transaction.block_height as i64;
+                                + transaction.block_height as i64; // TODO: confirm
                             name.pointers = Some(transaction.tx["pointers"].clone());
                             name.update(connection)?;
                         }
@@ -531,51 +532,36 @@ impl BlockLoader {
         trans: &JsonTransaction,
         _micro_block_id: Option<i32>,
     ) -> MiddlewareResult<i32> {
-        let sql = format!(
-            "select * from transactions where hash = '{}' limit 1",
-            &trans.hash
-        );
-        debug!("{}", sql);
         websocket::broadcast_ws(&Candidate {
-            payload: WsPayload::object,
+            payload: WsPayload::Object,
             data: serde_json::to_value(trans)?,
         })?;
-        let mut results: Vec<Transaction> = sql_query(sql).get_results(conn)?;
-        match results.pop() {
-            Some(x) => {
-                debug!("Updating transaction with hash {}", &trans.hash);
-                diesel::update(&x)
-                    .set(micro_block_id.eq(_micro_block_id))
-                    .execute(conn)?;
-                websocket::broadcast_ws(&Candidate {
-                    payload: WsPayload::tx_update,
-                    data: serde_json::to_value(&x)?,
-                })?; //broadcast updated transaction
-                Ok(x.id)
-            }
-            None => {
-                debug!("Inserting transaction with hash {}", &trans.hash);
-                let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
-                let _tx: InsertableTransaction = match InsertableTransaction::from_json_transaction(
-                    &trans,
-                    _tx_type,
-                    _micro_block_id,
-                ) {
-                    Ok(x) => x,
-                    Err(e) => match *PARANOIA_LEVEL {
-                        ParanoiaLevel::High => {
-                            panic!("Error loading blocks, and paranoia level is high: {:?}", e)
-                        }
-                        _ => return Err(MiddlewareError::from(e)),
-                    },
-                };
-                websocket::broadcast_ws(&Candidate {
-                    payload: WsPayload::transactions,
-                    data: serde_json::to_value(trans)?,
-                })?; //broadcast updated transaction
-                _tx.save(conn)
-            }
+        // clear out any previous versions of this transaction.
+        // TODO: be cleverer with this (but not too clever).
+        diesel::delete(transactions.filter(super::schema::transactions::dsl::hash.eq(&trans.hash)))
+            .execute(conn)?;
+        debug!("Inserting transaction with hash {}", &trans.hash);
+        let _tx_type: String = from_json(&serde_json::to_string(&trans.tx["type"])?);
+        let _tx: InsertableTransaction =
+            match InsertableTransaction::from_json_transaction(&trans, _tx_type, _micro_block_id) {
+                Ok(x) => x,
+                Err(e) => match *PARANOIA_LEVEL {
+                    ParanoiaLevel::High => {
+                        panic!("Error loading blocks, and paranoia level is high: {:?}", e)
+                    }
+                    _ => return Err(MiddlewareError::from(e)),
+                },
+            };
+        websocket::broadcast_ws(&Candidate {
+            payload: WsPayload::Transactions,
+            data: serde_json::to_value(trans)?,
+        })?; //broadcast transaction
+        let transaction_id: i32 = _tx.save(conn)?;
+        let associated_accounts = crate::models::InsertableAssociatedAccount::from_transaction(conn, &serde_json::to_value(trans)?, trans.block_height as i64, transaction_id)?;
+        for associated_account in associated_accounts {
+            associated_account.save(conn)?;
         }
+        Ok(transaction_id)
     }
 
     /*
@@ -618,21 +604,37 @@ impl BlockLoader {
      * - micro blocks
      * - transactions
      */
-    pub fn verify(&self) -> MiddlewareResult<i64> {
+    pub fn verify_all(&self) -> MiddlewareResult<i64> {
         let top_chain = self.node.latest_key_block()?["height"].as_i64()?;
         let mut _verified: i64 = 0;
         let conn = PGCONNECTION.get()?;
         let top_db = KeyBlock::top_height(&conn)?;
         let top_max = std::cmp::max(top_chain, top_db);
-        let mut i = top_max;
+        let mut _height = top_max;
         loop {
-            match self.compare_chain_and_db(i, &conn) {
-                Ok(_height) => println!("Height {} OK", i),
-                Err(e) => println!("Height {} not OK: {}", i, match e.to_string().lines().next() { Some(x) => x, None => "", }),
+            match self.verify_height(_height) {
+                Ok(_) => (),
+                Err(e) => error!("Error in hashing::min_b(): {:?}", e),
             }
-            i -= 1;
+            _height -= 1;
             _verified += 1;
         }
+    }
+
+    pub fn verify_height(&self, _height: i64) -> MiddlewareResult<()> {
+        let conn = PGCONNECTION.get()?;
+        match self.compare_chain_and_db(_height, &conn) {
+            Ok(_val) => println!("Height {} OK {}", _height, _val),
+            Err(e) => println!(
+                "Height {} not OK: {}",
+                _height,
+                match e.to_string().lines().next() {
+                    Some(x) => x,
+                    None => "",
+                }
+            ),
+        }
+        Ok(())
     }
 
     pub fn compare_chain_and_db(

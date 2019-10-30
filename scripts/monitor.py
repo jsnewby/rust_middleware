@@ -19,11 +19,11 @@ MAX_QUEUE_LENGTH = 1000
 ## list of monitors to check
 monitors = {
     "testnet-loader": {
-        "service_name": "mdw-testnet-loader",
+        "service_name": "aeternal-testnet-loader",
         "url": "https://testnet.mdw.aepps.com/middleware/status"
     },
     "mainnet-loader": {
-        "service_name": "mdw-loader",
+        "service_name": "aeternal-loader",
         "url": "https://mdw.aepps.com/middleware/status"
     },
 }

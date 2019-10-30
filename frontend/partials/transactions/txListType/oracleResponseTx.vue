@@ -59,6 +59,12 @@
             :value="transaction.tx.fee"
           />
         </AppDefinition>
+        <AppDefinition
+          v-if="transaction.tx.nonce"
+          title="nonce"
+        >
+          {{ transaction.tx.nonce }}
+        </AppDefinition>
       </div>
     </div>
   </div>

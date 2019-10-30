@@ -6,6 +6,8 @@ The middleware is a caching and reporting layer which sits in front of the nodes
 
 On startup, the middleware reads the entirety of the blockchain, and stores a denormalized version of the data in a PostgreSQL database.
 
+Full documentation is available in the [manual](docs/middleware-guide.md).
+
 ## Features
 
 ### Caching
@@ -84,6 +86,8 @@ then
 
 The middleware will automatically set up its DB on initialization, and run migrations after an update, if they are necessary.
 
+On Ubuntu 18 and 19 the following packages are needed: `libpq-dev`, `libssl-dev` and `zlib1g-dev`. YMMV depending on whether you've e.g. gcc installed.
+
 ## How to run
 
 ### Development mode
@@ -123,9 +127,11 @@ cargo build --release # make a release build--this will take a long long time
 ```
 GET /middleware/channels/active
 GET /middleware/channels/transactions/address/<address>
+GET /middleware/compilers
 GET /middleware/contracts/all
 GET /middleware/contracts/calls/address/<address>
 GET /middleware/contracts/transactions/address/<address>
+POST /middleware/contracts/verify
 GET /middleware/generations/<from>/<to>?<limit>&<page>
 GET /middleware/height/at/<millis_since_epoch>
 GET /middleware/names/<name>

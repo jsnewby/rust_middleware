@@ -19,6 +19,12 @@ impl MiddlewareError {
     }
 }
 
+impl PartialEq for MiddlewareError {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
 impl fmt::Display for MiddlewareError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.details)
@@ -41,110 +47,39 @@ impl From<NoneError> for MiddlewareError {
     }
 }
 
-impl From<r2d2::Error> for MiddlewareError {
-    fn from(err: r2d2::Error) -> Self {
-        MiddlewareError::new(&err.to_string())
+#[macro_export]
+macro_rules! middleware_error_from {
+    {$fromtype:ty} => {
+        impl From<$fromtype> for MiddlewareError {
+            fn from(err: $fromtype) -> Self {
+                MiddlewareError::new(&err.to_string())
+            }
+        }
     }
 }
 
-impl From<Box<dyn std::error::Error>> for MiddlewareError {
-    fn from(err: Box<dyn std::error::Error>) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
+middleware_error_from!(r2d2::Error);
+middleware_error_from!(Box<dyn std::error::Error>);
+middleware_error_from!(serde_json::Error);
+middleware_error_from!(diesel::result::Error);
+middleware_error_from!(postgres::Error);
+middleware_error_from!(curl::Error);
+middleware_error_from!(std::str::Utf8Error);
+middleware_error_from!(std::sync::mpsc::TryRecvError);
+middleware_error_from!(std::sync::mpsc::SendError<i64>);
+middleware_error_from!(WsError);
+middleware_error_from!(std::string::FromUtf8Error);
+middleware_error_from!(curl::FormError);
+middleware_error_from!(reqwest::Error);
+middleware_error_from!(
+    std::sync::PoisonError<
+        std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>,
+    >
+);
 
-impl std::convert::From<serde_json::Error> for MiddlewareError {
-    fn from(err: serde_json::Error) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<diesel::result::Error> for MiddlewareError {
-    fn from(err: diesel::result::Error) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<postgres::Error> for MiddlewareError {
-    fn from(err: postgres::Error) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<curl::Error> for MiddlewareError {
-    fn from(err: curl::Error) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<std::str::Utf8Error> for MiddlewareError {
-    fn from(err: std::str::Utf8Error) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<std::sync::mpsc::TryRecvError> for MiddlewareError {
-    fn from(err: std::sync::mpsc::TryRecvError) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<std::sync::mpsc::SendError<i64>> for MiddlewareError {
-    fn from(err: std::sync::mpsc::SendError<i64>) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<WsError> for MiddlewareError {
-    fn from(err: WsError) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<std::string::FromUtf8Error> for MiddlewareError {
-    fn from(err: std::string::FromUtf8Error) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<curl::FormError> for MiddlewareError {
-    fn from(err: curl::FormError) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<reqwest::Error> for MiddlewareError {
-    fn from(err: reqwest::Error) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl
-    std::convert::From<
-        std::sync::PoisonError<
-            std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>,
-        >,
-    > for MiddlewareError
-{
-    fn from(
-        err: std::sync::PoisonError<
-            std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>,
-        >,
-    ) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<bigdecimal::ParseBigDecimalError> for MiddlewareError {
-    fn from(err: bigdecimal::ParseBigDecimalError) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<std::env::VarError> for MiddlewareError {
-    fn from(err: std::env::VarError) -> Self {
-        MiddlewareError::new(&err.to_string())
-    }
-}
+middleware_error_from!(bigdecimal::ParseBigDecimalError);
+middleware_error_from!(std::env::VarError);
+middleware_error_from!(reqwest::header::InvalidHeaderValue);
+middleware_error_from!(base64::DecodeError);
 
 pub type MiddlewareResult<T> = Result<T, MiddlewareError>;
