@@ -1302,7 +1302,7 @@ impl MiddlewareServer {
         let options = rocket_cors::CorsOptions {
             allowed_origins,
             allowed_methods: vec!(Method::Get,Method::Post,Method::Options).into_iter().map(From::from).collect(),
-            allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+            allowed_headers: AllowedHeaders::All,
             allow_credentials: true,
             ..Default::default()
         }
