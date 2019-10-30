@@ -1018,7 +1018,7 @@ impl Name {
 pub struct NameAuctionEntry {
     pub name: String,
     pub expiration: i64,
-    pub winning_bid: BigDecimal,
+    pub winning_bid: bigdecimal::BigDecimal,
     pub winning_bidder: String,
     #[serde(skip_serializing)]
     pub transaction_id: i32,

@@ -985,16 +985,16 @@ fn reward_at_height(_state: State<MiddlewareServer>, height: i64) -> JsonValue {
     })
 }
 
-#[get("/names/active?<limit>&<page>&<owner>")]
+#[get("/names/active?<limit>&<page>&<owner>&<reverse>")]
 fn active_names(
     _state: State<MiddlewareServer>,
     limit: Option<i32>,
     page: Option<i32>,
     owner: Option<String>,
+    reverse: Option<String>,
 ) -> Json<Vec<Name>> {
     let connection = PGCONNECTION.get().unwrap();
-    let (offset_sql, limit_sql) = offset_limit(limit, page);
-    let top_height = KeyBlock::top_height(&*connection).unwrap();
+   let top_height = KeyBlock::top_height(&*connection).unwrap();
     let sql: String = match owner {
         Some(owner) => format!(
             "select * from \
@@ -1002,27 +1002,25 @@ fn active_names(
              auction_end_height <= {} and \
              expires_at >= {} and \
              owner = '{}' \
-             order by expires_at desc \
-             limit {} offset {} ",
+             order by expires_at desc",
             top_height, top_height,
             sanitize(&owner),
-            limit_sql,
-            offset_sql
         ),
         _ => format!(
             "select * from \
              names where \
              auction_end_height <= {} and \
              expires_at >= {} \
-             order by created_at_height desc \
-             limit {} offset {} ",
+             order by created_at_height desc",
             top_height, top_height,
-            limit_sql,
-            offset_sql
         ),
     };
     debug!("{}", sql);
-    let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    let mut names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    if reverse != None {
+        names.reverse();
+    }
+    offset_limit_vec!(limit, page, names);
     Json(names)
 }
 
@@ -1178,15 +1176,18 @@ fn name_for_hash(_state: State<MiddlewareServer>, name: String) -> Json<JsonValu
     Json(json!({ "name": details }))
 }
 
+#[derive(Serialize)]
+struct AuctionInfo {
+    bids: Vec<Transaction>,
+    info: NameAuctionEntry,
+}
+
 #[get("/names/auctions/<name>/info")]
-fn info_for_auction(_state: State<MiddlewareServer>, name: String) -> Json<JsonValue> {
+fn info_for_auction(_state: State<MiddlewareServer>, name: String) -> Json<AuctionInfo> {
     let connection = &PGCONNECTION.get().unwrap();
     let bids = crate::models::Name::bids_for_name(connection, name.clone()).unwrap();
-    let auction_info = crate::models::NameAuctionEntry::load_for_name(connection, name.clone()).unwrap();
-    Json(json!({
-        "info" : auction_info,
-        "bids" : bids,
-        }))
+    let info = crate::models::NameAuctionEntry::load_for_name(connection, name.clone()).unwrap();
+    Json(AuctionInfo{ bids, info })
 }
 
 #[get("/names/auctions/bids/<name>?<limit>&<page>")]
@@ -1300,7 +1301,7 @@ impl MiddlewareServer {
         let allowed_origins = AllowedOrigins::all();
         let options = rocket_cors::CorsOptions {
             allowed_origins,
-            allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+            allowed_methods: vec!(Method::Get,Method::Post,Method::Options).into_iter().map(From::from).collect(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             ..Default::default()
