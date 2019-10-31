@@ -1,11 +1,11 @@
 {
-  "name": "aepp-middleware-frontend",
+  "name": "aeternal-frontend",
   "version": "0.0.1",
-  "description": "frontend for middleware",
+  "description": "frontend for aeternal",
   "author": "Shubhendu Shekhar",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aeternity/aepp-middleware"
+    "url": "https://github.com/aeternity/aeternal"
   },
   "license": "ISC",
   "private": false,
