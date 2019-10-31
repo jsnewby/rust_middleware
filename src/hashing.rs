@@ -128,31 +128,40 @@ pub fn get_name_hash(name: &str) -> Vec<u8> {
     result
 }
 
-#[test]
-fn test_name_hash() {
-    assert_eq!(
-        get_name_id("welghmolql.test").unwrap(),
-        "nm_Ziiq3M9ASEHXCV71qUNde6SsomqwZjYPFvnJSvTkpSUDiXqH3"
-    );
-    assert_ne!(
-        get_name_id("abc.test").unwrap(),
-        "nm_2KrC4asc6fdv82uhXDwfiqB1TY2htjhnzwzJJKLxidyMymJRUQ"
-    );
+fn blake2b(input: Vec<u8>) -> Vec<u8> {
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.input(input);
+    hasher.vec_result()
 }
 
 pub fn get_name_id(name: &str) -> MiddlewareResult<String> {
-    Ok(format!("nm_{}", to_base58check(&get_name_hash(name))))
+    Ok(format!(
+        "nm_{}",
+        to_base58check(&blake2b(
+            name.to_string().to_lowercase().as_bytes().to_vec()
+        ))
+    ))
+}
+
+#[test]
+fn test_name_hash() {
+    assert_eq!(
+        get_name_id("morethantwelve.chain").unwrap(),
+        "nm_2JiYeYyL4qgTm7Rb16AG1LuUWGHdyuH6v8uRcJ2Gfqto9ezBFR"
+    );
 }
 
 pub fn get_name_auction_length(name: &String) -> MiddlewareResult<i32> {
     let parts: Vec<&str> = name.split(".").collect();
     if parts.len() != 2 {
-        return Err(crate::middleware_result::MiddlewareError::new(format!("name {} not supported", name).as_str()));
+        return Err(crate::middleware_result::MiddlewareError::new(
+            format!("name {} not supported", name).as_str(),
+        ));
     }
     let length = match String::from(*parts.get(0)?).len() {
-        1 ..=4 => 29760,
-        5 ..=8 => 14880,
-        9 ..=12 => 480,
+        1..=4 => 29760,
+        5..=8 => 14880,
+        9..=12 => 480,
         _ => 0,
     };
     Ok(length)
@@ -160,11 +169,26 @@ pub fn get_name_auction_length(name: &String) -> MiddlewareResult<i32> {
 
 #[test]
 fn test_name_auction_length() {
-    assert_eq!(get_name_auction_length(&String::from("1.chain")).unwrap(), 29760);
-    assert_eq!(get_name_auction_length(&String::from("12345678.chain")).unwrap(), 14880);
-    assert_eq!(get_name_auction_length(&String::from("123456789.chain")).unwrap(), 480);
-    assert_eq!(get_name_auction_length(&String::from("1234567890.chain")).unwrap(), 480);
-    assert_eq!(get_name_auction_length(&String::from("12345467890123.chain")).unwrap(), 0);
+    assert_eq!(
+        get_name_auction_length(&String::from("1.chain")).unwrap(),
+        29760
+    );
+    assert_eq!(
+        get_name_auction_length(&String::from("12345678.chain")).unwrap(),
+        14880
+    );
+    assert_eq!(
+        get_name_auction_length(&String::from("123456789.chain")).unwrap(),
+        480
+    );
+    assert_eq!(
+        get_name_auction_length(&String::from("1234567890.chain")).unwrap(),
+        480
+    );
+    assert_eq!(
+        get_name_auction_length(&String::from("12345467890123.chain")).unwrap(),
+        0
+    );
 }
 
 /*
