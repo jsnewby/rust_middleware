@@ -37,8 +37,8 @@ module.exports = {
     }
   ],
   env: {
-    middlewareURL: process.env.NUXT_APP_NODE_URL || 'https://testnet.mdw.aepps.com',
-    middlewareWS: process.env.NUXT_APP_NODE_WS || 'wss://testnet.mdw.aepps.com/websocket',
+    middlewareURL: process.env.NUXT_APP_NODE_URL || 'https://testnet.aeternal.io',
+    middlewareWS: process.env.NUXT_APP_NODE_WS || 'wss://testnet.aeternal.io/websocket',
     networkName: process.env.NUXT_APP_NETWORK_NAME || 'TEST NET',
     swaggerHub: process.env.NUXT_APP_SWAGGER_HUB || 'https://app.swaggerhub.com/apis-docs/sshekhar/aepp-middleware/1.0',
     enableFaucet: process.env.NUXT_APP_ENABLE_FAUCET || false,

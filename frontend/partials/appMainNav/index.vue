@@ -36,6 +36,9 @@
         <AppNavLink to="/names">
           Names
         </AppNavLink>
+        <AppNavLink to="/auctions">
+          Name Auctions
+        </AppNavLink>
         <AppNavLink to="/oracles">
           Oracles
         </AppNavLink>
