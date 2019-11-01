@@ -65,26 +65,6 @@ fn blake2bdigest(v: &Vec<u8>) -> Vec<u8> {
     hasher.vec_result()
 }
 
-pub fn gen_oracle_query_id(sender_id: &String, nonce: i64, recipient_id: &String) -> String {
-    let mut sender_id_bin = decodebase58check(&hash_part(sender_id));
-    let mut recipient_id_bin = decodebase58check(&hash_part(recipient_id));
-    let mut nonce_byte32 = min_b(nonce);
-    loop {
-        if nonce_byte32.len() < 32 {
-            nonce_byte32.insert(0, 0u8);
-        } else {
-            break;
-        }
-    }
-    let mut all = vec![];
-    all.append(&mut sender_id_bin);
-    all.append(&mut nonce_byte32);
-    all.append(&mut recipient_id_bin);
-    let hash = blake2bdigest(&all);
-    let encoded = to_base58check(&hash);
-    format!("oq_{}", encoded)
-}
-
 pub fn gen_channel_id(
     initiator_id: &String,
     channel_create_tx_nonce: i64,
@@ -109,23 +89,24 @@ pub fn gen_channel_id(
     format!("ch_{}", encoded)
 }
 
-pub fn get_name_hash(name: &str) -> Vec<u8> {
-    let mut result = [0u8; 32].to_vec();
-    let mut split: Vec<&[u8]> = name.split('.').rev().map(|s| s.as_bytes()).collect();
+pub fn gen_oracle_query_id(sender_id: &String, nonce: i64, recipient_id: &String) -> String {
+    let mut sender_id_bin = decodebase58check(&hash_part(sender_id));
+    let mut recipient_id_bin = decodebase58check(&hash_part(recipient_id));
+    let mut nonce_byte32 = min_b(nonce);
     loop {
-        if let Some(part) = split.pop() {
-            let mut hasher = VarBlake2b::new(32).unwrap();
-            hasher.input(part);
-            let hashed = hasher.vec_result();
-            result.extend(hashed);
-            let mut hasher = VarBlake2b::new(32).unwrap();
-            hasher.input(result);
-            result = hasher.vec_result();
+        if nonce_byte32.len() < 32 {
+            nonce_byte32.insert(0, 0u8);
         } else {
             break;
         }
     }
-    result
+    let mut all = vec![];
+    all.append(&mut sender_id_bin);
+    all.append(&mut nonce_byte32);
+    all.append(&mut recipient_id_bin);
+    let hash = blake2bdigest(&all);
+    let encoded = to_base58check(&hash);
+    format!("oq_{}", encoded)
 }
 
 fn blake2b(input: Vec<u8>) -> Vec<u8> {
@@ -148,6 +129,10 @@ fn test_name_hash() {
     assert_eq!(
         get_name_id("morethantwelve.chain").unwrap(),
         "nm_2JiYeYyL4qgTm7Rb16AG1LuUWGHdyuH6v8uRcJ2Gfqto9ezBFR"
+    );
+    assert_eq!(
+        get_name_id("education.chain").unwrap(),
+        "nm_2fVvxG8WYJsJKGFLa5AUAKAdPExpHQJhP39u2ypaJ7YmjLRfkU"
     );
 }
 

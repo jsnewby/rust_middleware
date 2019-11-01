@@ -945,6 +945,7 @@ impl InsertableName {
             .unwrap();
         Ok(generated_ids[0])
     }
+
 }
 
 #[derive(AsChangeset, Clone, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
@@ -979,6 +980,17 @@ impl Name {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn get_for_hash(connection: &PgConnection,  _name_hash: &String) ->
+        MiddlewareResult<Self>
+    {
+        use schema::names::dsl::*;
+        Ok(names
+           .filter(name_hash.eq(_name_hash))
+           .then_order_by(id.desc())
+           .limit(1)
+           .first::<Self>(connection)?)
     }
 
     pub fn get_for_height_and_hash(connection: &PgConnection, _height: i64, _hash: &String) ->

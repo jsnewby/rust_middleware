@@ -484,6 +484,13 @@ impl BlockLoader {
                         // this only stores the initial ClaimTx, the subsequent bidding ones are
                         // not relevant to this table.
                         name.save(connection)?;
+                    } else {
+                        let name_hash = transaction.tx["name_id"].as_str()?;
+                        let mut name = Name::get_for_hash(connection, &name_hash.to_string())?;
+                        name.auction_end_height = (transaction.block_height +
+                            crate::hashing::get_name_auction_length(
+                                &transaction.tx["name"].as_str()?.to_string())?).into();
+                        name.update(connection)?;
                     }
                 }
                 "NameRevokeTx" => {
