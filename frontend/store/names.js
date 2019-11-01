@@ -33,15 +33,16 @@ export const actions = {
       commit('catchError', 'Error', { root: true })
     }
   },
-  getActiveNameAuctions: async function ({ rootState: { nodeUrl }, commit }, { page, limit }) {
+  getActiveNameAuctions: async function ({ rootState: { nodeUrl }, commit }, { page, limit, sort }) {
     try {
-      const url = `${nodeUrl}/middleware/names/auctions/active?limit=${limit}&page=${page}`
+      const url = `${nodeUrl}/middleware/names/auctions/active?limit=${limit}&page=${page}&sort=${sort}`
       const auctions = await axios.get(url)
-      console.info('MDW 🔗 ' + url, auctions.data)
+      console.info('MDW 🔗 ' + url)
       return auctions.data
     } catch (e) {
       console.log(e)
       commit('catchError', 'Error', { root: true })
+      return []
     }
   }
 }
