@@ -1058,6 +1058,12 @@ impl Name {
         Some(_names.pop()?)
     }
 
+    pub fn load_for_name(connection: &PgConnection, _name: &str) -> Option<Self> {
+        let sql = format!("select * from names where name='{}'", _name);
+        let mut _names: Vec<Name> = sql_query(sql).load(connection).unwrap();
+        Some(_names.pop()?)
+    }
+
     pub fn owner_at_height(connection: &PgConnection, _name: &str, _height: i64) ->
         MiddlewareResult<Self>
     {

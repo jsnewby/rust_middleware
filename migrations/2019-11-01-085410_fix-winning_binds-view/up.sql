@@ -1,5 +1,3 @@
--- Your SQL goes here
-
 
 CREATE OR REPLACE VIEW winning_bids AS
 SELECT
