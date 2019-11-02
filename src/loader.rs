@@ -486,11 +486,14 @@ impl BlockLoader {
                         name.save(connection)?;
                     } else {
                         let name = transaction.tx["name"].as_str()?;
-                        let mut name = Name::load_for_name(connection, &name.to_string())?;
-                        name.auction_end_height = (transaction.block_height +
-                            crate::hashing::get_name_auction_length(
-                                &transaction.tx["name"].as_str()?.to_string())?).into();
-                        name.update(connection)?;
+                        if let Some(mut name) = Name::load_for_name(connection, &name.to_string()) {
+                            name.auction_end_height = (transaction.block_height +
+                                                       crate::hashing::get_name_auction_length(
+                                                           &transaction.tx["name"].as_str()?.to_string())?).into();
+                            name.update(connection)?;
+                        } else {
+                            error!("Couldn't load name {}", name);
+                        }
                     }
                 }
                 "NameRevokeTx" => {
