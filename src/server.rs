@@ -1183,11 +1183,17 @@ struct AuctionInfo {
 }
 
 #[get("/names/auctions/<name>/info")]
-fn info_for_auction(_state: State<MiddlewareServer>, name: String) -> Json<AuctionInfo> {
+fn info_for_auction(_state: State<MiddlewareServer>, name: String) ->
+    Result<Json<AuctionInfo>, Status>
+{
     let connection = &PGCONNECTION.get().unwrap();
     let bids = crate::models::Name::bids_for_name(connection, name.clone()).unwrap();
-    let info = crate::models::NameAuctionEntry::load_for_name(connection, name.clone()).unwrap();
-    Json(AuctionInfo{ bids, info })
+    if let Ok(info) =
+        crate::models::NameAuctionEntry::load_for_name(connection, name.clone()) {
+            Ok(Json(AuctionInfo{ bids, info }))
+        } else {
+            Err(rocket::http::Status::new(404, "Not found"))
+        }
 }
 
 #[get("/names/auctions/bids/<name>?<limit>&<page>")]

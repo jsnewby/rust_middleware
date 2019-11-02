@@ -131,10 +131,14 @@ fn test_name_hash() {
         "nm_2JiYeYyL4qgTm7Rb16AG1LuUWGHdyuH6v8uRcJ2Gfqto9ezBFR"
     );
     assert_eq!(
-        get_name_id("education.chain").unwrap(),
-        "nm_2fVvxG8WYJsJKGFLa5AUAKAdPExpHQJhP39u2ypaJ7YmjLRfkU"
+        get_name_id("thisismysecond.chain").unwrap(),
+        "nm_gE3vy9S56bX8sxLMTc32m6AjNwzk4uiyspFuUV72eiqULHWLQ"
     );
+    assert_eq!(
+        get_name_id("example21.chain").unwrap(),
+        "nm_2tMJx8cXGy2oy7efC1FSne3EifksFYnm1KyckDYGvyYfn5GKUC");
 }
+
 
 pub fn get_name_auction_length(name: &String) -> MiddlewareResult<i32> {
     let parts: Vec<&str> = name.split(".").collect();
