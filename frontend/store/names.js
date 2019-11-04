@@ -33,9 +33,12 @@ export const actions = {
       commit('catchError', 'Error', { root: true })
     }
   },
-  getActiveNameAuctions: async function ({ rootState: { nodeUrl }, commit }, { page, limit, sort }) {
+  getActiveNameAuctions: async function ({ rootState: { nodeUrl }, commit }, { page, limit, sort, length }) {
     try {
-      const url = `${nodeUrl}/middleware/names/auctions/active?limit=${limit}&page=${page}&sort=${sort}`
+      let url = `${nodeUrl}/middleware/names/auctions/active?limit=${limit}&page=${page}&sort=${sort}`
+      if (length > 0) {
+        url += `&length=${length}`
+      }
       const auctions = await axios.get(url)
       console.info('MDW 🔗 ' + url)
       return auctions.data
