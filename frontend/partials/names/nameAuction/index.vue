@@ -1,38 +1,48 @@
 <template>
-  <div class="name">
-    <div class="container-first">
-      <div class="container-first-inner">
-        <nuxt-link :to="`/transactions/${data.tx_hash}`">
+  <div class="auction">
+    <div class="auction-main-info">
+      <div class="auction-main-info-inner">
+        <div class="auction-label">
           <LabelType
-            title="Name"
-            fill="green"
+            title="Name Auction"
+            fill="red"
           />
-        </nuxt-link>
-        <div class="name-value">
-          {{ data.name }}
         </div>
       </div>
-    </div>
-    <div class="container-last">
-      <div class="container-last-wrapper">
+      <div class="auction-main-info-inner accounts">
+        <Account
+          v-if="data.name"
+          :value="data.name"
+          title="name"
+          length="nochunk"
+          icon
+        />
         <Account
           :value="data.winning_bidder"
           title="Winning Bidder"
           icon
         />
+      </div>
+    </div>
+    <div class="auction-type-info">
+      <div class="auction-type-info-item">
         <AppDefinition
-          class="container-last-inner"
           title="Winning Bid"
         >
-          {{ bid }}
+          <FormatAeUnit :value="Number(data.winning_bid)" />
         </AppDefinition>
       </div>
-      <div class="container-last-wrapper">
+      <div class="auction-type-info-item">
         <AppDefinition
-          title="Expires At"
-          class="container-last-inner"
+          title="Block Height"
         >
-          {{ data.expiration }} ~ {{ estimatedExpiration }}
+          {{ data.expiration }}
+        </AppDefinition>
+        <AppDefinition
+          title="Estimated Expiration Time"
+          class="tx-time"
+        >
+          {{ estimatedExpiration }}
         </AppDefinition>
       </div>
     </div>
@@ -42,14 +52,15 @@
 import AppDefinition from '../../../components/appDefinition'
 import Account from '../../../components/account'
 import LabelType from '../../../components/labelType'
-import prefixAmount from '../../../plugins/filters/prefixedAmount'
+import FormatAeUnit from '../../../components/formatAeUnit'
 
 export default {
   name: 'NameAuction',
   components: {
     AppDefinition,
     LabelType,
-    Account
+    Account,
+    FormatAeUnit
   },
   props: {
     data: {
@@ -58,9 +69,6 @@ export default {
     }
   },
   computed: {
-    bid () {
-      return prefixAmount(this.data.winning_bid)
-    },
     estimatedExpiration () {
       const heightDiff = this.data.expiration - this.$store.state.height
       const epoch = new Date()
@@ -73,129 +81,106 @@ export default {
 </script>
 
 <style scoped lang="scss">
-  @import "../../../node_modules/@aeternity/aepp-components-3/src/styles/variables/colors";
-  .name {
-    background-color: #FFFFFF;
-    display: flex;
-    flex-direction: column;
-    padding: .6rem .6rem .6rem 0;
-    border-radius: .4rem;
-    box-shadow: 0 0 16px 0 rgba(27,68,121,0.10);
-    margin-bottom: 1rem;
-    @media (min-width: 768px) {
-      flex-direction: row;
-      border-radius: 0;
-      box-shadow: none;
-      margin-bottom: 0;
+@import '~@aeternity/aepp-components-3/src/styles/variables/colors';
+.auction {
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.6rem 0 0;
+  border-radius: 0.4rem;
+  box-shadow: 0 0 16px 0 rgba(27, 68, 121, 0.1);
+  margin-bottom: 1rem;
+  width: 100%;
+  @media (min-width: 550px) {
+    flex-direction: row;
+    border-radius: 0;
+    box-shadow: none;
+    margin-bottom: 0;
+    &:not(:last-child) {
       border-bottom: 2px solid $color-neutral-positive-2;
     }
   }
-  .container-first {
+
+  /deep/ .auction-main-info {
     display: flex;
+    margin-bottom: 0.6rem;
     flex-direction: row;
-    margin-bottom: .6rem;
-    @media (max-width: 425px) {
-      width: 100%;
-      flex-direction: column;
+    width: 100%;
+    @media (min-width: 550px) {
+      width: 60%;
       justify-content: space-between;
     }
-    @media (min-width: 768px) {
-      width: 40%;
-      margin-top: 1.5em;
-      flex-direction: column;
-      justify-content: space-between;
+    @media (min-width: 1600px) {
+      width: 65%;
     }
 
-    @media (min-width: 2560px) {
-      margin-top: 1.5em;
-      flex-direction: row;
-      justify-content: flex-start;
-    }
     &-inner {
-      width: 40%;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      @media (min-width: 320px) {
-        width: 100%;
-        height: 10%;
-        flex-direction: row;
-        justify-content: flex-start;
-        align-items: center;
-      }
-      @media (min-width: 768px) {
-        width: 100%;
-        flex-direction: row;
-        justify-content: flex-start;
-        align-items: center;
-      }
-      @media (min-width: 1600px) {
-        flex-direction: row;
-        justify-content: flex-start;
-        align-items: center;
-      }
-
-      &:last-child {
+      width: 50%;
+      &:not(:first-child) {
         border-left: 2px solid $color-neutral-positive-2;
-        @media (min-width: 768px) {
+      }
+      @media (min-width: 550px) {
+        width: 30%;
+        &:not(:first-child) {
           border-left: none;
         }
       }
+
+      .name {
+        margin-left: 43px;
+      }
+    }
+
+    .accounts {
+      width: 50%;
+      @media (min-width: 550px) {
+        width: 70%;
+      }
     }
   }
-  .container-last {
+
+  /deep/ .auction-type-info {
     display: flex;
-    align-items: baseline;
     flex-direction: column;
-    @media (min-width: 768px) {
-      width: 80%;
-      border-left: 2px solid $color-neutral-positive-2;
+    justify-content: flex-start;
+    @media (min-width: 550px) {
+      width: 40%;
+      flex-direction: row;
     }
     @media (min-width: 1600px) {
-      flex-direction: row;
-      border-left: none;
+      width: 35%;
     }
-    &-wrapper {
+
+    .auction-type-info-item {
       display: flex;
+      flex-direction: row;
       width: 100%;
       border-top: 2px solid $color-neutral-positive-2;
-      padding: .6rem 0;
-      height: 100%;
-      &:last-child {
-        padding-bottom: 0;
-      }
-      @media (min-width: 768px) {
+      padding: 0.6rem 0;
+      margin-bottom: 0.6rem;
+      @media (min-width: 550px) {
         border-top: none;
-        padding: 0;
-        &:first-child {
-          border-bottom: 2px solid $color-neutral-positive-2;
-        }
-      }
-      @media (min-width: 1600px) {
-        &:first-child {
-          border-bottom: none;
-        }
-      }
-    }
-    &-inner {
-      width: 60%;
-      &:nth-child(2n) {
+        width: 50%;
+        flex-direction: column;
         border-left: 2px solid $color-neutral-positive-2;
       }
-      @media (min-width: 768px) {
-        &:nth-child(2n) {
+
+      .block {
+        &:not(:first-child) {
           border-left: 2px solid $color-neutral-positive-2;
+          border-top: none;
+        }
+        @media (min-width: 550px) {
+          &:not(:first-child) {
+            border-left: none;
+            border-top: 2px solid $color-neutral-positive-2;
+          }
         }
       }
-      @media (min-width: 1600px) {
-        &:nth-child(1n) {
-          border-left: 2px solid $color-neutral-positive-2;
-        }
+      .tx-time .app-definition-content {
+        word-break: keep-all;
       }
     }
   }
-  .name-value {
-    font-size: 1.2em;
-    padding-left: 3%;
-  }
+}
 </style>
