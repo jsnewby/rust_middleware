@@ -34,7 +34,7 @@
       </div>
       <div class="auction-type-info-item">
         <AppDefinition
-          title="Block Height"
+          title="Expiration Height"
         >
           {{ data.expiration }}
         </AppDefinition>
