@@ -24,6 +24,7 @@ export const actions = {
     } catch (e) {
       console.log(e)
       commit('catchError', 'Error', { root: true })
+      return []
     }
   },
 
@@ -36,6 +37,7 @@ export const actions = {
     } catch (e) {
       console.log(e)
       commit('catchError', 'Error', { root: true })
+      return { transactions: [] }
     }
   },
   getContractCalls: async function ({ rootState: { nodeUrl }, commit }, contractId) {
@@ -47,6 +49,7 @@ export const actions = {
     } catch (e) {
       console.log(e)
       commit('catchError', 'Error', { root: true })
+      return []
     }
   }
 }
