@@ -898,7 +898,7 @@ impl InsertableName {
     ) -> MiddlewareResult<Self> {
         let _auction_end_height = _created_at_height + crate::hashing::get_name_auction_length(_name)? as i64;
         Ok(InsertableName {
-            name: _name.to_string(),
+            name: _name.to_string().to_lowercase(),
             name_hash: _name_hash.to_string(),
             tx_hash: _tx_hash.to_string(),
             created_at_height: _created_at_height,

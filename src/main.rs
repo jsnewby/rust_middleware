@@ -54,6 +54,7 @@ extern crate ws;
 
 extern crate aepp_middleware;
 
+use std::time::Duration;
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -148,6 +149,29 @@ fn setup_protocols(url: String) {
     trans.commit().unwrap();
 }
 
+/**
+ * So far there is only one materialized view, that for
+ * name_auction_entries. It takes a long time (~30s as of 11/2019) to
+ * populate, hence this solution.
+ */
+fn refresh_materialized_views(frequency: Duration) -> MiddlewareResult<()> {
+    let mut planner = periodic::Planner::new();
+    fn _internal() -> MiddlewareResult<()> {
+        let connection = crate::loader::SQLCONNECTION.get()?;
+        connection.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY name_auction_entries", &[])?;
+        Ok(())
+    }
+    planner.add(
+        || {
+            match _internal() {
+                Ok(_) => (),
+                Err(e) => error!("Error refreshing materialized views {:?}", e),
+            }
+        }, frequency);
+    planner.start();
+    Ok(())
+}
+
 fn main() {
     dotenv::dotenv().ok();
 
@@ -227,6 +251,7 @@ fn main() {
         }
         migration_result.unwrap();
         setup_protocols(url.clone());
+        refresh_materialized_views(std::time::Duration::new(60,0)).unwrap();
     }
 
     /*

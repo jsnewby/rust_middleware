@@ -1,23 +1,7 @@
-DROP TABLE IF EXISTS protocols;
-
-CREATE TABLE IF NOT EXISTS protocols (
-       id SERIAL PRIMARY KEY,
-       version BIGINT NOT NULL,
-       effective_at_height BIGINT NOT NULL
-);
-
-CREATE INDEX protocols_version_index ON protocols(version);
-
-
-DROP FUNCTION IF EXISTS get_fork_height;
-
-CREATE OR REPLACE FUNCTION
-get_fork_height(version INTEGER) RETURNS BIGINT
-AS $$ SELECT effective_at_height FROM protocols WHERE version = $1 $$ LANGUAGE SQL;
 
 CREATE OR REPLACE VIEW all_names AS
 SELECT
-	tx->>'name' AS name,
+	LOWER(tx->>'name') AS name,
 	MAX(block_height) AS start_block_height,
 	(MAX(block_height) + lima_name_auction_timeout(tx->>'name'))::BIGINT
 			  AS auction_expiration
@@ -30,7 +14,7 @@ GROUP BY tx->>'name';
 
 CREATE OR REPLACE VIEW winning_bids AS
 SELECT
-	t.tx->>'name' AS name,
+	LOWER(t.tx->>'name') AS name,
 	MAX((t.tx->>'name_fee')::numeric) AS winning_bid,
 	MAX(t.block_height) AS height
 FROM
@@ -40,7 +24,9 @@ WHERE
 GROUP BY
 	tx->>'name';
 
-CREATE OR REPLACE VIEW name_auction_entries AS
+DROP VIEW IF EXISTS name_auction_entries;
+
+CREATE MATERIALIZED VIEW name_auction_entries AS
 SELECT
 	an.name AS name,
 	wb.height + lima_name_auction_timeout(an.name)::BIGINT
@@ -51,6 +37,9 @@ SELECT
 FROM
 	transactions t, all_names an, winning_bids wb
 WHERE
-	t.tx->>'name' = an.name AND
-	t.tx->>'name' = wb.name AND
-	(t.tx->>'name_fee')::numeric = wb.winning_bid;
+	LOWER(t.tx->>'name') = an.name AND
+	LOWER(t.tx->>'name') = wb.name AND
+	(t.tx->>'name_fee')::numeric = wb.winning_bid
+WITH DATA;
+
+CREATE UNIQUE INDEX name_auction_entries_name_idx ON name_auction_entries(name);
