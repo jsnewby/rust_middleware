@@ -31,7 +31,6 @@ extern crate itertools;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate periodic;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;

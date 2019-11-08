@@ -56,7 +56,6 @@ extern crate aepp_middleware;
 
 use std::thread;
 use std::thread::JoinHandle;
-use std::time::Duration;
 
 use clap::clap_app;
 use log::LevelFilter;
@@ -157,10 +156,11 @@ fn setup_protocols(url: String) {
  * name_auction_entries. It takes a long time (~30s as of 11/2019) to
  * populate, hence this solution.
  */
-fn refresh_materialized_views(frequency: Duration) -> MiddlewareResult<()> {
-    let mut planner = periodic::Planner::new();
-    fn _internal() -> MiddlewareResult<()> {
-        debug!("Refreshing materialized view");
+fn refresh_materialized_views() -> MiddlewareResult<()> {
+    fn _refresh() -> MiddlewareResult<()> {
+        debug!("Waiting for name event");
+        crate::models::Name::wait_for_event()?;
+        debug!("Received name event");
         let connection = crate::loader::SQLCONNECTION.get()?;
         connection.execute(
             "REFRESH MATERIALIZED VIEW CONCURRENTLY name_auction_entries",
@@ -168,14 +168,14 @@ fn refresh_materialized_views(frequency: Duration) -> MiddlewareResult<()> {
         )?;
         Ok(())
     }
-    planner.add(
-        || match _internal() {
+    thread::spawn(|| loop {
+        match _refresh() {
             Ok(_) => (),
-            Err(e) => error!("Error refreshing materialized views {:?}", e),
-        },
-        periodic::Every::new(frequency),
-    );
-    planner.start();
+            Err(e) => {
+                error!("Error refreshing name view: {:?}", e);
+            }
+        }
+    });
     Ok(())
 }
 
@@ -258,7 +258,7 @@ fn main() {
         }
         migration_result.unwrap();
         setup_protocols(url.clone());
-        refresh_materialized_views(std::time::Duration::new(60, 0)).unwrap();
+        refresh_materialized_views().unwrap();
     }
 
     /*

@@ -963,6 +963,11 @@ impl InsertableName {
     }
 }
 
+lazy_static! {
+    pub static ref NAME_CONDVAR: Arc<(Mutex<bool>, Condvar)> =
+        { Arc::new((Mutex::new(true), Condvar::new())) };
+}
+
 #[derive(AsChangeset, Clone, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
 #[table_name = "names"]
 pub struct Name {
@@ -978,11 +983,6 @@ pub struct Name {
     pub pointers: Option<serde_json::Value>,
     #[serde(skip_serializing)]
     pub transaction_id: i32,
-}
-
-lazy_static! {
-    pub static ref NAME_CONDVAR: Arc<(Mutex<bool>, Condvar)> =
-        { Arc::new((Mutex::new(false), Condvar::new())) };
 }
 
 impl Name {
@@ -1050,7 +1050,7 @@ impl Name {
 
     pub fn generate_event() -> MiddlewareResult<()> {
         let arc = &*NAME_CONDVAR;
-        let (lock, cvar) = &*(*arc);
+        let (lock, cvar) = &**arc;
         let mut changed = lock.lock()?;
         *changed = true;
         cvar.notify_one();
@@ -1067,6 +1067,26 @@ impl Name {
         *changed = false;
         Ok(())
     }
+}
+
+#[test]
+fn test_name_events() {
+    let arc = &*NAME_CONDVAR;
+    let (lock, _) = &*(*arc);
+    assert_eq!(*(lock.lock().unwrap()), true);
+    Name::wait_for_event().unwrap(); // starts ready
+    assert_eq!(*(lock.lock().unwrap()), false);
+    let handle = std::thread::spawn(|| {
+        Name::wait_for_event().unwrap();
+        let arc = &*NAME_CONDVAR;
+        let (lock, _) = &*(*arc);
+        assert_eq!(*(lock.lock().unwrap()), false);
+    });
+    assert_eq!(*(lock.lock().unwrap()), false);
+    Name::generate_event().unwrap();
+    std::thread::sleep_ms(300); // random amount, should be enough
+    assert_eq!(*(lock.lock().unwrap()), false);
+    handle.join().unwrap(); // check thread has terminated.
 }
 
 #[derive(AsChangeset, Queryable, QueryableByName, Serialize, Clone, Debug)]
@@ -1318,8 +1338,14 @@ impl InsertableContractCall {
         let client = reqwest::Client::new();
         let arguments: serde_json::Value = match client.post(&full_url).json(&params).send() {
             Ok(mut data) => {
-                let output = data.text().unwrap();
-                serde_json::from_str(&output)?
+                let output = data.text()?;
+                match serde_json::from_str(&output) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        error!("Couldn't parse JSON from compiler:\n{}\n{:?}", output, e);
+                        serde_json::from_str(r#"{"error": "compiler error"#)?
+                    }
+                }
             }
             Err(err) => {
                 debug!("Error occurred while decoding call data: {:?}", err);

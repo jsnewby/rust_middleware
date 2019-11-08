@@ -12,8 +12,6 @@ WHERE
 	block_height >= get_fork_height(4)
 GROUP BY tx->>'name';
 
-CREATE OR REPLACE VIEW max_bids
-
 CREATE OR REPLACE VIEW winning_bids AS
 SELECT
        an.name,
