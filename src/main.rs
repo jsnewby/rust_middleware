@@ -1,212 +1,353 @@
-#![feature(slice_concat_ext)]
-#![feature(proc_macro_hygiene, decl_macro)]
-#![feature(custom_attribute)]
+#![allow(redundant_semicolon)]
 #![feature(plugin)]
-#![plugin(rocket_codegen)]
-#![feature(custom_derive)]
-
-extern crate rand;
-
+#![feature(slice_concat_ext)]
+#![feature(custom_attribute)]
+#![feature(proc_macro_hygiene, decl_macro)]
+#![feature(try_trait)]
+extern crate backtrace;
+extern crate base58;
+extern crate base58check;
+extern crate base64;
 extern crate bigdecimal;
-extern crate blake2b;
+extern crate blake2;
+extern crate byteorder;
+extern crate chashmap;
+extern crate chrono;
+extern crate clap;
 extern crate crypto;
 extern crate curl;
+extern crate daemonize;
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 extern crate dotenv;
 extern crate env_logger;
-pub use bigdecimal::BigDecimal;
+extern crate flexi_logger;
+extern crate futures;
 extern crate hex;
+extern crate itertools;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+extern crate log4rs;
+extern crate log4rs_email;
 extern crate r2d2;
 extern crate r2d2_diesel;
+extern crate r2d2_postgres;
+extern crate rand;
 extern crate regex;
+extern crate reqwest;
+#[macro_use]
 extern crate rocket;
+#[macro_use]
 extern crate rocket_contrib;
 extern crate rocket_cors;
 extern crate rust_base58;
+extern crate rust_decimal;
 #[macro_use]
 extern crate serde_derive;
+extern crate postgres;
 extern crate serde_json;
+extern crate ws;
+
+extern crate aepp_middleware;
 
 use std::thread;
-extern crate itertools;
+use std::thread::JoinHandle;
 
-extern crate futures;
-extern crate postgres;
-
-extern crate clap;
-use clap::{App, Arg};
-
-use dotenv::dotenv;
+use clap::clap_app;
+use log::LevelFilter;
+use log4rs::config::{Appender, Config, Root};
 use std::env;
 
-pub mod epoch;
+pub mod coinbase;
+pub mod compiler;
+pub mod hashing;
 pub mod loader;
+pub mod middleware_result;
+pub mod node;
 pub mod schema;
 pub mod server;
+pub mod websocket;
 
+pub use bigdecimal::BigDecimal;
 use loader::BlockLoader;
+use middleware_result::MiddlewareResult;
 use server::MiddlewareServer;
-
 pub mod models;
 
-fn start_blockloader(url: &String,  _tx: std::sync::mpsc::Sender<i64>) {
-    debug!("In start_blockloader()");
-    let u = url.clone();
-    let u2 = url.clone();
-    thread::spawn(move || {
-        thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone(), 1);
-            loop {
-                debug!("Scanning for new blocks");
-                loader::BlockLoader::scan(&epoch, &_tx);
-                debug!("Sleeping.");
-                thread::sleep_ms(40000);
-            }
-        });
-    });
-}
-    
-fn load_mempool(url: &String) {
-    debug!("In load_mempool()");
-    let u = url.clone();
-    let u2 = u.clone();
-    let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
-    thread::spawn(move || {
-        let epoch = epoch::Epoch::new(u2.clone(), 1);
-        loop {
-            loader.load_mempool(&epoch);
-            thread::sleep(std::time::Duration::new(5,0));
-        }
-    });
-}
+use daemonize::Daemonize;
+
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
+embed_migrations!("migrations/");
+
+use loader::PGCONNECTION;
 
 /*
  * This function does two things--initially it asks the DB for the
 * heights not present between 0 and the height returned by
-* /generations/current.  After it has quued all of them it spawns the
+* /generations/current.  After it has queued all of them it spawns the
 * detect_forks thread, then it starts the blockloader, which does not
 * return.
-*/  
-fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) {
+*/
+
+fn fill_missing_heights(url: String, _tx: std::sync::mpsc::Sender<i64>) -> MiddlewareResult<bool> {
     debug!("In fill_missing_heights()");
-    let u = url.clone();
-    let u2 = u.clone();
-    let handle = thread::spawn(move || {
-        let loader = BlockLoader::new(epoch::establish_connection(1), String::from(u));
-        let epoch = epoch::Epoch::new(u2.clone(), 1);
-        let top_block = epoch::key_block_from_json(epoch.latest_key_block().unwrap()).unwrap();
-        let missing_heights = epoch::get_missing_heights(top_block.height);
-        for height in missing_heights {
-            debug!("Adding {} to load queue", &height);
-            _tx.send(height as i64);
-        }
-        detect_forks(&url.clone(), _tx.clone());
-        loader.start();
-    });
+    let node = node::Node::new(url.clone());
+    let top_block = node::key_block_from_json(node.latest_key_block()?)?;
+    let missing_heights = node.get_missing_heights(top_block.height)?;
+    for height in missing_heights {
+        debug!("Adding {} to load queue", &height);
+        match loader::queue(height as i64, &_tx) {
+            Ok(_) => (),
+            Err(x) => {
+                error!("Error queuing block to send: {}", x);
+                BlockLoader::recover_from_db_error();
+            }
+        };
+    }
+    _tx.send(loader::BACKLOG_CLEARED)?;
+    Ok(true)
 }
 
-/*
- * Detect forks iterates through the blocks in the DB asking for them and checking
- * that they match what we have in the DB. 
+fn init_logging() {
+    match env::var("LOG_CONF") {
+        Ok(x) => {
+            let mut deserializers = log4rs::file::Deserializers::default();
+            log4rs_email::log4rs_email::register(&mut deserializers);
+            let _result = log4rs::init_file(x, deserializers).unwrap();
+        }
+        Err(_) => {
+            let stdout = log4rs::append::console::ConsoleAppender::builder().build();
+            let config = Config::builder()
+                .appender(Appender::builder().build("console", Box::new(stdout)))
+                .build(Root::builder().appender("console").build(LevelFilter::Warn))
+                .unwrap();
+            let _handle = log4rs::init_config(config).unwrap();
+        }
+    }
+}
+
+fn setup_protocols(url: String) {
+    let connection = crate::loader::SQLCONNECTION.get().unwrap();
+    let node = crate::node::Node::new(url);
+    let status = node.get(&"status".to_string()).unwrap();
+    let protocols = status["protocols"].as_array().unwrap();
+    let trans = connection.transaction().unwrap();
+    connection.execute("DELETE FROM protocols", &[]).unwrap();
+    for protocol in protocols {
+        let effective_at_height = protocol["effective_at_height"].as_i64().unwrap();
+        let version = protocol["version"].as_i64().unwrap();
+        connection
+            .execute(
+                "INSERT INTO protocols(effective_at_height, version) VALUES ($1, $2)",
+                &[&effective_at_height, &version],
+            )
+            .unwrap();
+    }
+    trans.commit().unwrap();
+}
+
+/**
+ * So far there is only one materialized view, that for
+ * name_auction_entries. It takes a long time (~30s as of 11/2019) to
+ * populate, hence this solution.
  */
-fn detect_forks(url: &String, _tx: std::sync::mpsc::Sender<i64>) {
-    debug!("In detect_forks()");
-    let u = url.clone();
-    let u2 = u.clone();
-    thread::spawn(move || {
-        thread::spawn(move || {
-            let epoch = epoch::Epoch::new(u2.clone(), 1);
-            loop {
-                debug!("Going into fork detection");
-                loader::BlockLoader::detect_forks(&epoch, &_tx);
-                debug!("Sleeping.");
-                thread::sleep_ms(40000);
+fn refresh_materialized_views() -> MiddlewareResult<()> {
+    fn _refresh() -> MiddlewareResult<()> {
+        debug!("Waiting for name event");
+        crate::models::Name::wait_for_event()?;
+        debug!("Received name event");
+        let connection = crate::loader::SQLCONNECTION.get()?;
+        connection.execute(
+            "REFRESH MATERIALIZED VIEW CONCURRENTLY name_auction_entries",
+            &[],
+        )?;
+        Ok(())
+    }
+    thread::spawn(|| loop {
+        match _refresh() {
+            Ok(_) => (),
+            Err(e) => {
+                error!("Error refreshing name view: {:?}", e);
             }
-        });
+        }
     });
+    Ok(())
 }
 
 fn main() {
-    env_logger::init();
-    let matches = App::new("æternity middleware")
-        .version("0.1")
-        .author("John Newby <john@newby.org>")
-        .about("----")
-        .arg(
-            Arg::with_name("url")
-                .short("u")
-                .long("url")
-                .value_name("URL")
-                .help("URL of æternity node.")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("start_hash")
-                .short("h")
-                .long("start_hash")
-                .value_name("START_HASH")
-                .help("Hash to start from.")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("server")
-                .short("s")
-                .long("server")
-                .help("Start server")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("populate")
-                .short("p")
-                .long("populate")
-                .help("Populate DB")
-                .takes_value(false),
-        )
-        .get_matches();
+    dotenv::dotenv().ok();
 
-    
-    let url = env::var("EPOCH_URL").expect("EPOCH_URL must be set").
-        to_string();;
-    let connection = epoch::establish_connection(1);
+    init_logging();
+
+    let matches = clap_app!(mdw =>
+        (name: env!("CARGO_PKG_NAME"))
+        (version: VERSION)
+        (author: env!("CARGO_PKG_AUTHORS"))
+        (about: env!("CARGO_PKG_DESCRIPTION"))
+            (@arg server: -s --server "Start the middleware server")
+            (@arg populate: -p --populate "Populate the DB")
+            (@arg websocket: -w --websocket requires[populate] "Start middleware WebSocket Server")
+            (@arg daemonize: -d --daemonize "Daemonize the middleware process")
+            (@arg protocols: -P --protocols "Populate protocols table and exit")
+            (@arg heights: -H --("load-heights") +takes_value "Load specific heights, values separated by comma, ranges with from-to accepted")
+            (@subcommand verify =>
+                (name: "verify")
+                (about: "Verify middleware DB integrity against the chain")
+                (@arg blocks: -b --blocks +takes_value "Key-blocks to verify. Values separated by comma, ranges with from-to and single values are accepted")
+                (@arg all: -a --all "Verify all the key blocks in the database. Overrides the -b option.")
+            )
+    ).get_matches();
+    let url = env::var("NODE_URL")
+        .expect("NODE_URL must be set")
+        .to_string();
 
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
+    let heights = matches.is_present("heights");
+    let daemonize = matches.is_present("daemonize");
+    let websocket = matches.is_present("websocket");
+    let protocols = matches.is_present("protocols");
+
+    if protocols {
+        setup_protocols(url.clone());
+        return;
+    }
+
+    if daemonize {
+        let daemonize = Daemonize::new();
+        if let Ok(x) = env::var("PID_FILE") {
+            daemonize.pid_file(x).start().unwrap();
+        } else {
+            daemonize.start().unwrap();
+        }
+    }
+
+    if let Some(v_matches) = matches.subcommand_matches("verify") {
+        debug!("Verifying");
+        let loader = BlockLoader::new(url.clone());
+        if v_matches.is_present("all") {
+            match loader.verify_all() {
+                Ok(_) => (),
+                Err(x) => error!("Blockloader::verify() returned an error: {}", x),
+            };
+            return;
+        } else if v_matches.is_present("blocks") {
+            let blocks = String::from(v_matches.value_of("blocks").unwrap());
+            for height in range(&blocks) {
+                match loader.verify_height(height) {
+                    Ok(_) => (),
+                    Err(e) => error!("Error in hashing::min_b(): {:?}", e),
+                }
+            }
+        }
+    }
+
+    // Run migrations if populate or heights set
+    if populate || heights {
+        let connection = PGCONNECTION.get().unwrap();
+        let mut migration_output = Vec::new();
+        let migration_result =
+            embedded_migrations::run_with_output(&*connection, &mut migration_output);
+        for line in migration_output.iter() {
+            info!("migration out: {}", line);
+        }
+        migration_result.unwrap();
+        setup_protocols(url.clone());
+        refresh_materialized_views().unwrap();
+    }
 
     /*
-     * we start 3 populate processes--one queries for missing heights
+     * The `heights` argument is of this form: 1,10-15,1000 which
+     * would cause blocks 1, 10,11,12,13,14,15 and 1000 to be loaded.
+     */
+    if heights {
+        let to_load = matches.value_of("heights").unwrap();
+        let loader = BlockLoader::new(url.clone());
+        for h in range(&String::from(to_load)) {
+            loader.load_blocks(h).unwrap();
+        }
+    }
+
+    let mut populate_thread: Option<JoinHandle<()>> = None;
+
+    /*
+     * We start 3 populate processes--one queries for missing heights
      * and works through that list, then exits. Another polls for
-     * new blocks to load, then sleeps and does it again, and yet 
+     * new blocks to load, then sleeps and does it again, and yet
      * another reads the mempool (if available).
      */
     if populate {
         let url = url.clone();
-        let loader = BlockLoader::new(epoch::establish_connection(1), url.clone());
-        load_mempool(&url);
-        fill_missing_heights(url.clone(), loader.tx.clone());
-        start_blockloader(&url, loader.tx.clone());
-        let handle = thread::spawn(move || {        
+        let loader = BlockLoader::new(url.clone());
+        match fill_missing_heights(url.clone(), loader.tx.clone()) {
+            Ok(_) => (),
+            Err(x) => error!("fill_missing_heights() returned an error: {}", x),
+        };
+        populate_thread = Some(thread::spawn(move || {
             loader.start();
-        });
+        }));
+        if websocket {
+            websocket::start_ws();
         }
+    }
 
     if serve {
         let ms: MiddlewareServer = MiddlewareServer {
-            epoch: epoch::Epoch::new(url.clone(), 20),
+            node: node::Node::new(url.clone()),
             dest_url: url.to_string(),
             port: 3013,
-            connection,
         };
         ms.start();
+        loop {
+            // just to stop main() thread exiting.
+            thread::sleep(std::time::Duration::new(40, 0));
+        }
     }
-    if !populate && !serve {
+    if !populate && !serve && !heights {
         warn!("Nothing to do!");
     }
-    loop {
-        thread::sleep_ms(40000);
+
+    /*
+     * If we have a populate thread running, wait for it to exit.
+     */
+    match populate_thread {
+        Some(x) => {
+            x.join().unwrap();
+            ()
+        }
+        None => (),
     }
+}
+
+// takes args of the form X,Y-Z,A and returns a vector of the individual numbers
+// ranges in the form X-Y are INCLUSIVE
+fn range(arg: &String) -> Vec<i64> {
+    let mut result = vec![];
+    for h in arg.split(',') {
+        let s = String::from(h);
+        match s.find("-") {
+            Some(_) => {
+                let fromto: Vec<String> = s.split('-').map(|x| String::from(x)).collect();
+                for i in fromto[0].parse::<i64>().unwrap()..fromto[1].parse::<i64>().unwrap() + 1 {
+                    result.push(i);
+                }
+            }
+            None => {
+                result.push(s.parse::<i64>().unwrap());
+            }
+        }
+    }
+    result
+}
+
+#[test]
+fn test_range() {
+    assert_eq!(range(&String::from("1")), vec!(1));
+    assert_eq!(range(&String::from("2-5")), vec!(2, 3, 4, 5));
+    assert_eq!(range(&String::from("1,2-5,10")), vec!(1, 2, 3, 4, 5, 10));
 }
