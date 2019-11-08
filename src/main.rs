@@ -173,7 +173,7 @@ fn refresh_materialized_views(frequency: Duration) -> MiddlewareResult<()> {
             Ok(_) => (),
             Err(e) => error!("Error refreshing materialized views {:?}", e),
         },
-        frequency,
+        periodic::Every::new(frequency),
     );
     planner.start();
     Ok(())
