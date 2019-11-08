@@ -1,3 +1,4 @@
+UPDATE names SET name=LOWER(name);
 
 CREATE OR REPLACE VIEW all_names AS
 SELECT
