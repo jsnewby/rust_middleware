@@ -76,7 +76,7 @@ middleware_error_from!(
         std::sync::MutexGuard<'_, std::cell::RefCell<std::vec::Vec<crate::websocket::Client>>>,
     >
 );
-
+middleware_error_from!(std::sync::PoisonError<std::sync::MutexGuard<'_, bool>>);
 middleware_error_from!(bigdecimal::ParseBigDecimalError);
 middleware_error_from!(std::env::VarError);
 middleware_error_from!(reqwest::header::InvalidHeaderValue);
