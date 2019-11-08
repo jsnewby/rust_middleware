@@ -65,26 +65,6 @@ fn blake2bdigest(v: &Vec<u8>) -> Vec<u8> {
     hasher.vec_result()
 }
 
-pub fn gen_oracle_query_id(sender_id: &String, nonce: i64, recipient_id: &String) -> String {
-    let mut sender_id_bin = decodebase58check(&hash_part(sender_id));
-    let mut recipient_id_bin = decodebase58check(&hash_part(recipient_id));
-    let mut nonce_byte32 = min_b(nonce);
-    loop {
-        if nonce_byte32.len() < 32 {
-            nonce_byte32.insert(0, 0u8);
-        } else {
-            break;
-        }
-    }
-    let mut all = vec![];
-    all.append(&mut sender_id_bin);
-    all.append(&mut nonce_byte32);
-    all.append(&mut recipient_id_bin);
-    let hash = blake2bdigest(&all);
-    let encoded = to_base58check(&hash);
-    format!("oq_{}", encoded)
-}
-
 pub fn gen_channel_id(
     initiator_id: &String,
     channel_create_tx_nonce: i64,
@@ -109,50 +89,68 @@ pub fn gen_channel_id(
     format!("ch_{}", encoded)
 }
 
-pub fn get_name_hash(name: &str) -> Vec<u8> {
-    let mut result = [0u8; 32].to_vec();
-    let mut split: Vec<&[u8]> = name.split('.').rev().map(|s| s.as_bytes()).collect();
+pub fn gen_oracle_query_id(sender_id: &String, nonce: i64, recipient_id: &String) -> String {
+    let mut sender_id_bin = decodebase58check(&hash_part(sender_id));
+    let mut recipient_id_bin = decodebase58check(&hash_part(recipient_id));
+    let mut nonce_byte32 = min_b(nonce);
     loop {
-        if let Some(part) = split.pop() {
-            let mut hasher = VarBlake2b::new(32).unwrap();
-            hasher.input(part);
-            let hashed = hasher.vec_result();
-            result.extend(hashed);
-            let mut hasher = VarBlake2b::new(32).unwrap();
-            hasher.input(result);
-            result = hasher.vec_result();
+        if nonce_byte32.len() < 32 {
+            nonce_byte32.insert(0, 0u8);
         } else {
             break;
         }
     }
-    result
+    let mut all = vec![];
+    all.append(&mut sender_id_bin);
+    all.append(&mut nonce_byte32);
+    all.append(&mut recipient_id_bin);
+    let hash = blake2bdigest(&all);
+    let encoded = to_base58check(&hash);
+    format!("oq_{}", encoded)
+}
+
+fn blake2b(input: Vec<u8>) -> Vec<u8> {
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.input(input);
+    hasher.vec_result()
+}
+
+pub fn get_name_id(name: &str) -> MiddlewareResult<String> {
+    Ok(format!(
+        "nm_{}",
+        to_base58check(&blake2b(
+            name.to_string().to_lowercase().as_bytes().to_vec()
+        ))
+    ))
 }
 
 #[test]
 fn test_name_hash() {
     assert_eq!(
-        get_name_id("welghmolql.test").unwrap(),
-        "nm_Ziiq3M9ASEHXCV71qUNde6SsomqwZjYPFvnJSvTkpSUDiXqH3"
+        get_name_id("morethantwelve.chain").unwrap(),
+        "nm_2JiYeYyL4qgTm7Rb16AG1LuUWGHdyuH6v8uRcJ2Gfqto9ezBFR"
     );
-    assert_ne!(
-        get_name_id("abc.test").unwrap(),
-        "nm_2KrC4asc6fdv82uhXDwfiqB1TY2htjhnzwzJJKLxidyMymJRUQ"
+    assert_eq!(
+        get_name_id("thisismysecond.chain").unwrap(),
+        "nm_gE3vy9S56bX8sxLMTc32m6AjNwzk4uiyspFuUV72eiqULHWLQ"
     );
+    assert_eq!(
+        get_name_id("example21.chain").unwrap(),
+        "nm_2tMJx8cXGy2oy7efC1FSne3EifksFYnm1KyckDYGvyYfn5GKUC");
 }
 
-pub fn get_name_id(name: &str) -> MiddlewareResult<String> {
-    Ok(format!("nm_{}", to_base58check(&get_name_hash(name))))
-}
 
 pub fn get_name_auction_length(name: &String) -> MiddlewareResult<i32> {
     let parts: Vec<&str> = name.split(".").collect();
     if parts.len() != 2 {
-        return Err(crate::middleware_result::MiddlewareError::new(format!("name {} not supported", name).as_str()));
+        return Err(crate::middleware_result::MiddlewareError::new(
+            format!("name {} not supported", name).as_str(),
+        ));
     }
     let length = match String::from(*parts.get(0)?).len() {
-        1 ..=4 => 29760,
-        5 ..=8 => 14880,
-        9 ..=12 => 480,
+        1..=4 => 29760,
+        5..=8 => 14880,
+        9..=12 => 480,
         _ => 0,
     };
     Ok(length)
@@ -160,11 +158,26 @@ pub fn get_name_auction_length(name: &String) -> MiddlewareResult<i32> {
 
 #[test]
 fn test_name_auction_length() {
-    assert_eq!(get_name_auction_length(&String::from("1.chain")).unwrap(), 29760);
-    assert_eq!(get_name_auction_length(&String::from("12345678.chain")).unwrap(), 14880);
-    assert_eq!(get_name_auction_length(&String::from("123456789.chain")).unwrap(), 480);
-    assert_eq!(get_name_auction_length(&String::from("1234567890.chain")).unwrap(), 480);
-    assert_eq!(get_name_auction_length(&String::from("12345467890123.chain")).unwrap(), 0);
+    assert_eq!(
+        get_name_auction_length(&String::from("1.chain")).unwrap(),
+        29760
+    );
+    assert_eq!(
+        get_name_auction_length(&String::from("12345678.chain")).unwrap(),
+        14880
+    );
+    assert_eq!(
+        get_name_auction_length(&String::from("123456789.chain")).unwrap(),
+        480
+    );
+    assert_eq!(
+        get_name_auction_length(&String::from("1234567890.chain")).unwrap(),
+        480
+    );
+    assert_eq!(
+        get_name_auction_length(&String::from("12345467890123.chain")).unwrap(),
+        0
+    );
 }
 
 /*

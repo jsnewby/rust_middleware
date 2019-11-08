@@ -141,11 +141,42 @@ fn setup_protocols(url: String) {
     for protocol in protocols {
         let effective_at_height = protocol["effective_at_height"].as_i64().unwrap();
         let version = protocol["version"].as_i64().unwrap();
-        connection.execute(
-            "INSERT INTO protocols(effective_at_height, version) VALUES ($1, $2)",
-            &[&effective_at_height, &version]).unwrap();
+        connection
+            .execute(
+                "INSERT INTO protocols(effective_at_height, version) VALUES ($1, $2)",
+                &[&effective_at_height, &version],
+            )
+            .unwrap();
     }
     trans.commit().unwrap();
+}
+
+/**
+ * So far there is only one materialized view, that for
+ * name_auction_entries. It takes a long time (~30s as of 11/2019) to
+ * populate, hence this solution.
+ */
+fn refresh_materialized_views() -> MiddlewareResult<()> {
+    fn _refresh() -> MiddlewareResult<()> {
+        debug!("Waiting for name event");
+        crate::models::Name::wait_for_event()?;
+        debug!("Received name event");
+        let connection = crate::loader::SQLCONNECTION.get()?;
+        connection.execute(
+            "REFRESH MATERIALIZED VIEW CONCURRENTLY name_auction_entries",
+            &[],
+        )?;
+        Ok(())
+    }
+    thread::spawn(|| loop {
+        match _refresh() {
+            Ok(_) => (),
+            Err(e) => {
+                error!("Error refreshing name view: {:?}", e);
+            }
+        }
+    });
+    Ok(())
 }
 
 fn main() {
@@ -227,6 +258,7 @@ fn main() {
         }
         migration_result.unwrap();
         setup_protocols(url.clone());
+        refresh_materialized_views().unwrap();
     }
 
     /*

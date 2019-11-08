@@ -24,14 +24,15 @@ SELECT
 FROM transactions
 WHERE
 	tx_type='NameClaimTx' AND
-	(tx->>'name_salt')::NUMERIC = 0 AND
+	(tx->>'name_salt')::NUMERIC <> 0 AND
 	block_height >= get_fork_height(4)
 GROUP BY tx->>'name';
 
 CREATE OR REPLACE VIEW winning_bids AS
 SELECT
 	t.tx->>'name' AS name,
-	(MAX(t.tx->>'name_fee'))::numeric AS winning_bid
+	MAX((t.tx->>'name_fee')::numeric) AS winning_bid,
+	MAX(t.block_height) AS height
 FROM
 	transactions t JOIN all_names an ON t.tx->>'name' = an.name
 WHERE
@@ -42,7 +43,8 @@ GROUP BY
 CREATE OR REPLACE VIEW name_auction_entries AS
 SELECT
 	an.name AS name,
-	an.auction_expiration AS expiration,
+	wb.height + lima_name_auction_timeout(an.name)::BIGINT
+			  AS expiration,
 	wb.winning_bid AS winning_bid,
 	(t.tx->>'account_id')::VARCHAR AS winning_bidder,
 	t.id AS transaction_id

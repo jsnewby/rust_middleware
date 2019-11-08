@@ -1,6 +1,6 @@
 <template>
   <svg-icon
-    :name="name"
+    :name="`${name}/${name}`"
     class="app-icon"
   />
 </template>

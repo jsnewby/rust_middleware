@@ -382,17 +382,24 @@ impl BlockLoader {
 
     pub fn load_blocks(&self, _height: i64) -> MiddlewareResult<(i32, i32)> {
         let connection = PGCONNECTION.get()?;
-        let result = connection.transaction::<(i32, i32), MiddlewareError, _>(|| {
-            self.internal_load_block(&connection, _height)
-        });
-        result
+        let (key_block_id, count, name_update_needed) = connection
+            .transaction::<(i32, i32, bool), MiddlewareError, _>(|| {
+                self.internal_load_block(&connection, _height)
+            })?;
+        debug!("name_update_needed: {:?}", name_update_needed);
+        if name_update_needed {
+            debug!("Generating name event");
+            Name::generate_event()?;
+        }
+        Ok((key_block_id, count))
     }
 
     fn internal_load_block(
         &self,
         connection: &PgConnection,
         _height: i64,
-    ) -> MiddlewareResult<(i32, i32)> {
+    ) -> MiddlewareResult<(i32, i32, bool)> {
+        let mut name_update_needed: bool = false;
         let mut count = 0;
         // clear out the block at this height, and any with the same hash, to prevent key violations.
         diesel::delete(key_blocks.filter(height.eq(&_height))).execute(connection)?;
@@ -435,10 +442,20 @@ impl BlockLoader {
                     Some(_micro_block_id),
                 )?;
                 BlockLoader::update_auxiliary_tables(&connection, tx_id, &transaction)?;
+                debug!(
+                    "Is name tx: {:?}, {}",
+                    transaction.is_name_transaction(),
+                    transaction.tx["type"].as_str().unwrap()
+                );
+                if transaction.is_name_transaction() {
+                    name_update_needed = true;
+                    // have to return this because we're in a transaction and the materialized view
+                    // must update asynchronously (and only once for a key block).
+                }
             }
             count += 1;
         }
-        Ok((key_block_id, count))
+        Ok((key_block_id, count, name_update_needed))
     }
 
     /*
@@ -484,6 +501,18 @@ impl BlockLoader {
                         // this only stores the initial ClaimTx, the subsequent bidding ones are
                         // not relevant to this table.
                         name.save(connection)?;
+                    } else {
+                        let name = transaction.tx["name"].as_str()?;
+                        if let Some(mut name) = Name::load_for_name(connection, &name.to_string()) {
+                            name.auction_end_height = (transaction.block_height
+                                + crate::hashing::get_name_auction_length(
+                                    &transaction.tx["name"].as_str()?.to_string(),
+                                )?)
+                            .into();
+                            name.update(connection)?;
+                        } else {
+                            error!("Couldn't load name {}", name);
+                        }
                     }
                 }
                 "NameRevokeTx" => {
@@ -557,7 +586,12 @@ impl BlockLoader {
             data: serde_json::to_value(trans)?,
         })?; //broadcast transaction
         let transaction_id: i32 = _tx.save(conn)?;
-        let associated_accounts = crate::models::InsertableAssociatedAccount::from_transaction(conn, &serde_json::to_value(trans)?, trans.block_height as i64, transaction_id)?;
+        let associated_accounts = crate::models::InsertableAssociatedAccount::from_transaction(
+            conn,
+            &serde_json::to_value(trans)?,
+            trans.block_height as i64,
+            transaction_id,
+        )?;
         for associated_account in associated_accounts {
             associated_account.save(conn)?;
         }
