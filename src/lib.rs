@@ -48,6 +48,7 @@ extern crate rust_decimal;
 extern crate serde_derive;
 extern crate postgres;
 extern crate serde_json;
+extern crate threadpool;
 extern crate ws;
 
 pub mod aens;
