@@ -282,6 +282,20 @@ fn test_get_objects() {
     assert!(objects.contains("mh_7iCkawgwm9akyXaBaEgfoL2Uhgz9k5b8vbSqx97spp9Ae1mLa"));
 }
 
+#[test]
+fn test_get_objects2() {
+    let tx: serde_json::Value = serde_json::from_str(
+        r#"
+{"fee": 452020000000000, "gas": 1579000, "type": "ContractCallTx", "nonce": 49, "amount": 0, "version": 1, "call_data": "cb_KxGyMFZfP9Js5cM=", "caller_id": "ak_UQkorD6ZG4u2Ac8J2bEGEaE5jLABvWo6VHJhRDR9N7UnWHvzb", "gas_price": 1000000000, "abi_version": 3, "contract_id": "ct_ouZib4wT9cNwgRA1pxgA63XEUd8eQRrG8PcePDEYogBc1VYTq"}
+"#,
+    )
+    .unwrap();
+    println!("{}", tx.to_string());
+    let objects = get_objects(tx.to_string());
+    println!("{:?}", objects);
+    assert!(objects.contains("ct_ouZib4wT9cNwgRA1pxgA63XEUd8eQRrG8PcePDEYogBc1VYTq"));
+}
+
 #[derive(Clone, Debug)]
 pub struct Client {
     out: Sender,
@@ -382,6 +396,12 @@ pub fn start_ws() {
     });
 }
 
+/*
+ * A thread pool for sending data to the websocket clients. The goal is to prevent the
+ * loader thread from blocking. This is a simple solution, may not be the best though. In particular
+ * a blocked client can still take up several threads before it's removed. A queue per websocket
+ * connection may be better? Also, is 20 the right number of threads? Who knows?
+ */
 lazy_static! {
     pub static ref WS_THREADPOOL: Arc<Mutex<ThreadPool>> =
         { Arc::new(Mutex::new(ThreadPool::new(20))) };
