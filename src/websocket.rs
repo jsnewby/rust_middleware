@@ -9,6 +9,7 @@ use std::env;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use threadpool::ThreadPool;
 use ws::{listen, CloseCode, Handler, Handshake, Message, Result, Sender};
 
 use crate::middleware_result::MiddlewareResult;
@@ -381,6 +382,11 @@ pub fn start_ws() {
     });
 }
 
+lazy_static! {
+    pub static ref WS_THREADPOOL: Arc<Mutex<ThreadPool>> =
+        { Arc::new(Mutex::new(ThreadPool::new(20))) };
+}
+
 /*
  * The function which actually sends the data to clients
  *
@@ -391,18 +397,22 @@ pub fn broadcast_ws(candidate: &Candidate) -> MiddlewareResult<()> {
     debug!("Broadcasting candidate {:?}", candidate);
     for client in clients_for_object(candidate) {
         let _candidate = candidate.clone();
-        std::thread::spawn(move || {
-            match client.out.send(
-                json!({
-                    "subscription": _candidate.payload.to_string(),
-                    "payload": _candidate.data,
-                })
-                .to_string(),
-            ) {
-                Ok(_) => (),
-                Err(e) => error!("Error sending data to client {:?}", e),
-            };
-        });
+        if let Ok(threadpool) = (*WS_THREADPOOL).lock() {
+            threadpool.execute(move || {
+                match client.out.send(
+                    json!({
+                        "subscription": _candidate.payload.to_string(),
+                        "payload": _candidate.data,
+                    })
+                    .to_string(),
+                ) {
+                    Ok(_) => (),
+                    Err(e) => error!("Error sending data to client {:?}", e),
+                };
+            });
+        } else {
+            error!("Error locking threadpool");
+        }
     }
     Ok(())
 }
