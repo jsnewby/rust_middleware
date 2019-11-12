@@ -13,7 +13,7 @@ use ws::{listen, CloseCode, Handler, Handshake, Message, Result, Sender};
 
 use crate::middleware_result::MiddlewareResult;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Candidate {
     pub payload: WsPayload,
     pub data: serde_json::Value,
@@ -390,21 +390,26 @@ pub fn start_ws() {
 pub fn broadcast_ws(candidate: &Candidate) -> MiddlewareResult<()> {
     debug!("Broadcasting candidate {:?}", candidate);
     for client in clients_for_object(candidate) {
-        client.out.send(
-            json!({
-                "subscription": candidate.payload.to_string(),
-                "payload": candidate.data,
-            })
-            .to_string(),
-        )?;
+        let _candidate = candidate.clone();
+        std::thread::spawn(move || {
+            match client.out.send(
+                json!({
+                    "subscription": _candidate.payload.to_string(),
+                    "payload": _candidate.data,
+                })
+                .to_string(),
+            ) {
+                Ok(_) => (),
+                Err(e) => error!("Error sending data to client {:?}", e),
+            };
+        });
     }
     Ok(())
 }
 
 #[test]
 fn test_unpack_message() {
-    let msg: Message =
-        Message::from(r#"{"op":"Subscribe", "payload": "MicroBlocks"}"#.to_string());
+    let msg: Message = Message::from(r#"{"op":"Subscribe", "payload": "MicroBlocks"}"#.to_string());
     let ws_msg = unpack_message(msg).unwrap();
     assert_eq!(ws_msg.op.unwrap(), WsOp::Subscribe);
     assert_eq!(ws_msg.payload.unwrap(), WsPayload::MicroBlocks);
