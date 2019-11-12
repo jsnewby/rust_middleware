@@ -191,14 +191,14 @@ You may subscribe to any æternity object type, and be sent all transactions whi
 
 Subscriptions return the array of subscriptions (possibly empty):
 ```
-{"op":"subscribe", "payload": "key_blocks"}
+{"op":"Subscribe", "payload": "KeyBlocks"}
 ["key_blocks"]
-{"op":"subscribe", "payload": "micro_blocks"}
-["key_blocks","micro_blocks"]
-{"op":"unsubscribe", "payload": "micro_blocks"}
+{"op":"Subscribe", "payload": "MicroBlocks"}
+["KeyBlocks","MicroBlocks"]
+{"op":"Unsubscribe", "payload": "MicroBlocks"}
 ["key_blocks"]
-{"op":"subscribe", "payload": "object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}
-["key_blocks","micro_blocks", "ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv"]
+{"op":"Subscribe", "payload": "Object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}
+["KeyBlocks","MicroBlocks", "ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv"]
 
 ```
 
