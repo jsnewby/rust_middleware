@@ -1,3 +1,4 @@
+UPDATE names SET name=LOWER(name);
 
 CREATE OR REPLACE VIEW all_names AS
 SELECT
@@ -14,15 +15,15 @@ GROUP BY tx->>'name';
 
 CREATE OR REPLACE VIEW winning_bids AS
 SELECT
-	LOWER(t.tx->>'name') AS name,
-	MAX((t.tx->>'name_fee')::numeric) AS winning_bid,
-	MAX(t.block_height) AS height
+       an.name,
+       MAX((t.tx->>'name_fee')::numeric) AS winning_bid,
+       MAX(t.block_height) AS height
 FROM
-	transactions t JOIN all_names an ON t.tx->>'name' = an.name
+       transactions t JOIN all_names an ON LOWER(t.tx->>'name') = an.name
 WHERE
-	t.block_height >= an.start_block_height
+        t.block_height >= an.start_block_height
 GROUP BY
-	tx->>'name';
+	an.name;
 
 DROP VIEW IF EXISTS name_auction_entries;
 
@@ -37,9 +38,12 @@ SELECT
 FROM
 	transactions t, all_names an, winning_bids wb
 WHERE
-	LOWER(t.tx->>'name') = an.name AND
+ 	LOWER(t.tx->>'name') = an.name AND
 	LOWER(t.tx->>'name') = wb.name AND
+        t.block_height >= an.start_block_height AND
 	(t.tx->>'name_fee')::numeric = wb.winning_bid
 WITH DATA;
+
+COMMIT;
 
 CREATE UNIQUE INDEX name_auction_entries_name_idx ON name_auction_entries(name);

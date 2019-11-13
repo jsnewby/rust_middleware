@@ -3,7 +3,7 @@ CREATE OR REPLACE VIEW winning_bids AS
 SELECT
 	t.tx->>'name' AS name,
 	(MAX(t.tx->>'name_fee'))::numeric AS winning_bid,
-	MAX(t.block_height) AS height 
+	MAX(t.block_height) AS height
 FROM
 	transactions t JOIN all_names an ON t.tx->>'name' = an.name
 WHERE

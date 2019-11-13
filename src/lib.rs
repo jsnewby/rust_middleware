@@ -31,7 +31,6 @@ extern crate itertools;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate periodic;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
@@ -49,6 +48,7 @@ extern crate rust_decimal;
 extern crate serde_derive;
 extern crate postgres;
 extern crate serde_json;
+extern crate threadpool;
 extern crate ws;
 
 pub mod aens;

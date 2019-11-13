@@ -39,5 +39,4 @@ root:
   level: debug
   appenders:
     - main
-    - email
     - stdout

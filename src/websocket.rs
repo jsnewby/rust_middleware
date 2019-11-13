@@ -9,11 +9,12 @@ use std::env;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use threadpool::ThreadPool;
 use ws::{listen, CloseCode, Handler, Handshake, Message, Result, Sender};
 
 use crate::middleware_result::MiddlewareResult;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Candidate {
     pub payload: WsPayload,
     pub data: serde_json::Value,
@@ -281,6 +282,20 @@ fn test_get_objects() {
     assert!(objects.contains("mh_7iCkawgwm9akyXaBaEgfoL2Uhgz9k5b8vbSqx97spp9Ae1mLa"));
 }
 
+#[test]
+fn test_get_objects2() {
+    let tx: serde_json::Value = serde_json::from_str(
+        r#"
+{"fee": 452020000000000, "gas": 1579000, "type": "ContractCallTx", "nonce": 49, "amount": 0, "version": 1, "call_data": "cb_KxGyMFZfP9Js5cM=", "caller_id": "ak_UQkorD6ZG4u2Ac8J2bEGEaE5jLABvWo6VHJhRDR9N7UnWHvzb", "gas_price": 1000000000, "abi_version": 3, "contract_id": "ct_ouZib4wT9cNwgRA1pxgA63XEUd8eQRrG8PcePDEYogBc1VYTq"}
+"#,
+    )
+    .unwrap();
+    println!("{}", tx.to_string());
+    let objects = get_objects(tx.to_string());
+    println!("{:?}", objects);
+    assert!(objects.contains("ct_ouZib4wT9cNwgRA1pxgA63XEUd8eQRrG8PcePDEYogBc1VYTq"));
+}
+
 #[derive(Clone, Debug)]
 pub struct Client {
     out: Sender,
@@ -382,6 +397,17 @@ pub fn start_ws() {
 }
 
 /*
+ * A thread pool for sending data to the websocket clients. The goal is to prevent the
+ * loader thread from blocking. This is a simple solution, may not be the best though. In particular
+ * a blocked client can still take up several threads before it's removed. A queue per websocket
+ * connection may be better? Also, is 20 the right number of threads? Who knows?
+ */
+lazy_static! {
+    pub static ref WS_THREADPOOL: Arc<Mutex<ThreadPool>> =
+        { Arc::new(Mutex::new(ThreadPool::new(20))) };
+}
+
+/*
  * The function which actually sends the data to clients
  *
  * everything is wrapped in a JSON object with details of the
@@ -390,21 +416,30 @@ pub fn start_ws() {
 pub fn broadcast_ws(candidate: &Candidate) -> MiddlewareResult<()> {
     debug!("Broadcasting candidate {:?}", candidate);
     for client in clients_for_object(candidate) {
-        client.out.send(
-            json!({
-                "subscription": candidate.payload.to_string(),
-                "payload": candidate.data,
-            })
-            .to_string(),
-        )?;
+        let _candidate = candidate.clone();
+        if let Ok(threadpool) = (*WS_THREADPOOL).lock() {
+            threadpool.execute(move || {
+                match client.out.send(
+                    json!({
+                        "subscription": _candidate.payload.to_string(),
+                        "payload": _candidate.data,
+                    })
+                    .to_string(),
+                ) {
+                    Ok(_) => (),
+                    Err(e) => error!("Error sending data to client {:?}", e),
+                };
+            });
+        } else {
+            error!("Error locking threadpool");
+        }
     }
     Ok(())
 }
 
 #[test]
 fn test_unpack_message() {
-    let msg: Message =
-        Message::from(r#"{"op":"Subscribe", "payload": "MicroBlocks"}"#.to_string());
+    let msg: Message = Message::from(r#"{"op":"Subscribe", "payload": "MicroBlocks"}"#.to_string());
     let ws_msg = unpack_message(msg).unwrap();
     assert_eq!(ws_msg.op.unwrap(), WsOp::Subscribe);
     assert_eq!(ws_msg.payload.unwrap(), WsPayload::MicroBlocks);
