@@ -3,7 +3,7 @@
   "info": {
     "version": "1.0",
     "title": "aeternal",
-    "description": "API for [Aeternity Middleware](https://github.com/aeternity/aeternal)",
+    "description": "API for [æternal: Aeternity Middleware](https://github.com/aeternity/aeternal)",
     "contact": {}
   },
   "basePath": "/middleware",

@@ -5,7 +5,7 @@ authors = ["John Newby <@johnsnewby>", "Shubhendu Shekhar <@shekhar-shubhendu>",
 description = "æternal: A caching and reporting layer for aeternity blockchain"
 
 [lib]
-name = "aepp_aeternal"
+name = "aeternal"
 path = "src/lib.rs"
 
 [[bin]]
