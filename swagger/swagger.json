@@ -2,8 +2,8 @@
   "swagger": "2.0",
   "info": {
     "version": "1.0",
-    "title": "aepp-middleware",
-    "description": "API for [Aeternity Middleware](https://github.com/aeternity/aepp-middleware)",
+    "title": "aeternal",
+    "description": "API for [Aeternity Middleware](https://github.com/aeternity/aeternal)",
     "contact": {}
   },
   "basePath": "/middleware",

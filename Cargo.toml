@@ -1,11 +1,11 @@
 [package]
-name = "aepp-middleware"
+name = "aeternal"
 version = "0.11.1"
 authors = ["John Newby <@johnsnewby>", "Shubhendu Shekhar <@shekhar-shubhendu>", "Andrea Giacobino <@noandrea>" ]
 description = "æternal: A caching and reporting layer for aeternity blockchain"
 
 [lib]
-name = "aepp_middleware"
+name = "aepp_aeternal"
 path = "src/lib.rs"
 
 [[bin]]
