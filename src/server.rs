@@ -994,7 +994,7 @@ fn active_names(
     reverse: Option<String>,
 ) -> Json<Vec<Name>> {
     let connection = PGCONNECTION.get().unwrap();
-   let top_height = KeyBlock::top_height(&*connection).unwrap();
+    let top_height = KeyBlock::top_height(&*connection).unwrap();
     let sql: String = match owner {
         Some(owner) => format!(
             "select * from \
@@ -1003,7 +1003,8 @@ fn active_names(
              expires_at >= {} and \
              owner = '{}' \
              order by expires_at desc",
-            top_height, top_height,
+            top_height,
+            top_height,
             sanitize(&owner),
         ),
         _ => format!(
@@ -1103,7 +1104,7 @@ fn active_name_auctions_internal(
     let mut cmp_func: Box<dyn Fn(&NameAuctionEntry, &NameAuctionEntry) -> std::cmp::Ordering> =
         match _sort.as_ref() {
             "name" => Box::new(|a, b| a.name.cmp(&b.name)),
-            "max_bid" => Box::new(|a,b| b.winning_bid.cmp(&a.winning_bid)),
+            "max_bid" => Box::new(|a, b| b.winning_bid.cmp(&a.winning_bid)),
             _ => Box::new(|a, b| a.expiration.cmp(&b.expiration)),
         };
 
@@ -1183,17 +1184,17 @@ struct AuctionInfo {
 }
 
 #[get("/names/auctions/<name>/info")]
-fn info_for_auction(_state: State<MiddlewareServer>, name: String) ->
-    Result<Json<AuctionInfo>, Status>
-{
+fn info_for_auction(
+    _state: State<MiddlewareServer>,
+    name: String,
+) -> Result<Json<AuctionInfo>, Status> {
     let connection = &PGCONNECTION.get().unwrap();
     let bids = crate::models::Name::bids_for_name(connection, name.clone()).unwrap();
-    if let Ok(info) =
-        crate::models::NameAuctionEntry::load_for_name(connection, name.clone()) {
-            Ok(Json(AuctionInfo{ bids, info }))
-        } else {
-            Err(rocket::http::Status::new(404, "Not found"))
-        }
+    if let Ok(info) = crate::models::NameAuctionEntry::load_for_name(connection, name.clone()) {
+        Ok(Json(AuctionInfo { bids, info }))
+    } else {
+        Err(rocket::http::Status::new(404, "Not found"))
+    }
 }
 
 #[get("/names/auctions/bids/<name>?<limit>&<page>")]
@@ -1236,7 +1237,7 @@ fn status(_state: State<MiddlewareServer>) -> Response {
         .unwrap_or("900".into())
         .parse::<i64>()
         .unwrap();
-    let queue_length = crate::loader::queue_length();
+    let queue_length = crate::loader::queue_length().unwrap();
     let max_queue_length: i64 = std::env::var("STATUS_MAX_QUEUE_LENGTH")
         .unwrap_or("2".into())
         .parse::<i64>()
@@ -1307,7 +1308,10 @@ impl MiddlewareServer {
         let allowed_origins = AllowedOrigins::all();
         let options = rocket_cors::CorsOptions {
             allowed_origins,
-            allowed_methods: vec!(Method::Get,Method::Post,Method::Options).into_iter().map(From::from).collect(),
+            allowed_methods: vec![Method::Get, Method::Post, Method::Options]
+                .into_iter()
+                .map(From::from)
+                .collect(),
             allowed_headers: AllowedHeaders::All,
             allow_credentials: true,
             ..Default::default()
@@ -1332,7 +1336,7 @@ impl MiddlewareServer {
             .mount("/middleware", routes![get_available_compilers])
             .mount("/middleware", routes![generations_by_range])
             .mount("/middleware", routes![height_at_epoch])
-	    .mount("/middleware", routes![info_for_auction])
+            .mount("/middleware", routes![info_for_auction])
             .mount("/middleware", routes![name_for_hash])
             .mount("/middleware", routes![oracles_all])
             .mount("/middleware", routes![oracle_requests_responses])

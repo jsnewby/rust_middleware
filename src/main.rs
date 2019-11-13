@@ -289,7 +289,12 @@ fn main() {
             Err(x) => error!("fill_missing_heights() returned an error: {}", x),
         };
         populate_thread = Some(thread::spawn(move || {
-            loader.start();
+            loop {
+                match loader.start() {
+                    Ok(_) => (), // this should never happene
+                    Err(e) => error!("Error in chain population: {:?}", e),
+                };
+            }
         }));
         if websocket {
             websocket::start_ws();
