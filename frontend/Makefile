@@ -3,7 +3,7 @@ GIT_DESCR = $(shell git describe --always)
 OUTPUTFOLDER = dist
 # docker image
 DOCKER_REGISTRY = 166568770115.dkr.ecr.eu-central-1.amazonaws.com/aeternity
-DOCKER_IMAGE = aepp-middleware-frontend
+DOCKER_IMAGE = aeternal-frontend
 DOCKER_TAG = $(shell git describe --always)
 K8S_NAMESPACE=mainnet
 NODE_URL=https://mdw.aepps.com
