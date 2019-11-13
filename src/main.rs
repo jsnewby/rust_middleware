@@ -1,7 +1,6 @@
 #![allow(redundant_semicolon)]
 #![feature(plugin)]
 #![feature(slice_concat_ext)]
-#![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(try_trait)]
 extern crate backtrace;

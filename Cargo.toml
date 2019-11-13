@@ -1,8 +1,8 @@
 [package]
 name = "aepp-middleware"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["John Newby <@johnsnewby>", "Shubhendu Shekhar <@shekhar-shubhendu>", "Andrea Giacobino <@noandrea>" ]
-description = "æternity node middleware: A caching and reporting layer for aeternity blockchain"
+description = "æternal: A caching and reporting layer for aeternity blockchain"
 
 [lib]
 name = "aepp_middleware"
