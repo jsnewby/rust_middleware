@@ -1,6 +1,6 @@
 # rust build
 GIT_DESCR = $(shell git describe --always)
-PROJECT_NAME = aepp-middleware
+PROJECT_NAME = aeternal
 # build output folder
 OUTPUTFOLDER = target
 # docker image
