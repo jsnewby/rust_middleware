@@ -1,7 +1,6 @@
 #![allow(redundant_semicolon)]
 #![feature(plugin)]
 #![feature(slice_concat_ext)]
-#![feature(custom_attribute)]
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(try_trait)]
 extern crate backtrace;
@@ -50,9 +49,10 @@ extern crate rust_decimal;
 extern crate serde_derive;
 extern crate postgres;
 extern crate serde_json;
+extern crate threadpool;
 extern crate ws;
 
-extern crate aepp_middleware;
+extern crate aepp_aeternal;
 
 use std::thread;
 use std::thread::JoinHandle;

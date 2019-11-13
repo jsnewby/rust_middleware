@@ -191,20 +191,20 @@ You may subscribe to any æternity object type, and be sent all transactions whi
 
 Subscriptions return the array of subscriptions (possibly empty):
 ```
-{"op":"subscribe", "payload": "key_blocks"}
+{"op":"Subscribe", "payload": "KeyBlocks"}
 ["key_blocks"]
-{"op":"subscribe", "payload": "micro_blocks"}
-["key_blocks","micro_blocks"]
-{"op":"unsubscribe", "payload": "micro_blocks"}
+{"op":"Subscribe", "payload": "MicroBlocks"}
+["KeyBlocks","MicroBlocks"]
+{"op":"Unsubscribe", "payload": "MicroBlocks"}
 ["key_blocks"]
-{"op":"subscribe", "payload": "object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}
-["key_blocks","micro_blocks", "ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv"]
+{"op":"Subscribe", "payload": "Object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}
+["KeyBlocks","MicroBlocks", "ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv"]
 
 ```
 
 Actual chain data is wrapped in a JSON structure identifying the subscription to which it relates:
 ```
-{"payload":{"beneficiary":"ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv","hash":"kh_rTQLY9ymNL9MSop3RJtySjxPreuowhejHJYu4KSPBfSSZTerh","height":38263,"miner":"ak_bCCis9P7hTGCjfhDPZh3KQUSDXd5V7thyxYAznFcsr1iLn1Uv","nonce":15041902164601590529,"pow":[11019073,17901996,22830222,28569083,49447859,49462425,49519772,87145865,99866878,102237553,123920118,132218818,155018387,180362216,198154991,201321139,222409093,280306327,281351614,283186475,285893935,287852747,323975163,324943621,371752985,397769028,399438380,400871099,414481284,419637507,437183279,446297926,458204825,460525976,468647042,479097364,479884030,491013280,503534491,505981207,522008475,527020581],"prev_hash":"kh_dxbyza4hSY3Ly5U7HJnfn748Po5pJ1rv3dSgisrexcQ5Nna6p","prev_key_hash":"kh_dxbyza4hSY3Ly5U7HJnfn748Po5pJ1rv3dSgisrexcQ5Nna6p","state_hash":"bs_2mnjZYzxN23QpUx7MT2f5RRx8sXcZqvEq7GtqE28LCowq91k4u","target":503824559,"time":1550244690796,"version":1},"subscription":"key_blocks"}
+{"payload":{"beneficiary":"ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv","hash":"kh_rTQLY9ymNL9MSop3RJtySjxPreuowhejHJYu4KSPBfSSZTerh","height":38263,"miner":"ak_bCCis9P7hTGCjfhDPZh3KQUSDXd5V7thyxYAznFcsr1iLn1Uv","nonce":15041902164601590529,"pow":[11019073,17901996,22830222,28569083,49447859,49462425,49519772,87145865,99866878,102237553,123920118,132218818,155018387,180362216,198154991,201321139,222409093,280306327,281351614,283186475,285893935,287852747,323975163,324943621,371752985,397769028,399438380,400871099,414481284,419637507,437183279,446297926,458204825,460525976,468647042,479097364,479884030,491013280,503534491,505981207,522008475,527020581],"prev_hash":"kh_dxbyza4hSY3Ly5U7HJnfn748Po5pJ1rv3dSgisrexcQ5Nna6p","prev_key_hash":"kh_dxbyza4hSY3Ly5U7HJnfn748Po5pJ1rv3dSgisrexcQ5Nna6p","state_hash":"bs_2mnjZYzxN23QpUx7MT2f5RRx8sXcZqvEq7GtqE28LCowq91k4u","target":503824559,"time":1550244690796,"version":1},"subscription":"KeyBlocks"}
 ```
 
 
@@ -214,8 +214,8 @@ Here is some magic you can run in your Javascript console
 ```
 var exampleSocket = new WebSocket("ws://127.0.0.1:3020");
 exampleSocket.onopen = function (event) {  // when connection is open, send a subscribe request
-    exampleSocket.send('{"op":"subscribe", "payload": "key_blocks"}');
-    //to unsubscribe: exampleSocket.send('{"op":"unsubscribe", "payload": "key_blocks"}')
+    exampleSocket.send('{"op":"Subscribe", "payload": "KeyBlocks"}');
+    //to unsubscribe: exampleSocket.send('{"op":"Unsubscribe", "payload": "KeyBlocks"}')
 }
 
 exampleSocket.onmessage = function (event) {

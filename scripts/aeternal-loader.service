@@ -10,7 +10,7 @@ Environment=STATUS_MAX_BLOCK_AGE=1200
 Environment=LOG_DIR=/var/log/aeternity/aeternal-loader
 Environment=WEBSOCKET_ADDRESS=0.0.0.0:3020
 Environment=ROCKET_PORT=8000
-Environment=RUST_LOG=aepp_middleware
+Environment=RUST_LOG=aepp_aeternal
 Environment=AESOPHIA_URL=http://localhost:3080
 Environment=NODE_URL=http://localhost:3013
 Environment=RUST_BACKTRACE=full
