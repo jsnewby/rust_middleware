@@ -653,7 +653,7 @@ fn calls_for_contract_address(
         let caller_id: String = row.get(2);
         let arguments: serde_json::Value = row.get(3);
         let callinfo: serde_json::Value = row.get(4);
-        let result: serde_json::Value = row.get(5);
+        let result: Option<serde_json::Value> = row.get(5);
         calls.push(json!({
             "transaction_id": transaction_id,
             "contract_id": contract_id,
