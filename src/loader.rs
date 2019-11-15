@@ -1,6 +1,5 @@
 use super::schema::key_blocks::dsl::*;
 use super::schema::transactions::dsl::*;
-use chashmap::*;
 use diesel::pg::PgConnection;
 use diesel::query_dsl::QueryDsl;
 use diesel::Connection;
@@ -15,10 +14,11 @@ use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use r2d2_postgres::PostgresConnectionManager;
 use serde_json;
+use std::collections::HashMap;
 use std::env;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use websocket::Candidate;
 
@@ -82,43 +82,36 @@ pub struct BlockLoader {
 pub static BACKLOG_CLEARED: i64 = -1;
 
 lazy_static! {
-    static ref TX_QUEUE: CHashMap<i64, bool> = CHashMap::<i64, bool>::new();
+    static ref TX_QUEUE: Arc<Mutex<HashMap<i64, bool>>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
-fn is_in_queue(_height: i64) -> bool {
-    match TX_QUEUE.get(&_height) {
-        None => false,
-        _ => true,
+fn is_in_queue(_height: i64) -> MiddlewareResult<bool> {
+    match (*TX_QUEUE).lock()?.get(&_height) {
+        None => Ok(false),
+        _ => Ok(true),
     }
 }
 
-fn remove_from_queue(_height: i64) {
-    info!("TX_QUEUE -> {}", _height);
-    TX_QUEUE.remove(&_height);
-    info!("TX_QUEUE len={}", TX_QUEUE.len());
+fn remove_from_queue(_height: i64) -> MiddlewareResult<()> {
+    (*TX_QUEUE).lock()?.remove(&_height)?;
+    Ok(())
 }
-fn add_to_queue(_height: i64) {
-    info!("TX_QUEUE <- {}", _height);
-    TX_QUEUE.insert(_height, true);
-}
-
-pub fn queue(
-    _height: i64,
-    _tx: &std::sync::mpsc::Sender<i64>,
-) -> Result<(), std::sync::mpsc::SendError<i64>> {
-    info!("TX_QUEUE len={}", TX_QUEUE.len());
-
-    if is_in_queue(_height) {
-        info!("TX_QUEUE already has {}", _height);
-        return Ok(());
-    }
-    _tx.send(_height)?;
-    add_to_queue(_height);
+fn add_to_queue(_height: i64) -> MiddlewareResult<()> {
+    (*TX_QUEUE).lock()?.insert(_height, true);
     Ok(())
 }
 
-pub fn queue_length() -> usize {
-    TX_QUEUE.len()
+pub fn queue(_height: i64, _tx: &std::sync::mpsc::Sender<i64>) -> MiddlewareResult<()> {
+    if is_in_queue(_height)? {
+        return Ok(());
+    }
+    _tx.send(_height)?;
+    add_to_queue(_height)?;
+    Ok(())
+}
+
+pub fn queue_length() -> MiddlewareResult<usize> {
+    Ok((*TX_QUEUE).lock()?.len())
 }
 
 /*
@@ -602,7 +595,7 @@ impl BlockLoader {
      * The very simple function which pulls heights from the queue and
      * loads them into the DB
      */
-    pub fn start(&self) {
+    pub fn start(&self) -> MiddlewareResult<()> {
         for b in &self.rx {
             debug!("Pulling height {} from queue for storage", b);
             if b == BACKLOG_CLEARED {
@@ -618,12 +611,13 @@ impl BlockLoader {
                     ),
                     Err(x) => error!("Error loading blocks {}", x),
                 };
-                remove_from_queue(b);
+                remove_from_queue(b)?;
             }
         }
         // if we fall through here something has gone wrong. Let's quit!
         error!("Failed to read from the queue, quitting.");
         BlockLoader::recover_from_db_error();
+        Err(MiddlewareError::new("Error in hashmap, quitting"))
     }
 
     /*
