@@ -2,7 +2,7 @@
 
 author: John Newby
 
-date: 2019-09-27
+date: 2019-11-19
 
 corresponds to version: v0.10.0
 
@@ -28,9 +28,9 @@ In general when we find a useful query which is not supported by the node, we at
 
 ## Installation, or not.
 
-aeternal is written in the Rust language, and is relatively straightforward to install. We, the æternity team, host instances for both mainnet and testnet, which you’re welcome to use. We do understand though that our users may not want to trust us, in which case you’ll be wanting to run your own instance. You can start off by priming with our database, which we publish at https://backups.aepps.com. You may verify this backup using the method described in the ‘verification’ section, below.
+aeternal is written in the Rust language, and is relatively straightforward to install. We, the æternal team, host instances for both mainnet and testnet, which you’re welcome to use. We do understand though that our users may not want to trust us, in which case you’ll be wanting to run your own instance. You can start off by priming with our database, which we publish at https://backups.aeternal.io. You may verify this backup using the method described in the ‘verification’ section, below.
 
-The installation instructions are in the README.md file on the Github repository for the project, at [https://github.com/aeternity/aepp-middleware](https://github.com/aeternity/aepp-middleware)
+The installation instructions are in the README.md file on the Github repository for the project, at [https://github.com/aeternity/aeternal](https://github.com/aeternity/aepp-middleware)
 
 
 ## Interfaces
@@ -720,4 +720,3 @@ and so on.
 ## Logging
 
 As of version 0.10.0 aeternal uses the *log4rs* logging package. A sample configuration is given in the file `conf/log4rs.yaml`. We use a custom appender, `log4rs-email` written by one of our team, which emails log lines, in the sample config this is done for the `error` class. We suggest using this sparingly, unless you very much enjoy receiving a lot of emails.
-
