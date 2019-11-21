@@ -1,15 +1,15 @@
-extern crate aepp_middleware;
+extern crate aeternal;
 extern crate diesel;
 #[macro_use]
 extern crate assert_json_diff;
 #[macro_use]
 extern crate serde_json;
 
-use aepp_middleware::loader::BlockLoader;
-use aepp_middleware::loader::PGCONNECTION;
-use aepp_middleware::models::*;
-use aepp_middleware::schema::key_blocks;
-use aepp_middleware::schema::key_blocks::dsl::*;
+use aeternal::loader::BlockLoader;
+use aeternal::loader::PGCONNECTION;
+use aeternal::models::*;
+use aeternal::schema::key_blocks;
+use aeternal::schema::key_blocks::dsl::*;
 use diesel::query_dsl::filter_dsl::FilterDsl;
 use diesel::sql_query;
 use diesel::BelongingToDsl;

@@ -52,7 +52,7 @@ extern crate serde_json;
 extern crate threadpool;
 extern crate ws;
 
-extern crate aepp_middleware;
+extern crate aeternal;
 
 use std::thread;
 use std::thread::JoinHandle;

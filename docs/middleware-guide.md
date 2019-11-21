@@ -30,8 +30,7 @@ In general when we find a useful query which is not supported by the node, we at
 
 aeternal is written in the Rust language, and is relatively straightforward to install. We, the æternal team, host instances for both mainnet and testnet, which you’re welcome to use. We do understand though that our users may not want to trust us, in which case you’ll be wanting to run your own instance. You can start off by priming with our database, which we publish at https://backups.aeternal.io. You may verify this backup using the method described in the ‘verification’ section, below.
 
-The installation instructions are in the README.md file on the Github repository for the project, at [https://github.com/aeternity/aeternal](https://github.com/aeternity/aepp-middleware)
-
+The installation instructions are in the README.md file on the Github repository for the project, at [https://github.com/aeternity/aeternal](https://github.com/aeternity/aeternal)
 
 ## Interfaces
 

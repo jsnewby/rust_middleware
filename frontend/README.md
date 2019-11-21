@@ -15,4 +15,4 @@
 - NUXT_APP_NODE_URL: Middleware url you want the frontend to connect to (default: `https://testnet.mdw.aepps.com`).
 - NUXT_APP_NODE_WS: Middleware websocket url (default: `wss://testnet.mdw.aepps.com/websocket`).
 - NUXT_APP_NETWORK_NAME: Network name to show in the network indicator (default: `TEST NET`).
-- NUXT_APP_SWAGGER_HUB: SwaggerHub link to use (default: https://app.swaggerhub.com/apis-docs/sshekhar/aepp-middleware/1.0).
+- NUXT_APP_SWAGGER_HUB: SwaggerHub link to use (default: https://app.swaggerhub.com/apis/sshekhar/aeternal/1.0).

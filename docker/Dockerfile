@@ -2,8 +2,8 @@ FROM rust:1.35.0 as build
 
 # maybe we can optimize this but easiest way to get nightly
 RUN rustup default nightly
-RUN USER=root cargo new --bin --vcs none aepp-middleware
-WORKDIR /aepp-middleware
+RUN USER=root cargo new --bin --vcs none aeternal
+WORKDIR /aeternal
 
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
@@ -19,12 +19,12 @@ RUN cargo build --release
 FROM debian:stretch-slim
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && apt-get -y install libpq5 libcurl3 libcurl3-gnutls
-COPY --from=build /aepp-middleware/target/release/aeternal /app/aepp-middleware
+COPY --from=build /aeternal/target/release/aeternal /app/aeternal
 WORKDIR /app
 # copy rocket configuration 
 COPY ./docker/Rocket.toml ./Rocket.toml
 # copy minimal logger configuration
 COPY ./docker/log4rs-minimal.yaml /logs/log.yaml
-ENTRYPOINT ["/app/aepp-middleware"]
+ENTRYPOINT ["/app/aeternal"]
 CMD ["-p", "-s", "-w"]
 EXPOSE 80 3020

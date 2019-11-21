@@ -1,4 +1,4 @@
-# æternity middleware
+# æternal
 
 ## Overview
 
