@@ -1,4 +1,4 @@
-# æternity middleware
+# æternal
 
 ## Overview
 
@@ -44,7 +44,7 @@ The middleware permits you to subscribe to events via a websocket, and receive u
 
 ### Use ours!
 
-There is a hosted middleware for the æternity mainnet at http://mdw.aepps.com/, and one for the testnet at https://testnet.mdw.aepps.com.
+There is a hosted middleware for the æternity mainnet at https://mainnet.aeternal.io/, and one for the testnet at https://testnet.aeternal.io.
 
 ### Install your own
 

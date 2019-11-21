@@ -81,5 +81,8 @@ middleware_error_from!(bigdecimal::ParseBigDecimalError);
 middleware_error_from!(std::env::VarError);
 middleware_error_from!(reqwest::header::InvalidHeaderValue);
 middleware_error_from!(base64::DecodeError);
+middleware_error_from!(
+    std::sync::PoisonError<std::sync::MutexGuard<'_, std::collections::HashMap<i64, bool>>>
+);
 
 pub type MiddlewareResult<T> = Result<T, MiddlewareError>;
