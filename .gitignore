@@ -2,3 +2,4 @@
 /target
 **/*.rs.bk
 .env
+conf/log4rs.yaml
