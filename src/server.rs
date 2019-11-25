@@ -473,8 +473,6 @@ FROM
     transactions t
 JOIN
     micro_blocks m ON m.id=t.micro_block_id
-LEFT OUTER JOIN
-associated_accounts aa ON aa.transaction_id=t.id
 WHERE
     m.id = t.micro_block_id AND
    (t.tx->>'sender_id'='{}' OR
@@ -486,11 +484,9 @@ WHERE
     t.tx->>'responder_id'='{}' OR
     t.tx->>'from_id'='{}' OR
     t.tx->>'to_id'='{}' OR
-    t.tx->>'owner_id' = '{}' OR
-    aa.aeternity_id = {}
+    t.tx->>'owner_id' = {}
 ORDER BY m.time_ DESC
 LIMIT {} OFFSET {} "#,
-        s_acc,
         s_acc,
         s_acc,
         s_acc,
