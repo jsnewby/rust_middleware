@@ -6,10 +6,10 @@ DOCKER_REGISTRY = 166568770115.dkr.ecr.eu-central-1.amazonaws.com/aeternity
 DOCKER_IMAGE = aeternal-frontend
 DOCKER_TAG = $(shell git describe --always)
 K8S_NAMESPACE=mainnet
-NODE_URL=https://mdw.aepps.com
-NODE_WS=wss://mdw.aepps.com/websocket
-NETWORK_NAME=MAIN NET
-ENABLE_FAUCET=false
+NODE_URL=https://testnet.aeternal.io
+NODE_WS=wss://testnet.aeternal.io/websocket
+NETWORK_NAME=TEST NET
+ENABLE_FAUCET=true
 
 .PHONY: list
 list:
