@@ -54,7 +54,7 @@ macro_rules! offset_limit_vec {
     {$limit:expr, $page:expr, $result:expr} => {
         if let Some(_limit) = $limit {
             if let Some(_page) = $page {
-                if $result.len() >  (_limit  * _page) as usize {
+                if $result.len() >  (_limit  * (_page-1)) as usize {
                     $result = $result[((_page - 1) * _limit) as usize
                                       ..std::cmp::min((_page * _limit) as usize, $result.len() as usize)]
                         .to_vec();
