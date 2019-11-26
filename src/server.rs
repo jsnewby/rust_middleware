@@ -47,30 +47,33 @@ fn check_object(s: &str) {
 
 /*
  * Macro to do offset and limit inside a vector of results instead of in SQL.
- * TODO: this only works if both page and limit are set.
+ * If page is None then it defaults to 1.
+ * Testing indicates that this is about 25% slower than LIMIT and OFFSET in SQL.
 */
 #[macro_export]
-macro_rules! offset_limit_vec {
+macro_rules! limit_page_vec {
     {$limit:expr, $page:expr, $result:expr} => {
         if let Some(_limit) = $limit {
-            if let Some(_page) = $page {
-                if $result.len() >  (_limit  * (_page-1)) as usize {
-                    $result = $result[((_page - 1) * _limit) as usize
-                                      ..std::cmp::min((_page * _limit) as usize, $result.len() as usize)]
-                        .to_vec();
-                } else {
-                    $result = vec!();
-                }
+            let _page = match $page {
+                Some(x) => x,
+                None => 1,
+            };
+            if $result.len() >  (_limit  * (_page-1)) as usize {
+                $result = $result[((_page - 1) * _limit) as usize
+                                  ..std::cmp::min((_page * _limit) as usize, $result.len() as usize)]
+                    .to_vec();
+            } else {
+                $result = vec!();
             }
         }
     }
 }
 
 #[test]
-fn test_offset_limit_vec() {
+fn test_limit_page_vec() {
     fn call_olv(limit: i32, page: i32, vec: &Vec<i32>) -> Vec<i32> {
         let mut vec2 = vec.clone();
-        offset_limit_vec!(Some(limit), Some(page), vec2);
+        limit_page_vec!(Some(limit), Some(page), vec2);
         vec2
     }
     let vec: Vec<i32> = (0..32).collect();
@@ -623,10 +626,12 @@ fn transaction_count_in_micro_block(
     }))
 }
 
-#[get("/contracts/transactions/address/<address>")]
+#[get("/contracts/transactions/address/<address>?<limit>&<page>")]
 fn transactions_for_contract_address(
     _state: State<MiddlewareServer>,
     address: String,
+    limit: Option<i32>,
+    page: Option<i32>,
 ) -> Json<JsonTransactionList> {
     check_object(&address);
     let sql = format!(
@@ -634,13 +639,14 @@ fn transactions_for_contract_address(
          t.tx_type='ContractCallTx' and \
          t.tx->>'contract_id' = '{}' or \
          t.id in (select transaction_id from contract_identifiers where \
-         contract_identifier='{}') ORDER by t.block_height ASC",
+         contract_identifier='{}') ORDER by t.block_height ASC \
+         ",
         sanitize(&address),
-        sanitize(&address)
+        sanitize(&address),
     );
-    let transactions: Vec<Transaction> =
+    let mut transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-
+    limit_page_vec!(limit, page, transactions);
     let json_transactions = transactions
         .iter()
         .map(JsonTransaction::from_transaction)
@@ -650,15 +656,17 @@ fn transactions_for_contract_address(
     })
 }
 
-#[get("/contracts/calls/address/<address>")]
+#[get("/contracts/calls/address/<address>?<limit>&<page>")]
 fn calls_for_contract_address(
     _state: State<MiddlewareServer>,
     address: String,
+    limit: Option<i32>,
+    page: Option<i32>,
 ) -> Json<Vec<JsonValue>> {
     check_object(&address);
     let sql = "SELECT t.hash, contract_id, caller_id, arguments, callinfo, result FROM \
                contract_calls c join transactions t on t.id=c.transaction_id WHERE \
-               contract_id = $1";
+               contract_id = $1 ORDER BY t.block_height ASC";
     let mut calls = Vec::new();
     for row in &SQLCONNECTION
         .get()
@@ -681,6 +689,7 @@ fn calls_for_contract_address(
             "result": result,
         }));
     }
+    limit_page_vec!(limit, page, calls);
     Json(calls)
 }
 
@@ -1039,7 +1048,7 @@ fn active_names(
     if reverse != None {
         names.reverse();
     }
-    offset_limit_vec!(limit, page, names);
+    limit_page_vec!(limit, page, names);
     Json(names)
 }
 
@@ -1172,7 +1181,7 @@ fn active_name_auctions(
     length: Option<usize>,
 ) -> Json<Vec<crate::models::NameAuctionEntry>> {
     let mut result = active_name_auctions_internal(_state, sort, reverse, limit, page, length);
-    offset_limit_vec!(limit, page, result);
+    limit_page_vec!(limit, page, result);
     Json(result)
 }
 
@@ -1185,7 +1194,7 @@ fn bids_for_account(
 ) -> Json<Vec<crate::models::BidInfoForAccount>> {
     let mut result =
         crate::models::Name::bids_for_account(&PGCONNECTION.get().unwrap(), account).unwrap();
-    offset_limit_vec!(limit, page, result);
+    limit_page_vec!(limit, page, result);
     Json(result)
 }
 
@@ -1224,7 +1233,7 @@ fn bids_for_name(
 ) -> Json<Vec<Transaction>> {
     let mut result =
         crate::models::Name::bids_for_name(&PGCONNECTION.get().unwrap(), name).unwrap();
-    offset_limit_vec!(limit, page, result);
+    limit_page_vec!(limit, page, result);
     Json(result)
 }
 
