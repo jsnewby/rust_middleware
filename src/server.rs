@@ -66,6 +66,24 @@ macro_rules! offset_limit_vec {
     }
 }
 
+#[test]
+fn test_offset_limit_vec() {
+    fn call_olv(limit: i32, page: i32, vec: &Vec<i32>) -> Vec<i32> {
+        let mut vec2 = vec.clone();
+        offset_limit_vec!(Some(limit), Some(page), vec2);
+        vec2
+    }
+    let vec: Vec<i32> = (0..32).collect();
+    assert_eq!(call_olv(32, 1, &vec), vec);
+    assert_eq!(call_olv(10, 1, &vec), vec!(0,1,2,3,4,5,6,7,8,9));
+    assert_eq!(call_olv(5,2,&vec), vec!(5,6,7,8,9));
+    assert_eq!(call_olv(10,4,&vec), vec!(30,31));
+
+    assert_eq!(call_olv(10,1,&vec!(0,1,2,3)), vec!(0,1,2,3));
+    let v: Vec<i32> = Vec::new();
+    assert_eq!(call_olv(10,2,&vec!(0,1,2,3)), v);
+}
+
 #[get("/error")]
 fn error() -> String {
     error!("Test error");
