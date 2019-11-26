@@ -11,6 +11,8 @@ table! {
         id -> Int4,
         contract_identifier -> Nullable<Varchar>,
         transaction_id -> Int4,
+        abi_version -> Int4,
+        vm_version -> Int4,
     }
 }
 

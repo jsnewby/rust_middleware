@@ -812,6 +812,8 @@ impl InsertableOracleQuery {
 pub struct InsertableContractIdentifier {
     pub contract_identifier: String,
     pub transaction_id: i32,
+    pub abi_version: i32,
+    pub vm_version: i32,
 }
 
 impl InsertableContractIdentifier {
@@ -822,6 +824,8 @@ impl InsertableContractIdentifier {
                 tx.tx["nonce"].as_i64()?,
             ),
             transaction_id: tx_id,
+            abi_version: tx.tx["abi_version"].as_i64()? as i32,
+            vm_version: tx.tx["vm_version"].as_i64()? as i32,
         })
     }
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
@@ -833,6 +837,38 @@ impl InsertableContractIdentifier {
             .returning(id)
             .get_results(&*conn)?;
         Ok(generated_ids[0])
+    }
+}
+
+#[derive(Deserialize, Identifiable, Queryable, QueryableByName, Serialize)]
+#[table_name = "contract_identifiers"]
+pub struct ContractIdentifier {
+    #[serde(skip_serializing)]
+    pub id: i32,
+    pub contract_identifier: Option<String>,
+    pub transaction_id: i32,
+    pub abi_version: i32,
+    pub vm_version: i32,
+}
+
+impl ContractIdentifier {
+    pub fn get_for_identifier(
+        connection: &PgConnection,
+        identifier: &String,
+    ) -> MiddlewareResult<Self> {
+        use schema::contract_identifiers::dsl::*;
+        let result = contract_identifiers
+            .filter(contract_identifier.eq(identifier))
+            .first::<Self>(connection)?;
+        Ok(result)
+    }
+
+    pub fn get_backend<'a>(&self) -> &'a str {
+        match self.vm_version {
+            1..=4 => "sophia",
+            5 => "fate",
+            _ => "",
+        }
     }
 }
 
@@ -1358,41 +1394,74 @@ impl InsertableContractCall {
         let callinfo = node.transaction_info(&source.hash)?["call_info"].to_owned();
         debug!("callinfo: {:?}", callinfo.to_string());
         debug!("arguments: {:?}", arguments);
-
-        /* let mut call_result = None;
-        if (callinfo["return_type"].as_str()? == "ok") {
-            params.remove(&"calldata".to_string())?;
-            params.insert(
-                "function".to_string(),
-                String::from(arguments["function"].as_str()?),
-            );
-            params.insert(
-                "return".to_string(),
-                String::from(callinfo["return_value"].as_str()?),
-            );
-            debug!("returndata input: {:?}", params);
-            call_result = match client
-                .post(&format!("{}/decode-returndata/bytecode", url))
-                .json(&params)
-                .send() {
-                    Ok(mut response) => {
-                        debug!("Result decode response {:?} ", response);
-                        Some(serde_json::from_str(&response.text()?)?)
-                    },
-                    Err(err) => {
-                        debug!("Error occurred while decoding call result: {:?}", err);
-                        None
-                    },
-                }
-        } */
+        let result = Self::get_call_result(
+            url,
+            &contract_id.to_string(),
+            &callinfo,
+            &mut params,
+            String::from(arguments["function"].as_str()?),
+        )?;
         Ok(Some(Self {
             transaction_id: _transaction_id,
             contract_id: contract_id.to_string(),
             caller_id: caller_id.to_string(),
             arguments,
             callinfo: Some(callinfo),
-            result: None,
+            result: result,
         }))
+    }
+
+    pub fn get_call_result(
+        url: &str,
+        contract_identifier: &String,
+        callinfo: &serde_json::Value,
+        params: &mut HashMap<String, String>,
+        function: String,
+    ) -> MiddlewareResult<Option<serde_json::Value>> {
+        debug!(
+            "get_call_result: contract_identifier={:?}",
+            contract_identifier
+        );
+        let connection = crate::loader::PGCONNECTION.get()?; // TODO?
+        let mut call_result = None;
+        if callinfo["return_type"].as_str() != Some("ok") {
+            return Ok(None);
+        }
+        params.insert(
+            "call-value".to_string(),
+            callinfo["return_value"].as_str()?.to_string(),
+        );
+        if let Ok(contract_identifier) =
+            ContractIdentifier::get_for_identifier(&connection, &contract_identifier.to_string())
+        {
+            params.remove(&"calldata".to_string())?;
+            params.insert("function".to_string(), function);
+            params.insert(
+                "backend".to_string(),
+                contract_identifier.get_backend().to_string(),
+            );
+            params.insert(
+                "call-result".to_string(),
+                String::from(callinfo["return_value"].as_str()?),
+            );
+            debug!("returndata input: {:?}", params);
+            let client = reqwest::Client::new();
+            call_result = match client
+                .post(&format!("{}/decode-returndata/bytecode", url))
+                .json(&params)
+                .send()
+            {
+                Ok(mut response) => {
+                    debug!("Result decode response {:?} ", response);
+                    Some(serde_json::from_str(&response.text()?)?)
+                }
+                Err(err) => {
+                    debug!("Error occurred while decoding call result: {:?}", err);
+                    None
+                }
+            };
+        }
+        Ok(call_result)
     }
 
     pub fn save(&self, conn: &PgConnection) -> MiddlewareResult<i32> {
