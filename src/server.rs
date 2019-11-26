@@ -78,13 +78,13 @@ fn test_limit_page_vec() {
     }
     let vec: Vec<i32> = (0..32).collect();
     assert_eq!(call_olv(32, 1, &vec), vec);
-    assert_eq!(call_olv(10, 1, &vec), vec!(0,1,2,3,4,5,6,7,8,9));
-    assert_eq!(call_olv(5,2,&vec), vec!(5,6,7,8,9));
-    assert_eq!(call_olv(10,4,&vec), vec!(30,31));
+    assert_eq!(call_olv(10, 1, &vec), vec!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9));
+    assert_eq!(call_olv(5, 2, &vec), vec!(5, 6, 7, 8, 9));
+    assert_eq!(call_olv(10, 4, &vec), vec!(30, 31));
 
-    assert_eq!(call_olv(10,1,&vec!(0,1,2,3)), vec!(0,1,2,3));
+    assert_eq!(call_olv(10, 1, &vec!(0, 1, 2, 3)), vec!(0, 1, 2, 3));
     let v: Vec<i32> = Vec::new();
-    assert_eq!(call_olv(10,2,&vec!(0,1,2,3)), v);
+    assert_eq!(call_olv(10, 2, &vec!(0, 1, 2, 3)), v);
 }
 
 #[get("/error")]
