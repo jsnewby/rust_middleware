@@ -84,7 +84,7 @@ const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 embed_migrations!("migrations/");
 
-use loader::PGCONNECTION;
+use loader::{PGCONNECTION, SQLCONNECTION};
 
 /*
  * This function does two things--initially it asks the DB for the
@@ -158,10 +158,10 @@ fn setup_protocols(url: String) {
  */
 fn refresh_materialized_views() -> MiddlewareResult<()> {
     fn _refresh() -> MiddlewareResult<()> {
+        let connection = crate::loader::SQLCONNECTION.get()?;
         debug!("Waiting for name event");
         crate::models::Name::wait_for_event()?;
         debug!("Received name event");
-        let connection = crate::loader::SQLCONNECTION.get()?;
         connection.execute(
             "REFRESH MATERIALIZED VIEW CONCURRENTLY name_auction_entries",
             &[],
@@ -195,6 +195,7 @@ fn main() {
             (@arg daemonize: -d --daemonize "Daemonize the middleware process")
             (@arg protocols: -P --protocols "Populate protocols table and exit")
             (@arg heights: -H --("load-heights") +takes_value "Load specific heights, values separated by comma, ranges with from-to accepted")
+            (@arg transactions: -T --("transactions") + takes_value "Load specific transactions, values separated by comma")
             (@subcommand verify =>
                 (name: "verify")
                 (about: "Verify middleware DB integrity against the chain")
@@ -209,6 +210,7 @@ fn main() {
     let populate = matches.is_present("populate");
     let serve = matches.is_present("server");
     let heights = matches.is_present("heights");
+    let transactions = matches.is_present("transactions");
     let daemonize = matches.is_present("daemonize");
     let websocket = matches.is_present("websocket");
     let protocols = matches.is_present("protocols");
@@ -248,7 +250,7 @@ fn main() {
     }
 
     // Run migrations if populate or heights set
-    if populate || heights {
+    if populate || heights || transactions {
         let connection = PGCONNECTION.get().unwrap();
         let mut migration_output = Vec::new();
         let migration_result =
@@ -258,6 +260,12 @@ fn main() {
         }
         migration_result.unwrap();
         setup_protocols(url.clone());
+        info!("Updating materialized view for the first time, may take a while");
+        SQLCONNECTION
+            .get()
+            .unwrap()
+            .execute("select maybeUpdateNameAuctionEntries()", &[])
+            .unwrap();
         refresh_materialized_views().unwrap();
     }
 
@@ -271,6 +279,13 @@ fn main() {
         for h in range(&String::from(to_load)) {
             loader.load_blocks(h).unwrap();
         }
+    }
+
+    if transactions {
+        let to_load = matches.value_of("transactions").unwrap();
+        let loader = BlockLoader::new(url.clone());
+        let conn = loader::PGCONNECTION.get().unwrap();
+        for t in to_load.split(',') {}
     }
 
     let mut populate_thread: Option<JoinHandle<()>> = None;

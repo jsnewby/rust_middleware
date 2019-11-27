@@ -1001,7 +1001,7 @@ impl InsertableName {
 
 lazy_static! {
     pub static ref NAME_CONDVAR: Arc<(Mutex<bool>, Condvar)> =
-        { Arc::new((Mutex::new(true), Condvar::new())) };
+        { Arc::new((Mutex::new(false), Condvar::new())) };
 }
 
 #[derive(AsChangeset, Clone, Identifiable, Queryable, QueryableByName, Deserialize, Serialize)]
