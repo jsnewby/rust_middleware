@@ -442,7 +442,7 @@ impl BlockLoader {
                 if transaction.is_name_transaction() {
                     name_update_needed = true;
                     // have to return this because we're in a transaction and the materialized view
-                    // must update asynchronously (and only once for a key block).
+                    // must update asynchronously (and only once per key block).
                 }
             }
             count += 1;
