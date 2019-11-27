@@ -1440,14 +1440,11 @@ impl InsertableContractCall {
                 "backend".to_string(),
                 contract_identifier.get_backend().to_string(),
             );
-            params.insert(
-                "call-result".to_string(),
-                String::from(callinfo["return_value"].as_str()?),
-            );
+            params.insert("call-result".to_string(), "ok".to_string());
             debug!("returndata input: {:?}", params);
             let client = reqwest::Client::new();
             call_result = match client
-                .post(&format!("{}/decode-returndata/bytecode", url))
+                .post(&format!("{}/decode-call-result/bytecode", url))
                 .json(&params)
                 .send()
             {
