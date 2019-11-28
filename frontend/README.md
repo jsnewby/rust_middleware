@@ -1,4 +1,4 @@
-# Aepp Middleware Frontend
+# Aeternal Frontend
 
 ## Getting started
 
