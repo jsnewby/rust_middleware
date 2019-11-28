@@ -428,26 +428,41 @@ impl BlockLoader {
             let trans: JsonTransactionList =
                 serde_json::from_value(self.node.get_transaction_list_by_micro_block(&mb_hash)?)?;
             for transaction in trans.transactions {
-                let tx_id = self.store_or_update_transaction(
-                    &connection,
-                    &transaction,
-                    Some(_micro_block_id),
-                )?;
-                BlockLoader::update_auxiliary_tables(&connection, tx_id, &transaction)?;
-                debug!(
-                    "Is name tx: {:?}, {}",
-                    transaction.is_name_transaction(),
-                    transaction.tx["type"].as_str().unwrap()
-                );
+                name_update_needed = name_update_needed
+                    || self.save_transaction(connection, &transaction, _micro_block_id)?;
+            }
+            count += 1;
+        }
+        Ok((key_block_id, count, name_update_needed))
+    }
+
+    pub fn save_transaction(
+        &self,
+        connection: &PgConnection,
+        transaction: &JsonTransaction,
+        _micro_block_id: i32,
+    ) -> MiddlewareResult<bool> {
+        let mut name_update_needed = false;
+        let tx_id =
+            self.store_or_update_transaction(&connection, &transaction, Some(_micro_block_id))?;
+        diesel::sql_query("SAVEPOINT sp").execute(connection)?;
+        match BlockLoader::update_auxiliary_tables(&connection, tx_id, &transaction) {
+            Ok(_) => {
                 if transaction.is_name_transaction() {
                     name_update_needed = true;
                     // have to return this because we're in a transaction and the materialized view
                     // must update asynchronously (and only once per key block).
                 }
             }
-            count += 1;
+            Err(e) => {
+                error!("Error updating auxiliary tables for transaction with id: {} and hash: {}\n{:?}",
+                       tx_id, transaction.hash, e);
+                diesel::sql_query("ROLLBACK TO SAVEPOINT sp").execute(connection)?;
+                let sql = format!("UPDATE transactions SET valid=false WHERE id = {}", tx_id);
+                diesel::sql_query(sql).execute(connection)?;
+            }
         }
-        Ok((key_block_id, count, name_update_needed))
+        Ok(name_update_needed)
     }
 
     /*
@@ -541,6 +556,29 @@ impl BlockLoader {
         }
         Ok(())
     }
+
+    /**
+     * Given the hash of a transaction, delete it, request it again from the node, and
+     * update auxiliary tables (which will have had references removed b/c cascading deletes).
+     * All this inside a (database) transaction, which will be rolled back on error, leaving the
+     * state consistent.
+     * Returns -- true if 1 row was deleted, false otherwise.
+     */
+    pub fn reload_transaction_by_hash(
+        &self,
+        conn: &PgConnection,
+        _hash: &String,
+    ) -> MiddlewareResult<bool> {
+        let jt: JsonTransaction =
+            serde_json::from_value(self.node.get_transaction_by_hash(_hash).unwrap()).unwrap();
+        let mb = MicroBlock::load_for_hash(&conn, &jt.block_hash).unwrap();
+        Ok((*conn).transaction::<usize, MiddlewareError, _>(|| {
+            let deleted = Transaction::delete_for_hash(&conn, _hash);
+            self.save_transaction(&conn, &jt, mb.id)?;
+            deleted
+        })? == 1)
+    }
+
     /*
      * transactions in the mempool won't have a micro_block_id, so as we scan the chain we may
      * need to insert them, or update them with the id of the micro block with which they're
