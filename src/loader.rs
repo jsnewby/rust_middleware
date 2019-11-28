@@ -556,6 +556,29 @@ impl BlockLoader {
         }
         Ok(())
     }
+
+    /**
+     * Given the hash of a transaction, delete it, request it again from the node, and
+     * update auxiliary tables (which will have had references removed b/c cascading deletes).
+     * All this inside a (database) transaction, which will be rolled back on error, leaving the
+     * state consistent.
+     * Returns -- true if 1 row was deleted, false otherwise.
+     */
+    pub fn reload_transaction_by_hash(
+        &self,
+        conn: &PgConnection,
+        _hash: &String,
+    ) -> MiddlewareResult<bool> {
+        let jt: JsonTransaction =
+            serde_json::from_value(self.node.get_transaction_by_hash(_hash).unwrap()).unwrap();
+        let mb = MicroBlock::load_for_hash(&conn, &jt.block_hash).unwrap();
+        Ok((*conn).transaction::<usize, MiddlewareError, _>(|| {
+            let deleted = Transaction::delete_for_hash(&conn, _hash);
+            self.save_transaction(&conn, &jt, mb.id)?;
+            deleted
+        })? == 1)
+    }
+
     /*
      * transactions in the mempool won't have a micro_block_id, so as we scan the chain we may
      * need to insert them, or update them with the id of the micro block with which they're

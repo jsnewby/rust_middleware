@@ -73,7 +73,6 @@ pub mod server;
 pub mod websocket;
 
 pub use bigdecimal::BigDecimal;
-use diesel::Connection;
 use loader::BlockLoader;
 use middleware_result::MiddlewareResult;
 use server::MiddlewareServer;
@@ -286,18 +285,9 @@ fn main() {
         let to_load = matches.value_of("transactions").unwrap();
         let loader = BlockLoader::new(url.clone());
         let conn = loader::PGCONNECTION.get().unwrap();
-        let node = node::Node::new(url.clone());
         for t in to_load.split(',') {
-            let jt: crate::models::JsonTransaction =
-                serde_json::from_value(node.get_transaction_by_hash(&t.to_string()).unwrap())
-                    .unwrap();
-            let mb = models::MicroBlock::load_for_hash(&conn, &jt.block_hash).unwrap();
-            (*conn)
-                .transaction::<usize, middleware_result::MiddlewareError, _>(|| {
-                    let deleted = models::Transaction::delete_for_hash(&conn, &t.to_string());
-                    loader.save_transaction(&conn, &jt, mb.id)?;
-                    deleted
-                })
+            loader
+                .reload_transaction_by_hash(&conn, &String::from(t))
                 .unwrap();
         }
     }
