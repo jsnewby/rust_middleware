@@ -321,6 +321,11 @@ impl MicroBlock {
         }
         micro_block_hashes[0]
     }
+
+    pub fn load_for_hash(conn: &PgConnection, _hash: &String) -> MiddlewareResult<Self> {
+        use super::schema::micro_blocks::dsl::*;
+        Ok(micro_blocks.filter(hash.eq(_hash)).limit(1).first(conn)?)
+    }
 }
 
 #[derive(Insertable)]
@@ -444,6 +449,11 @@ impl Transaction {
     pub fn load_for_id(conn: &PgConnection, _id: i32) -> MiddlewareResult<Transaction> {
         use super::schema::transactions::dsl::*;
         Ok(transactions.filter(id.eq(_id)).limit(1).first(conn)?)
+    }
+
+    pub fn delete_for_hash(conn: &PgConnection, _hash: &String) -> MiddlewareResult<usize> {
+        use super::schema::transactions::dsl::*;
+        Ok(diesel::delete(transactions.filter(hash.eq(_hash))).execute(conn)?)
     }
 
     pub fn load_at_hash(conn: &PgConnection, _hash: &String) -> Option<Transaction> {
