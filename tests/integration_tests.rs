@@ -1,5 +1,6 @@
 extern crate aeternal;
 extern crate diesel;
+extern crate dotenv;
 #[macro_use]
 extern crate assert_json_diff;
 #[macro_use]
@@ -15,9 +16,11 @@ use diesel::sql_query;
 use diesel::BelongingToDsl;
 use diesel::ExpressionMethods;
 use diesel::RunQueryDsl;
+use dotenv::dotenv;
 use std::env;
 
 fn get_blockloader() -> BlockLoader {
+    dotenv().ok();
     let url = env::var("NODE_URL")
         .expect("NODE_URL must be set")
         .to_string();
@@ -45,6 +48,7 @@ pub fn test_contract_call() {
                       "arguments": [{"type": "string", "value": "testtest"}]});
     let result = json!({"data": {"type": "tuple", "value": []}});
     let cc = &calls[0];
+    println!("args:{:?} result:{:?}", args, result);
     assert_json_eq!(cc.arguments.clone(), args);
     assert_json_eq!(cc.result.clone().unwrap(), result);
 
