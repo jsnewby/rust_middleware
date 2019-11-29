@@ -1272,6 +1272,16 @@ fn status(_state: State<MiddlewareServer>) -> Response {
     let ok: bool = true
         && (queue_length as i64 <= max_queue_length)
         && (seconds_since_last_block < max_seconds);
+    let errors: i64 = SQLCONNECTION
+        .get()
+        .unwrap()
+        .query(
+            "SELECT COUNT(1) FROM transactions WHERE valid=FALSE AND block_height > $1",
+            &[&(_height as i32 - 500)],
+        )
+        .unwrap()
+        .get(0)
+        .get(0);
     let mut response = Response::build();
     response.status(Status::from_code(if ok { 200 } else { 503 }).unwrap());
     response.header(Header::new("content-type", "application/json"));
@@ -1281,6 +1291,7 @@ fn status(_state: State<MiddlewareServer>) -> Response {
             "seconds_since_last_block": seconds_since_last_block,
             "OK": ok,
             "version": version,
+            "errors_last_500_blocks": errors,
         })
         .to_string(),
     ));
