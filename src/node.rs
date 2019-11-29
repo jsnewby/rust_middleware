@@ -174,6 +174,11 @@ impl Node {
         Ok(result)
     }
 
+    pub fn get_transaction_by_hash(&self, hash: &String) -> MiddlewareResult<serde_json::Value> {
+        let result = self.get(&format!("transactions/{}", String::from(hash)))?;
+        Ok(result)
+    }
+
     pub fn get_micro_block_by_hash(&self, hash: &String) -> MiddlewareResult<serde_json::Value> {
         let result = self.get(&format!(
             "{}{}{}",
