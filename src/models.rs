@@ -875,7 +875,7 @@ impl ContractIdentifier {
 
     pub fn get_backend<'a>(&self) -> &'a str {
         match self.vm_version {
-            1..=4 => "sophia",
+            1..=4 => "aevm",
             5 => "fate",
             _ => "",
         }
@@ -1119,8 +1119,6 @@ impl Name {
 fn test_name_events() {
     let arc = &*NAME_CONDVAR;
     let (lock, _) = &*(*arc);
-    assert_eq!(*(lock.lock().unwrap()), true);
-    Name::wait_for_event().unwrap(); // starts ready
     assert_eq!(*(lock.lock().unwrap()), false);
     let handle = std::thread::spawn(|| {
         Name::wait_for_event().unwrap();
