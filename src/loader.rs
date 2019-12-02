@@ -428,8 +428,9 @@ impl BlockLoader {
             let trans: JsonTransactionList =
                 serde_json::from_value(self.node.get_transaction_list_by_micro_block(&mb_hash)?)?;
             for transaction in trans.transactions {
-                name_update_needed = name_update_needed
-                    || self.save_transaction(connection, &transaction, _micro_block_id)?;
+                let is_name_update =
+                    self.save_transaction(connection, &transaction, _micro_block_id)?;
+                name_update_needed = name_update_needed || is_name_update;
             }
             count += 1;
         }
