@@ -33,22 +33,36 @@ fn sanitize(s: &String) -> String {
     s.replace("'", "\\'")
 }
 
-fn check_object(s: &str) {
-    lazy_static! {
-        static ref OBJECT_REGEX: Regex = Regex::new(
-            "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{38,60}"
-        )
-        .unwrap();
+lazy_static! {
+    static ref OBJECT_REGEX: Regex = Regex::new(
+        "[a-z][a-z]_[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{38,60}"
+    )
+    .unwrap();
+}
+
+#[macro_export]
+macro_rules! http_error {
+    {$code:expr, $reason:expr} => {
+        return Err(Status::new($code, $reason));
     }
-    if !OBJECT_REGEX.is_match(s) {
-        panic!("Invalid input"); // be paranoid
-    };
+}
+
+#[macro_export]
+macro_rules! check_object {
+    {$object:expr} => {
+        if !OBJECT_REGEX.is_match($object) {
+            {
+                return Err(Status::new(400, "Invalid object"));
+            }
+        }
+    }
 }
 
 /*
  * Macro to do offset and limit inside a vector of results instead of in SQL.
  * If page is None then it defaults to 1.
  * Testing indicates that this is about 25% slower than LIMIT and OFFSET in SQL.
+ * NB: Update, with a release build this appears at least as fast as SQL.
 */
 #[macro_export]
 macro_rules! limit_page_vec {
@@ -309,8 +323,8 @@ fn key_block_at_hash(
 fn transactions_in_micro_block_at_hash(
     _state: State<MiddlewareServer>,
     hash: String,
-) -> Json<JsonTransactionList> {
-    check_object(&hash);
+) -> Result<Json<JsonTransactionList>, Status> {
+    check_object!(&hash);
     let sql = format!("select t.* from transactions t, micro_blocks m where t.micro_block_id = m.id and m.hash = '{}'", sanitize(&hash));
     let transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
@@ -319,9 +333,9 @@ fn transactions_in_micro_block_at_hash(
         .iter()
         .map(JsonTransaction::from_transaction)
         .collect();
-    Json(JsonTransactionList {
+    Ok(Json(JsonTransactionList {
         transactions: json_transactions,
-    })
+    }))
 }
 
 #[get("/micro-blocks/hash/<hash>/header", rank = 1)]
@@ -427,8 +441,11 @@ fn transaction_count_for_account(
     _state: State<MiddlewareServer>,
     account: String,
     txtype: Option<String>,
-) -> Json<JsonValue> {
-    check_object(&account);
+) -> Result<Json<JsonValue>, Status> {
+    if account.len() == 0 {
+        return Err(Status::new(400, "No account given"));
+    }
+    check_object!(&account);
     let s_acc = sanitize(&account);
     let txtype_sql: String = match txtype {
         Some(txtype) => format!(" '{}') and tx_type ilike '{}' ", s_acc, sanitize(&txtype)),
@@ -445,9 +462,9 @@ fn transaction_count_for_account(
     debug!("{}", sql);
     let rows = SQLCONNECTION.get().unwrap().query(&sql, &[]).unwrap();
     let count: i64 = rows.get(0).get(0);
-    Json(json!({
+    Ok(Json(json!({
         "count": count,
-    }))
+    })))
 }
 
 fn offset_limit(limit: Option<i32>, page: Option<i32>) -> (String, String) {
@@ -478,8 +495,8 @@ fn transactions_for_account(
     limit: Option<i32>,
     page: Option<i32>,
     txtype: Option<String>,
-) -> Json<Vec<JsonValue>> {
-    check_object(&account);
+) -> Result<Json<Vec<JsonValue>>, Status> {
+    check_object!(&account);
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let txtype_sql: String = match txtype {
@@ -544,7 +561,7 @@ LIMIT {} OFFSET {} "#,
             "tx": tx,
         }));
     }
-    Json(results)
+    Ok(Json(results))
 }
 
 /*
@@ -555,9 +572,9 @@ fn transactions_for_account_to_account(
     _state: State<MiddlewareServer>,
     sender: String,
     receiver: String,
-) -> Json<JsonTransactionList> {
-    check_object(&sender);
-    check_object(&receiver);
+) -> Result<Json<JsonTransactionList>, Status> {
+    check_object!(&sender);
+    check_object!(&receiver);
     let s_acc = sanitize(&sender);
     let r_acc = sanitize(&receiver);
     let sql = format!(
@@ -575,9 +592,9 @@ fn transactions_for_account_to_account(
         .iter()
         .map(JsonTransaction::from_transaction)
         .collect();
-    Json(JsonTransactionList {
+    Ok(Json(JsonTransactionList {
         transactions: json_transactions,
-    })
+    }))
 }
 
 /*
@@ -632,8 +649,8 @@ fn transactions_for_contract_address(
     address: String,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<JsonTransactionList> {
-    check_object(&address);
+) -> Result<Json<JsonTransactionList>, Status> {
+    check_object!(&address);
     let sql = format!(
         "select t.* from transactions t where \
          t.tx_type='ContractCallTx' and \
@@ -651,9 +668,9 @@ fn transactions_for_contract_address(
         .iter()
         .map(JsonTransaction::from_transaction)
         .collect();
-    Json(JsonTransactionList {
+    Ok(Json(JsonTransactionList {
         transactions: json_transactions,
-    })
+    }))
 }
 
 #[get("/contracts/calls/address/<address>?<limit>&<page>")]
@@ -662,8 +679,8 @@ fn calls_for_contract_address(
     address: String,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<Vec<JsonValue>> {
-    check_object(&address);
+) -> Result<Json<Vec<JsonValue>>, Status> {
+    check_object!(&address);
     let sql = "SELECT t.hash, contract_id, caller_id, arguments, callinfo, result FROM \
                contract_calls c join transactions t on t.id=c.transaction_id WHERE \
                contract_id = $1 ORDER BY t.block_height ASC";
@@ -690,7 +707,7 @@ fn calls_for_contract_address(
         }));
     }
     limit_page_vec!(limit, page, calls);
-    Json(calls)
+    Ok(Json(calls))
 }
 
 // TODO: Lot of refactoring in the below method
@@ -701,7 +718,7 @@ fn generations_by_range(
     to: i64,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<JsonValue> {
+) -> Result<Json<JsonValue>, Status> {
     let (offset, limit) = offset_limit(limit, page);
     let sql = format!(
         "select k.height, k.beneficiary, k.hash, k.miner, k.nonce::text, k.pow, \
@@ -819,19 +836,19 @@ fn generations_by_range(
         }
     }
 
-    Json(json!({
+    Ok(Json(json!({
         "total_transactions": tx_count,
         "total_micro_blocks": mb_count,
         "data": list
-    }))
+    })))
 }
 
 #[get("/channels/transactions/address/<address>")]
 fn transactions_for_channel_address(
     _state: State<MiddlewareServer>,
     address: String,
-) -> Json<JsonTransactionList> {
-    check_object(&address);
+) -> Result<Json<JsonTransactionList>, Status> {
+    check_object!(&address);
     let sql = format!(
         "select t.* from transactions t where \
          t.tx->>'channel_id' = '{}' or \
@@ -848,9 +865,9 @@ fn transactions_for_channel_address(
         .iter()
         .map(JsonTransaction::from_transaction)
         .collect();
-    Json(JsonTransactionList {
+    Ok(Json(JsonTransactionList {
         transactions: json_transactions,
-    })
+    }))
 }
 
 #[get("/channels/active")]
@@ -1098,9 +1115,9 @@ fn reverse_names(
     account: String,
     limit: Option<i32>,
     page: Option<i32>,
-) -> Json<Vec<Name>> {
+) -> Result<Json<Vec<Name>>, Status> {
     let connection = PGCONNECTION.get().unwrap();
-    check_object(&account);
+    check_object!(&account);
     let s_acc = sanitize(&account);
     let (offset_sql, limit_sql) = offset_limit(limit, page);
     let sql = format!(
@@ -1112,7 +1129,7 @@ fn reverse_names(
     );
     debug!("{}", sql);
     let names: Vec<Name> = sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    Json(names)
+    Ok(Json(names))
 }
 
 fn active_name_auctions_internal(
