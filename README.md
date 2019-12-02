@@ -177,10 +177,10 @@ Message format:
 - unsubscribe
 
 ### Supported payload:
-- key_blocks
-- micro_blocks
-- transactions
-- tx_update
+- KeyBlocks
+- MicroBlocks
+- Transactions
+- TxUpdate
 - object, which takes a further field, 'target'--see below
 
 ### Object subscriptions
@@ -192,11 +192,11 @@ You may subscribe to any æternity object type, and be sent all transactions whi
 Subscriptions return the array of subscriptions (possibly empty):
 ```
 {"op":"Subscribe", "payload": "KeyBlocks"}
-["key_blocks"]
+["KeyBlocks"]
 {"op":"Subscribe", "payload": "MicroBlocks"}
 ["KeyBlocks","MicroBlocks"]
 {"op":"Unsubscribe", "payload": "MicroBlocks"}
-["key_blocks"]
+["KeyBlocks"]
 {"op":"Subscribe", "payload": "Object", "target": "ak_2eid5UDLCVxNvqL95p9UtHmHQKbiFQahRfoo839DeQuBo8A3Qc"}
 ["KeyBlocks","MicroBlocks", "ak_nv5B93FPzRHrGNmMdTDfGdd5xGZvep3MVSpJqzcQmMp59bBCv"]
 
