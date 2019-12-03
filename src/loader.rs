@@ -517,6 +517,8 @@ impl BlockLoader {
                                     &transaction.tx["name"].as_str()?.to_string(),
                                 )?)
                             .into();
+                            name.owner = transaction.tx["account_id"].as_str()?.to_string();
+                            // owner is actually winning bidder as well...
                             name.update(connection)?;
                         } else {
                             error!("Couldn't load name {}", name);
