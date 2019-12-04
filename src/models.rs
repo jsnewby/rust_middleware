@@ -1305,7 +1305,7 @@ ORDER BY block_height DESC
         _name: String,
     ) -> MiddlewareResult<Vec<Transaction>> {
         let sql = format!(
-            "SELECT * FROM transactions WHERE tx_type='NameClaimTx' AND tx->>'name'='{}' AND block_height >= (SELECT MAX(block_height) FROM transactions WHERE tx_type= 'NameClaimTx' AND tx->>'name' = '{}') ORDER BY block_height DESC",
+            "SELECT * FROM transactions WHERE tx_type='NameClaimTx' AND tx->>'name' ILIKE '{}' AND block_height >= (SELECT MAX(block_height) FROM transactions WHERE tx_type= 'NameClaimTx' AND tx->>'name' ILIKE '{}' AND tx->>'name_salt'::text <> '0') ORDER BY block_height DESC",
             _name, _name,
         );
         Ok(sql_query(sql).get_results(connection)?)
