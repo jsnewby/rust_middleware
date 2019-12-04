@@ -1172,20 +1172,6 @@ impl Name {
         Some(_names.pop()?)
     }
 
-    pub fn owner_at_height(
-        connection: &PgConnection,
-        _name: &str,
-        _height: i64,
-    ) -> MiddlewareResult<Self> {
-        use schema::names::dsl::*;
-        let result = names
-            .filter(name.eq(_name))
-            .filter(created_at_height.le(_height))
-            .filter(expires_at.ge(_height))
-            .first::<Self>(connection)?;
-        Ok(result)
-    }
-
     pub fn reverse_name_at_height(
         _connection: &PgConnection,
         _account: &str,
