@@ -28,9 +28,9 @@ export const actions = {
     }
   },
 
-  getContractTx: async function ({ rootState: { nodeUrl }, commit }, contractId) {
+  getContractTx: async function ({ rootState: { nodeUrl }, commit }, { contract, page, limit }) {
     try {
-      const url = `${nodeUrl}/middleware/contracts/transactions/address/${contractId}`
+      const url = `${nodeUrl}/middleware/contracts/transactions/address/${contract}?limit=${limit}&page=${page}`
       const contractTx = await axios.get(url)
       console.info('MDW 🔗 ' + url)
       return contractTx.data.transactions
@@ -40,9 +40,9 @@ export const actions = {
       return { transactions: [] }
     }
   },
-  getContractCalls: async function ({ rootState: { nodeUrl }, commit }, contractId) {
+  getContractCalls: async function ({ rootState: { nodeUrl }, commit }, { contract, page, limit }) {
     try {
-      const url = `${nodeUrl}/middleware/contracts/calls/address/${contractId}`
+      const url = `${nodeUrl}/middleware/contracts/calls/address/${contract}?limit=${limit}&page=${page}`
       const contractCalls = await axios.get(url)
       console.info('MDW 🔗 ' + url)
       return contractCalls.data
