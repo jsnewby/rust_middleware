@@ -163,7 +163,7 @@ GET /v2/transactions/<hash>
 
 ## Websocket support
 
-The websocket is exposed by default on 0.0.0.0:3020 but can be overridden with the environment variable `WEBSOCKET_ADDRESS`.
+The websocket is exposed by default on 0.0.0.0:3020 but can be overridden with the environment variable `WEBSOCKET_ADDRESS`. On our hosted sites it is available as wss://mainnet.aeternal.io/websocket and wss://testnet.aeternal.io/webesocket, which are the recommended URLs.
 
 Message format:
 ```
