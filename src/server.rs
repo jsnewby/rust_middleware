@@ -652,6 +652,7 @@ fn transactions_for_contract_address(
 ) -> Result<Json<JsonTransactionList>, Status> {
     use std::cmp::Ordering;
     impl Ord for Transaction {
+        // this is to ensure that the ContractCreateTx is always first in the list.
         fn cmp(&self, other: &Self) -> Ordering {
             if self.tx["type"].as_str().unwrap() == "ContractCreateTx" {
                 return Ordering::Less;
