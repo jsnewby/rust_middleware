@@ -652,24 +652,24 @@ fn transactions_for_contract_address(
 ) -> Result<Json<JsonTransactionList>, Status> {
     use std::cmp::Ordering;
     impl Ord for Transaction {
-	fn cmp(&self, other: &Self) -> Ordering {
-	    if self.tx["type"].as_str().unwrap() == "ContractCreateTx" {
-		return Ordering::Less;
-	    }
-	    return self.block_height.cmp(&other.block_height);
-	}
+        fn cmp(&self, other: &Self) -> Ordering {
+            if self.tx["type"].as_str().unwrap() == "ContractCreateTx" {
+                return Ordering::Less;
+            }
+            return self.block_height.cmp(&other.block_height);
+        }
     }
-impl PartialOrd for Transaction {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+    impl PartialOrd for Transaction {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
     }
-}
 
-impl PartialEq for Transaction {
-    fn eq(&self, other: &Self) -> bool {
-        self.hash == other.hash
+    impl PartialEq for Transaction {
+        fn eq(&self, other: &Self) -> bool {
+            self.hash == other.hash
+        }
     }
-}
 
     impl Eq for Transaction {}
     check_object!(&address);
@@ -681,8 +681,7 @@ impl PartialEq for Transaction {
     );
     let mut transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    transactions
-	.sort_by(|a, b| a.cmp(&b));
+    transactions.sort_by(|a, b| a.cmp(&b));
     limit_page_vec!(limit, page, transactions);
     let json_transactions = transactions
         .iter()
