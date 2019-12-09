@@ -650,6 +650,28 @@ fn transactions_for_contract_address(
     limit: Option<i32>,
     page: Option<i32>,
 ) -> Result<Json<JsonTransactionList>, Status> {
+    use std::cmp::Ordering;
+    impl Ord for Transaction {
+	fn cmp(&self, other: &Self) -> Ordering {
+	    if self.tx["type"].as_str().unwrap() == "ContractCreateTx" {
+		return Ordering::Less;
+	    }
+	    return self.block_height.cmp(&other.block_height);
+	}
+    }
+impl PartialOrd for Transaction {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Transaction {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+    impl Eq for Transaction {}
     check_object!(&address);
     let sql = format!(
         r#"SELECT t.* FROM transactions t WHERE t.tx_type='ContractCallTx' AND t.tx->>'contract_id' = '{}' UNION SELECT t.* from transactions t JOIN contract_identifiers c ON t.id=c.transaction_id WHERE contract_identifier='{}';
@@ -659,7 +681,8 @@ fn transactions_for_contract_address(
     );
     let mut transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
-    transactions.sort_by(|a, b| a.block_height.cmp(&b.block_height));
+    transactions
+	.sort_by(|a, b| a.cmp(&b));
     limit_page_vec!(limit, page, transactions);
     let json_transactions = transactions
         .iter()
