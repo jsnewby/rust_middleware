@@ -95,7 +95,7 @@ fn test_limit_page_vec() {
     assert_eq!(call_olv(10, 1, &vec), vec!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9));
     assert_eq!(call_olv(5, 2, &vec), vec!(5, 6, 7, 8, 9));
     assert_eq!(call_olv(10, 4, &vec), vec!(30, 31));
-
+    assert_eq!(call_olv(1, 1, &vec), vec!(0));
     assert_eq!(call_olv(10, 1, &vec!(0, 1, 2, 3)), vec!(0, 1, 2, 3));
     let v: Vec<i32> = Vec::new();
     assert_eq!(call_olv(10, 2, &vec!(0, 1, 2, 3)), v);
@@ -652,17 +652,14 @@ fn transactions_for_contract_address(
 ) -> Result<Json<JsonTransactionList>, Status> {
     check_object!(&address);
     let sql = format!(
-        "select t.* from transactions t where \
-         t.tx_type='ContractCallTx' and \
-         t.tx->>'contract_id' = '{}' or \
-         t.id in (select transaction_id from contract_identifiers where \
-         contract_identifier='{}') ORDER by t.block_height ASC \
-         ",
+        r#"SELECT t.* FROM transactions t WHERE t.tx_type='ContractCallTx' AND t.tx->>'contract_id' = '{}' UNION SELECT t.* from transactions t JOIN contract_identifiers c ON t.id=c.transaction_id WHERE contract_identifier='{}';
+"#,
         sanitize(&address),
         sanitize(&address),
     );
     let mut transactions: Vec<Transaction> =
         sql_query(sql).load(&*PGCONNECTION.get().unwrap()).unwrap();
+    transactions.sort_by(|a, b| a.block_height.cmp(&b.block_height));
     limit_page_vec!(limit, page, transactions);
     let json_transactions = transactions
         .iter()
