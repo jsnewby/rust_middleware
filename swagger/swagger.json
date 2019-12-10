@@ -500,6 +500,48 @@
         }
       }
     },
+    "/names/auctions/{name}/info": {
+      "get": {
+        "description": "Get info in a given auction",
+        "operationId": "getAuctionInfo",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "The name to get info on"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
+    "/names/hash/{hash}": {
+      "get": {
+        "description": "Given a name hash, return the name and associated info",
+        "operationId": "getNameForHash",
+        "deprecated": false,
+        "produces": ["application/json"],
+        "parameters": [{
+          "name": "hash",
+          "in": "path",
+          "required": false,
+          "type": "string",
+          "description": "The hash of the name"
+        }],
+        "responses": {
+          "200": {
+            "description": "",
+            "headers": {}
+          }
+        }
+      }
+    },
     "/oracles/list": {
       "get": {
         "description": "Get a list of oracles",
